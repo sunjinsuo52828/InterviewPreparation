@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Reference Types & GC Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        
+        .controls {
+            background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex; gap: 15px; margin-bottom: 20px; align-items: center;
+        }
+        
+        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; transition: all 0.2s; }
+        .btn-gc { background: #e91e63; color: white; }
+        .btn-gc:hover { background: #c2185b; }
+        .btn-oom { background: #ff9800; color: white; }
+        .btn-oom:hover { background: #f57c00; }
+        .btn-reset { background: #607d8b; color: white; }
+        
+        .scene {
+            display: flex; gap: 50px; align-items: flex-start;
+            background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            min-height: 400px; width: 900px; position: relative;
+        }
+        
+        /* Areas */
+        .area-label { position: absolute; font-weight: bold; color: #aaa; text-transform: uppercase; letter-spacing: 1px; font-size: 12px; }
+        
+        .stack-area { width: 150px; display: flex; flex-direction: column; gap: 40px; border-right: 2px dashed #eee; padding-right: 20px; }
+        .heap-area { flex: 1; display: flex; flex-direction: column; gap: 40px; position: relative; }
+        .queue-area { width: 150px; border-left: 2px dashed #eee; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; }
+        
+        /* Elements */
+        .root {
+            width: 120px; height: 40px; background: #e3f2fd; border: 2px solid #2196f3;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 4px; font-weight: bold; color: #1565c0; z-index: 2;
+        }
+        
+        .object {
+            width: 100px; height: 100px; background: #e8f5e9; border: 2px solid #4caf50;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: #2e7d32; position: relative;
+            transition: all 0.5s; z-index: 1;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .object.dead { opacity: 0.3; transform: scale(0.8); filter: grayscale(100%); border-style: dashed; }
+        .object.collected { opacity: 0; transform: scale(0); }
+        
+        /* References (Lines) */
+        .ref-line {
+            position: absolute; height: 4px; transform-origin: left center; z-index: 0;
+            transition: all 0.3s;
+        }
+        .ref-strong { background: #2196f3; }
+        .ref-soft { background: #4caf50; border-top: 2px dashed #4caf50; background: transparent; height: 0; }
+        .ref-weak { background: #ffeb3b; border-top: 2px dotted #fbc02d; background: transparent; height: 0; }
+        .ref-phantom { background: #f44336; border-top: 2px dotted #d32f2f; background: transparent; height: 0; }
+        
+        /* Queue Items */
+        .queue-item {
+            padding: 8px; background: #fff3e0; border: 1px solid #ff9800; border-radius: 4px;
+            font-size: 12px; animation: slideIn 0.5s;
+        }
+        
+        @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        .info-panel {
+            margin-top: 20px; padding: 20px; background: #fff; border-radius: 8px; width: 900px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .info-title { font-weight: bold; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; }
+        .info-card { padding: 10px; border-radius: 4px; font-size: 13px; }
+        
+        .card-strong { background: #e3f2fd; border-left: 4px solid #2196f3; }
+        .card-soft { background: #e8f5e9; border-left: 4px solid #4caf50; }
+        .card-weak { background: #fffde7; border-left: 4px solid #fbc02d; }
+        .card-phantom { background: #ffebee; border-left: 4px solid #d32f2f; }
+
+        .status-bar {
+            margin-top: 10px; padding: 10px; background: #333; color: white; width: 900px; border-radius: 4px; font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Java Reference Types & GC <span style="font-size:14px; color:#777; font-weight:normal;">(Strong, Soft, Weak, Phantom)</span></h1>
+
+    <div class="controls">
+        <button class="btn-gc" onclick="runGC()">🗑️ Run System.gc()</button>
+        <button class="btn-oom" onclick="simulateOOM()">⚠️ Simulate OOM (Memory Full)</button>
+        <button class="btn-reset" onclick="reset()">🔄 Reset</button>
+        <div style="margin-left: 20px; font-size: 14px;">
+            Memory Status: <span id="memStatus" style="color:green; font-weight:bold;">Normal</span>
+        </div>
+    </div>
+
+    <div class="scene">
+        <div class="area-label" style="top:10px; left:10px;">Stack (GC Roots)</div>
+        <div class="area-label" style="top:10px; left:200px;">Heap (Objects)</div>
+        <div class="area-label" style="top:10px; right:10px;">Reference Queue</div>
+
+        <!-- Stack Roots -->
+        <div class="stack-area">
+            <div class="root" id="root1">Strong Ref</div>
+            <div class="root" id="root2">Soft Ref</div>
+            <div class="root" id="root3">Weak Ref</div>
+            <div class="root" id="root4">Phantom Ref</div>
+        </div>
+
+        <!-- Heap Objects -->
+        <div class="heap-area">
+            <div class="object" id="obj1">Object A</div>
+            <div class="object" id="obj2">Object B</div>
+            <div class="object" id="obj3">Object C</div>
+            <div class="object" id="obj4">Object D</div>
+        </div>
+
+        <!-- Reference Queue -->
+        <div class="queue-area" id="refQueue">
+            <!-- Queue items go here -->
+        </div>
+
+        <!-- Connecting Lines (SVG) -->
+        <svg style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0;">
+            <!-- Strong -->
+            <line id="line1" x1="150" y1="60" x2="240" y2="60" stroke="#2196f3" stroke-width="4" />
+            <!-- Soft -->
+            <line id="line2" x1="150" y1="160" x2="240" y2="160" stroke="#4caf50" stroke-width="3" stroke-dasharray="5,5" />
+            <!-- Weak -->
+            <line id="line3" x1="150" y1="260" x2="240" y2="260" stroke="#fbc02d" stroke-width="3" stroke-dasharray="2,2" />
+            <!-- Phantom -->
+            <line id="line4" x1="150" y1="360" x2="240" y2="360" stroke="#d32f2f" stroke-width="3" stroke-dasharray="1,4" />
+        </svg>
+    </div>
+
+    <div class="status-bar" id="console">
+        > System ready. Click 'Run GC' to start.
+    </div>
+
+    <div class="info-panel">
+        <div class="info-title">Reference Types Cheat Sheet</div>
+        <div class="info-grid">
+            <div class="info-card card-strong">
+                <strong>Strong Reference</strong><br>
+                <code>new Object()</code><br>
+                Never collected by GC as long as root exists. Standard assignment.
+            </div>
+            <div class="info-card card-soft">
+                <strong>Soft Reference</strong><br>
+                <code>SoftReference&lt;T&gt;</code><br>
+                Collected ONLY if memory is full (OOM). Useful for <strong>Caches</strong>.
+            </div>
+            <div class="info-card card-weak">
+                <strong>Weak Reference</strong><br>
+                <code>WeakReference&lt;T&gt;</code><br>
+                Collected on <strong>NEXT GC</strong>. Useful for <strong>WeakHashMap</strong> / Metadata.
+            </div>
+            <div class="info-card card-phantom">
+                <strong>Phantom Reference</strong><br>
+                <code>PhantomReference&lt;T&gt;</code><br>
+                Collected immediately, but puts reference in Queue. Used for <strong>Cleanup</strong> (DirectMemory).
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isOOM = false;
+        let collected = { strong: false, soft: false, weak: false, phantom: false };
+
+        function log(msg) {
+            const c = document.getElementById('console');
+            c.innerText = '> ' + msg;
+        }
+
+        function simulateOOM() {
+            isOOM = true;
+            document.getElementById('memStatus').innerText = "CRITICAL (OOM)";
+            document.getElementById('memStatus').style.color = "red";
+            log("Memory is full! Next GC will be aggressive.");
+        }
+
+        function runGC() {
+            log("GC Started... Scanning Heap...");
+            
+            // 1. Strong Reference (Object A)
+            // Never collected if root exists
+            
+            // 2. Soft Reference (Object B)
+            if (isOOM && !collected.soft) {
+                collectObject('obj2', 'line2', 'Soft Reference cleared due to OOM.');
+                collected.soft = true;
+            } else if (!collected.soft) {
+                log("GC: Soft Reference (Obj B) survived (Memory is sufficient).");
+            }
+
+            // 3. Weak Reference (Object C)
+            if (!collected.weak) {
+                collectObject('obj3', 'line3', 'Weak Reference collected immediately.');
+                collected.weak = true;
+            }
+
+            // 4. Phantom Reference (Object D)
+            if (!collected.phantom) {
+                collectObject('obj4', 'line4', 'Phantom Reference collected.');
+                addToQueue("PhantomRef(Obj D)");
+                collected.phantom = true;
+            }
+            
+            if (!isOOM && !collected.soft) {
+                setTimeout(() => log("GC Finished. Weak/Phantom collected. Strong/Soft survived."), 1000);
+            } else {
+                setTimeout(() => log("GC Finished. Aggressive collection completed."), 1000);
+            }
+        }
+
+        function collectObject(objId, lineId, msg) {
+            const obj = document.getElementById(objId);
+            const line = document.getElementById(lineId);
+            
+            obj.classList.add('dead');
+            line.style.opacity = '0.2';
+            
+            setTimeout(() => {
+                obj.classList.add('collected');
+                if(msg) log(msg);
+            }, 800);
+        }
+
+        function addToQueue(text) {
+            const q = document.getElementById('refQueue');
+            const item = document.createElement('div');
+            item.className = 'queue-item';
+            item.innerText = "Enqueued: " + text;
+            q.appendChild(item);
+        }
+
+        function reset() {
+            isOOM = false;
+            collected = { strong: false, soft: false, weak: false, phantom: false };
+            
+            document.getElementById('memStatus').innerText = "Normal";
+            document.getElementById('memStatus').style.color = "green";
+            document.getElementById('refQueue').innerHTML = '';
+            
+            ['obj1', 'obj2', 'obj3', 'obj4'].forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('dead', 'collected');
+            });
+            
+            ['line1', 'line2', 'line3', 'line4'].forEach(id => {
+                document.getElementById(id).style.opacity = '1';
+            });
+            
+            log("System reset.");
+        }
+    </script>
+</body>
+</html>

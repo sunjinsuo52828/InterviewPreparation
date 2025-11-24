@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZGC Visualization: Colored Pointers & Load Barriers</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; }
+        .container { display: flex; gap: 20px; align-items: flex-start; }
+        
+        .canvas-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        svg { border: 1px solid #eee; background: #fafafa; }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: #2196f3;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover { background: #1976d2; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        button.action-btn { background: #ff9800; }
+        button.action-btn:hover { background: #f57c00; }
+
+        .info-panel {
+            width: 320px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .phase-indicator {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2196f3;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .log-box {
+            height: 200px;
+            overflow-y: auto;
+            background: #263238;
+            color: #cfd8dc;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #37474f; padding-bottom: 2px; }
+        .highlight { color: #ffeb3b; font-weight: bold; }
+
+        /* ZGC Specific Styles */
+        .page-label { font-size: 12px; fill: #777; font-weight: bold; }
+        .obj-rect { stroke: #333; stroke-width: 2px; transition: all 0.5s; }
+        .obj-text { font-size: 14px; fill: white; font-weight: bold; pointer-events: none; }
+        .ptr-line { stroke-width: 3px; fill: none; marker-end: url(#arrow); transition: stroke 0.3s; }
+        
+        /* Pointer Colors (Simulating Bits) */
+        .ptr-bad { stroke: #e53935; } /* Red - Wrong Color */
+        .ptr-good { stroke: #43a047; } /* Green - Correct Color */
+        .ptr-remapped { stroke: #1e88e5; } /* Blue - Remapped */
+
+        .legend { margin-top: 15px; font-size: 13px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+        .color-box { width: 15px; height: 15px; border-radius: 3px; }
+
+    </style>
+</head>
+<body>
+
+    <h1>ZGC: Colored Pointers & Load Barriers</h1>
+
+    <div class="container">
+        <div class="canvas-container">
+            <svg width="600" height="450" id="zgcSvg">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#555" />
+                    </marker>
+                </defs>
+                <!-- Pages -->
+                <rect x="50" y="50" width="200" height="350" fill="#f1f8e9" stroke="#c5e1a5" rx="10" />
+                <text x="60" y="75" class="page-label">Page 1 (From-Space)</text>
+
+                <rect x="350" y="50" width="200" height="350" fill="#e3f2fd" stroke="#90caf9" rx="10" />
+                <text x="360" y="75" class="page-label">Page 2 (To-Space)</text>
+
+                <g id="objects-layer"></g>
+                <g id="pointers-layer"></g>
+            </svg>
+
+            <div class="controls">
+                <button onclick="nextPhase()" id="btn-phase">Next Phase</button>
+                <button onclick="accessReference()" class="action-btn" id="btn-read" disabled>👁 Read Ref (Load Barrier)</button>
+                <button onclick="resetSim()">↺ Reset</button>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="phase-indicator" id="phase-display">Phase: Idle</div>
+            
+            <div id="explanation">
+                ZGC uses <strong>Colored Pointers</strong>. The state of the GC is stored in the reference bits, not just the object header.<br><br>
+                <strong>Key Concept: Load Barrier</strong><br>
+                When the application reads a reference, ZGC checks the color bits. If they are "Bad", it fixes the reference (Remap/Mark) before returning it. This is "Self-Healing".
+            </div>
+
+            <div class="legend">
+                <strong>Pointer Colors (Bits):</strong>
+                <div class="legend-item"><div class="color-box" style="background:#43a047;"></div> Good Color (Safe)</div>
+                <div class="legend-item"><div class="color-box" style="background:#e53935;"></div> Bad Color (Needs Barrier)</div>
+                <div class="legend-item"><div class="color-box" style="background:#1e88e5;"></div> Remapped (Fixed)</div>
+            </div>
+
+            <div class="log-box" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const svg = document.getElementById('zgcSvg');
+        const objectsLayer = document.getElementById('objects-layer');
+        const pointersLayer = document.getElementById('pointers-layer');
+        const logBox = document.getElementById('log');
+        const phaseDisplay = document.getElementById('phase-display');
+        const btnRead = document.getElementById('btn-read');
+        const btnPhase = document.getElementById('btn-phase');
+
+        // ZGC State
+        let phase = 0; // 0: Idle, 1: Mark Start, 2: Concurrent Mark, 3: Relocate Start, 4: Concurrent Relocate
+        const PHASES = [
+            "Idle (Allocated)", 
+            "Pause Mark Start (Roots)", 
+            "Concurrent Mark", 
+            "Pause Relocate Start", 
+            "Concurrent Relocate (Remap)"
+        ];
+
+        // Objects
+        // We simulate: Root -> A -> B
+        let objects = [
+            { id: 'A', x: 100, y: 150, page: 1, color: '#795548', movedTo: null },
+            { id: 'B', x: 100, y: 250, page: 1, color: '#607d8b', movedTo: null }
+        ];
+
+        // References (Pointers)
+        // colorStatus: 'good', 'bad'
+        let rootRef = { targetId: 'A', colorStatus: 'good' }; 
+        let refAtoB = { sourceId: 'A', targetId: 'B', colorStatus: 'good' };
+
+        // Global "Good" Color View
+        // In ZGC, the "Good" mask changes between phases (Marked0, Marked1, Remapped)
+        // We simplify: 
+        // Phase 0: Good
+        // Phase 1 (Mark): Old pointers become BAD. We need to mark them GOOD.
+        // Phase 3 (Relocate): Pointers to From-Space become BAD. We need to Remap them.
+
+        function log(msg, highlight=false) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            if(highlight) div.classList.add('highlight');
+            div.innerHTML = `> ${msg}`;
+            logBox.appendChild(div);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function render() {
+            objectsLayer.innerHTML = '';
+            pointersLayer.innerHTML = '';
+
+            // Draw Objects
+            objects.forEach(obj => {
+                // If object moved, draw a "ghost" in old place if we are in relocation
+                if (obj.movedTo && phase >= 3) {
+                    // Draw Forwarding Table Entry (Ghost)
+                    const ghost = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    ghost.setAttribute("x", obj.x);
+                    ghost.setAttribute("y", obj.y);
+                    ghost.setAttribute("width", 60);
+                    ghost.setAttribute("height", 40);
+                    ghost.setAttribute("fill", "#e0e0e0");
+                    ghost.setAttribute("stroke", "#999");
+                    ghost.setAttribute("stroke-dasharray", "4");
+                    ghost.setAttribute("rx", 5);
+                    objectsLayer.appendChild(ghost);
+                    
+                    const fwdText = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    fwdText.setAttribute("x", obj.x + 30);
+                    fwdText.setAttribute("y", obj.y + 25);
+                    fwdText.setAttribute("text-anchor", "middle");
+                    fwdText.setAttribute("font-size", "10");
+                    fwdText.setAttribute("fill", "#777");
+                    fwdText.textContent = "Fwd ->";
+                    objectsLayer.appendChild(fwdText);
+                }
+
+                // Draw Actual Object (or Moved Object)
+                // If moved, we draw the new one. If not moved, draw current.
+                // But wait, in ZGC, the object physically moves.
+                // For visualization, let's keep 'obj' as the logical object, but update its coordinates if moved.
+                
+                let drawX = obj.x;
+                let drawY = obj.y;
+                let opacity = 1;
+
+                if (obj.movedTo) {
+                    drawX = obj.movedTo.x;
+                    drawY = obj.movedTo.y;
+                }
+
+                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                rect.setAttribute("x", drawX);
+                rect.setAttribute("y", drawY);
+                rect.setAttribute("width", 60);
+                rect.setAttribute("height", 40);
+                rect.setAttribute("fill", obj.color);
+                rect.setAttribute("class", "obj-rect");
+                rect.setAttribute("rx", 5);
+                
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", drawX + 30);
+                text.setAttribute("y", drawY + 25);
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("class", "obj-text");
+                text.textContent = obj.id;
+
+                objectsLayer.appendChild(rect);
+                objectsLayer.appendChild(text);
+            });
+
+            // Draw Root Pointer
+            drawPointer(300, 20, rootRef, "Root");
+
+            // Draw A -> B Pointer
+            // We need to find where A is currently located to draw the start of the line
+            const objA = objects.find(o => o.id === 'A');
+            let startX = objA.movedTo ? objA.movedTo.x : objA.x;
+            let startY = objA.movedTo ? objA.movedTo.y : objA.y;
+            
+            // The pointer itself (the bits) might still point to the OLD address of B
+            // If refAtoB is 'bad' (pointing to old B), we draw line to old B.
+            // If refAtoB is 'good' (remapped), we draw line to new B.
+            
+            drawPointer(startX + 30, startY + 40, refAtoB, "child");
+        }
+
+        function drawPointer(sx, sy, ref, label) {
+            const targetObj = objects.find(o => o.id === ref.targetId);
+            if(!targetObj) return;
+
+            let tx, ty;
+            
+            // Logic: Where does the pointer point?
+            // If the object has moved, BUT the reference hasn't been fixed (Bad Color), it points to OLD location.
+            // If reference is fixed (Good Color), it points to NEW location.
+            
+            if (targetObj.movedTo && ref.colorStatus === 'bad') {
+                // Points to old location (Forwarding pointer)
+                tx = targetObj.x + 30;
+                ty = targetObj.y;
+            } else if (targetObj.movedTo && ref.colorStatus === 'good') {
+                // Points to new location
+                tx = targetObj.movedTo.x + 30;
+                ty = targetObj.movedTo.y;
+            } else {
+                // Not moved
+                tx = targetObj.x + 30;
+                ty = targetObj.y;
+            }
+
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", sx);
+            line.setAttribute("y1", sy);
+            line.setAttribute("x2", tx);
+            line.setAttribute("y2", ty);
+            
+            let strokeColor = "#43a047"; // Good
+            if (ref.colorStatus === 'bad') strokeColor = "#e53935";
+            
+            line.setAttribute("stroke", strokeColor);
+            line.setAttribute("class", "ptr-line");
+            line.setAttribute("marker-end", "url(#arrow)"); // Simplified marker color
+            
+            pointersLayer.appendChild(line);
+        }
+
+        function nextPhase() {
+            phase++;
+            if (phase >= PHASES.length) phase = 0; // Loop or Stop? Let's loop for demo.
+            
+            phaseDisplay.textContent = `Phase ${phase}: ${PHASES[phase]}`;
+            
+            if (phase === 0) {
+                resetSim();
+                return;
+            }
+
+            if (phase === 1) {
+                // Pause Mark Start
+                // Global "Good" color changes. All existing pointers become "Bad" (Wrong Color).
+                log("GC Cycle Start. Global Color Flip!", true);
+                log("All pointers are now 'Bad Color' (need marking).");
+                rootRef.colorStatus = 'bad';
+                refAtoB.colorStatus = 'bad';
+                
+                // Mark Roots immediately (Pause)
+                log("Scanning Roots... Root->A marked Good.");
+                rootRef.colorStatus = 'good'; 
+            }
+            else if (phase === 2) {
+                // Concurrent Mark
+                log("Concurrent Mark running...");
+                log("GC Thread traverses graph. Fixing A->B color.");
+                // Simulate GC thread fixing the pointer
+                setTimeout(() => {
+                    refAtoB.colorStatus = 'good';
+                    render();
+                    log("Marking complete. All live objects marked.");
+                }, 1000);
+            }
+            else if (phase === 3) {
+                // Pause Relocate Start
+                log("Relocation Start. Page 1 selected for evacuation.", true);
+                // We decide to move A and B to Page 2.
+                // Roots are updated immediately to point to new location.
+                
+                // Move A
+                objects[0].movedTo = { x: 400, y: 150 };
+                // Move B
+                objects[1].movedTo = { x: 400, y: 250 };
+                
+                // Fix Root immediately
+                log("Root updated to point to A' (New Address).");
+                // Root is good because we just fixed it.
+                rootRef.colorStatus = 'good'; 
+                
+                // BUT! A->B is inside A. We haven't scanned A's fields yet to fix them.
+                // So A->B points to OLD B.
+                // And since we switched phases (Remap phase), the color mapping might change again, 
+                // but for simplicity, let's say it points to "Old Address" which is now invalid/forwarded.
+                refAtoB.colorStatus = 'bad'; 
+                
+                log("Objects moved. Forwarding tables created.");
+                log("Note: A->B still points to OLD B (Bad Pointer).");
+                
+                btnRead.disabled = false; // Enable Load Barrier demo
+            }
+            else if (phase === 4) {
+                // Concurrent Relocate / Remap
+                log("Concurrent Relocate/Remap running...");
+                log("GC thread is walking objects to fix pointers, OR application can fix them via Load Barriers.");
+                log("Try clicking 'Read Ref' to trigger a Load Barrier!");
+            }
+
+            render();
+        }
+
+        function accessReference() {
+            // Simulate reading A.child (which is B)
+            log("Application tries to read A.child...", true);
+            
+            if (refAtoB.colorStatus === 'bad') {
+                log("⚠️ LOAD BARRIER TRAP!");
+                log("1. Pointer color is Bad / Points to From-Space.");
+                log("2. Look up Forwarding Table for B.");
+                log("3. Found new address B'.");
+                log("4. Update A.child = B' (Self-Healing).");
+                
+                refAtoB.colorStatus = 'good';
+                render();
+                
+                log("✅ Reference fixed. Returning B'.");
+            } else {
+                log("Pointer is Good. Fast path read.");
+            }
+        }
+
+        function resetSim() {
+            phase = 0;
+            phaseDisplay.textContent = `Phase ${phase}: ${PHASES[phase]}`;
+            objects.forEach(o => o.movedTo = null);
+            rootRef.colorStatus = 'good';
+            refAtoB.colorStatus = 'good';
+            btnRead.disabled = true;
+            logBox.innerHTML = '';
+            log("Reset complete.", true);
+            render();
+        }
+
+        // Init
+        render();
+        log("Ready. Click 'Next Phase' to start ZGC cycle.");
+
+    </script>
+</body>
+</html>

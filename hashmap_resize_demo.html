@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HashMap Resize: The "Magic Bit" Visualizer</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 800px; width: 100%; }
+        
+        .row { display: flex; align-items: center; margin-bottom: 10px; font-family: monospace; font-size: 18px; }
+        .label { width: 150px; font-weight: bold; color: #555; }
+        .bits { display: flex; gap: 4px; }
+        .bit { 
+            width: 30px; height: 35px; 
+            display: flex; align-items: center; justify-content: center; 
+            background: #eee; border: 1px solid #ccc; 
+            border-radius: 4px;
+        }
+        .bit.one { background: #e3f2fd; color: #1565c0; font-weight: bold; }
+        
+        /* The Magic Bit Style */
+        .bit.magic { border: 2px solid #ff9800; position: relative; }
+        .bit.magic::after {
+            content: '▲'; position: absolute; bottom: -20px; color: #ff9800; font-size: 12px;
+        }
+        
+        .mask-bit { background: #e8f5e9; color: #2e7d32; }
+        
+        .result-panel {
+            margin-top: 30px;
+            padding: 20px;
+            background: #fff3e0;
+            border-left: 5px solid #ff9800;
+            border-radius: 4px;
+        }
+        
+        button { padding: 8px 16px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; }
+        button:hover { background: #005fa3; }
+        
+        .highlight { color: #d32f2f; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>HashMap Resize: Which Bit Matters?</h1>
+    <p>Visualizing expansion from Capacity 16 to 32.</p>
+
+    <div class="container">
+        <div style="margin-bottom: 20px; text-align: center;">
+            <button onclick="generateRandomHash()">Generate Random Hash</button>
+        </div>
+
+        <!-- Hash Binary -->
+        <div class="row">
+            <div class="label">Hash Code:</div>
+            <div class="bits" id="hashBits"></div>
+        </div>
+        <div style="font-size: 12px; color: #888; margin-left: 150px; margin-bottom: 20px;">
+            (Bit 4 is the "Resize Bit" for Cap 16)
+        </div>
+
+        <div style="border-top: 1px dashed #ccc; margin: 20px 0;"></div>
+
+        <!-- Old Calculation -->
+        <div class="row">
+            <div class="label">Old Cap (16):</div>
+            <div style="margin-left: 5px;">Index = Hash & 15 (01111)</div>
+        </div>
+        <div class="row">
+            <div class="label">Old Index:</div>
+            <div id="oldIndexDisplay" class="highlight"></div>
+        </div>
+
+        <div style="border-top: 1px dashed #ccc; margin: 20px 0;"></div>
+
+        <!-- New Calculation -->
+        <div class="row">
+            <div class="label">New Cap (32):</div>
+            <div style="margin-left: 5px;">Index = Hash & 31 (11111)</div>
+        </div>
+        
+        <!-- The Check -->
+        <div class="result-panel">
+            <h3>The "Zero Calculation" Check:</h3>
+            <p>Instead of recalculating <code>Hash % 32</code>, we just check <strong>Bit 4</strong> (Value 16).</p>
+            <div id="checkResult"></div>
+        </div>
+    </div>
+
+    <script>
+        function toBinArray(num) {
+            let arr = [];
+            for(let i=7; i>=0; i--) {
+                arr.push((num >>> i) & 1);
+            }
+            return arr;
+        }
+
+        function generateRandomHash() {
+            const hash = Math.floor(Math.random() * 255);
+            render(hash);
+        }
+
+        function render(hash) {
+            const bitsContainer = document.getElementById('hashBits');
+            bitsContainer.innerHTML = '';
+            
+            const bits = toBinArray(hash);
+            
+            // Render bits (showing last 8 bits for simplicity)
+            bits.forEach((b, i) => {
+                const div = document.createElement('div');
+                div.className = 'bit ' + (b ? 'one' : '');
+                div.innerText = b;
+                
+                // Bit 4 (from right) is index 3 in our 8-bit array (7,6,5,4,3,2,1,0)
+                // 16 = 10000 (5th bit from right, index 4)
+                // Wait, 16 is 2^4. 
+                // 0-indexed: 0,1,2,3 are mask 15. Bit 4 is 16.
+                // In array of size 8: [7, 6, 5, 4, 3, 2, 1, 0]
+                // Bit 4 is at index 3.
+                if (i === 3) {
+                    div.classList.add('magic');
+                    div.title = "This is the bit representing 16 (Old Capacity)";
+                }
+                
+                bitsContainer.appendChild(div);
+            });
+
+            // Calculations
+            const oldCap = 16;
+            const oldIndex = hash & (oldCap - 1); // hash & 15
+            const newIndex = hash & ((oldCap * 2) - 1); // hash & 31
+            
+            document.getElementById('oldIndexDisplay').innerText = oldIndex;
+            
+            const isBitOne = (hash & oldCap) !== 0;
+            
+            const resultDiv = document.getElementById('checkResult');
+            if (isBitOne) {
+                resultDiv.innerHTML = `
+                    <div style="color: #d32f2f; font-size: 18px;">Bit 4 is <strong>1</strong></div>
+                    <p>Result: Move to <strong>OldIndex + 16</strong></p>
+                    <p>New Index = ${oldIndex} + 16 = <strong>${newIndex}</strong></p>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div style="color: #2e7d32; font-size: 18px;">Bit 4 is <strong>0</strong></div>
+                    <p>Result: Stay at <strong>OldIndex</strong></p>
+                    <p>New Index = <strong>${newIndex}</strong></p>
+                `;
+            }
+        }
+
+        // Init
+        render(21); // Example: 21 (10101) -> Bit 4 is 1. Old=5, New=21.
+    </script>
+</body>
+</html>

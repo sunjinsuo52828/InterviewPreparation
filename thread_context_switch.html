@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thread Context Switching Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        
+        .container { display: flex; gap: 40px; align-items: flex-start; }
+        
+        .cpu-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 250px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 2px solid #333;
+        }
+
+        .ram-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .tcb-box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            width: 220px;
+            border: 2px solid #ccc;
+            transition: all 0.3s;
+        }
+        .tcb-box.active { border-color: #2196f3; background: #e3f2fd; transform: scale(1.02); }
+
+        .register-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 2px;
+        }
+        .reg-name { font-weight: bold; color: #555; }
+        .reg-val { color: #d32f2f; font-weight: bold; }
+
+        .code-box {
+            font-family: monospace;
+            background: #263238;
+            color: #eceff1;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            height: 100px;
+            overflow: hidden;
+            margin-top: 10px;
+            width: 100%;
+        }
+        .code-line { padding: 2px 5px; }
+        .code-line.current { background: #37474f; color: #ffeb3b; }
+
+        .controls { margin-top: 20px; display: flex; gap: 10px; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; background: #007acc; color: white; cursor: pointer; font-weight: bold; }
+        button:hover { background: #005fa3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        .status-bar {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #fff;
+            border-radius: 20px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            min-width: 300px;
+            text-align: center;
+        }
+
+        /* Animation Elements */
+        .transfer-anim {
+            position: absolute;
+            background: #ff9800;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: black; }
+        .qa-item { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .qa-q { font-weight: bold; color: #0d47a1; margin-bottom: 5px; }
+        .qa-a { font-size: 13px; color: #444; line-height: 1.4; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Thread Context Switching <button onclick="openModal()" style="font-size:12px; padding:5px 10px; margin-left:10px; background:#673ab7;">🎓 Interview Q&A</button></h1>
+
+    <div class="status-bar" id="status">Current State: Thread A Running</div>
+
+    <div class="container">
+        <!-- CPU -->
+        <div class="cpu-section">
+            <h3>CPU Core</h3>
+            <div class="register-row"><span class="reg-name">PC (Instruction):</span> <span class="reg-val" id="cpu-pc">0x100</span></div>
+            <div class="register-row"><span class="reg-name">SP (Stack Ptr):</span> <span class="reg-val" id="cpu-sp">0x5000</span></div>
+            <div class="register-row"><span class="reg-name">RAX (Accumulator):</span> <span class="reg-val" id="cpu-rax">10</span></div>
+            <div class="register-row"><span class="reg-name">RBX (Base):</span> <span class="reg-val" id="cpu-rbx">20</span></div>
+            
+            <div class="code-box" id="cpu-code">
+                <div class="code-line current">MOV RAX, 10</div>
+                <div class="code-line">ADD RAX, 5</div>
+                <div class="code-line">MOV RBX, RAX</div>
+                <div class="code-line">PUSH RBX</div>
+            </div>
+        </div>
+
+        <!-- RAM / TCBs -->
+        <div class="ram-section">
+            <!-- TCB A -->
+            <div class="tcb-box active" id="tcb-a">
+                <h4>TCB: Thread A (ID: 1)</h4>
+                <div class="register-row"><span class="reg-name">PC:</span> <span class="reg-val" id="tcb-a-pc">0x100</span></div>
+                <div class="register-row"><span class="reg-name">SP:</span> <span class="reg-val" id="tcb-a-sp">0x5000</span></div>
+                <div class="register-row"><span class="reg-name">RAX:</span> <span class="reg-val" id="tcb-a-rax">10</span></div>
+                <div class="register-row"><span class="reg-name">RBX:</span> <span class="reg-val" id="tcb-a-rbx">20</span></div>
+                <div style="font-size:12px; color:#777; margin-top:5px;">State: <span id="state-a" style="color:green; font-weight:bold;">RUNNING</span></div>
+            </div>
+
+            <!-- TCB B -->
+            <div class="tcb-box" id="tcb-b">
+                <h4>TCB: Thread B (ID: 2)</h4>
+                <div class="register-row"><span class="reg-name">PC:</span> <span class="reg-val" id="tcb-b-pc">0x200</span></div>
+                <div class="register-row"><span class="reg-name">SP:</span> <span class="reg-val" id="tcb-b-sp">0x8000</span></div>
+                <div class="register-row"><span class="reg-name">RAX:</span> <span class="reg-val" id="tcb-b-rax">99</span></div>
+                <div class="register-row"><span class="reg-name">RBX:</span> <span class="reg-val" id="tcb-b-rbx">55</span></div>
+                <div style="font-size:12px; color:#777; margin-top:5px;">State: <span id="state-b" style="color:orange; font-weight:bold;">READY</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="runStep()" id="btn-step">▶ Execute Step</button>
+        <button onclick="contextSwitch()" id="btn-switch" style="background:#e91e63;">⚡ Context Switch</button>
+        <button onclick="resetSim()" style="background:#78909c;">Reset</button>
+    </div>
+
+    <div id="anim-el" class="transfer-anim">Data</div>
+
+    <!-- Interview Modal -->
+    <div id="qaModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 style="margin-top:0; color:#333;">🔥 Context Switching Interview Q&A</h2>
+            
+            <div class="qa-item">
+                <div class="qa-q">Q1: What is a Context Switch?</div>
+                <div class="qa-a">It's the process of storing the state (Context) of the currently running thread so that it can be resumed later, and restoring the state of a different thread to run.</div>
+            </div>
+            
+            <div class="qa-item">
+                <div class="qa-q">Q2: What exactly is saved in the Context?</div>
+                <div class="qa-a">
+                    The <strong>TCB (Thread Control Block)</strong> stores:
+                    <ul>
+                        <li><strong>Program Counter (PC):</strong> The address of the next instruction to execute.</li>
+                        <li><strong>Registers:</strong> General purpose registers (RAX, RBX...), Stack Pointer (SP).</li>
+                        <li><strong>Thread State:</strong> Running, Ready, Blocked.</li>
+                    </ul>
+                    Note: It does NOT save the entire Heap (shared). It saves the Stack Pointer, which points to the thread's private stack.
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-q">Q3: What is the "Cost" of Context Switching?</div>
+                <div class="qa-a">
+                    <ol>
+                        <li><strong>Direct Cost:</strong> CPU cycles spent saving/loading registers (overhead).</li>
+                        <li><strong>Indirect Cost (The Big One):</strong> <strong>Cache Pollution</strong>. The new thread likely needs different data, causing L1/L2 cache misses and TLB (Translation Lookaside Buffer) flushes.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-q">Q4: When does it happen?</div>
+                <div class="qa-a">
+                    <ul>
+                        <li><strong>Time Slice Expiry:</strong> Preemptive multitasking (OS says "Time's up!").</li>
+                        <li><strong>I/O Blocking:</strong> Thread waits for disk/network.</li>
+                        <li><strong>Higher Priority:</strong> A more important thread wakes up.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentThread = 'A'; // 'A' or 'B'
+        let threadA = { pc: 0x100, sp: 0x5000, rax: 10, rbx: 20, code: ["MOV RAX, 10", "ADD RAX, 5", "MOV RBX, RAX", "PUSH RBX", "JMP 0x100"] };
+        let threadB = { pc: 0x200, sp: 0x8000, rax: 99, rbx: 55, code: ["SUB RAX, 1", "MOV RBX, 0", "INC RBX", "POP RAX", "JMP 0x200"] };
+        
+        let cpu = { pc: 0x100, sp: 0x5000, rax: 10, rbx: 20 };
+        let stepIndex = 0;
+
+        const animEl = document.getElementById('anim-el');
+        const statusDiv = document.getElementById('status');
+
+        function updateUI() {
+            // CPU
+            document.getElementById('cpu-pc').textContent = '0x' + cpu.pc.toString(16).toUpperCase();
+            document.getElementById('cpu-sp').textContent = '0x' + cpu.sp.toString(16).toUpperCase();
+            document.getElementById('cpu-rax').textContent = cpu.rax;
+            document.getElementById('cpu-rbx').textContent = cpu.rbx;
+
+            // Code Box
+            const codeBox = document.getElementById('cpu-code');
+            codeBox.innerHTML = '';
+            const activeThread = currentThread === 'A' ? threadA : threadB;
+            activeThread.code.forEach((line, idx) => {
+                const div = document.createElement('div');
+                div.className = 'code-line';
+                if (idx === stepIndex) div.classList.add('current');
+                div.textContent = line;
+                codeBox.appendChild(div);
+            });
+
+            // TCBs
+            document.getElementById('tcb-a-pc').textContent = '0x' + threadA.pc.toString(16).toUpperCase();
+            document.getElementById('tcb-a-sp').textContent = '0x' + threadA.sp.toString(16).toUpperCase();
+            document.getElementById('tcb-a-rax').textContent = threadA.rax;
+            document.getElementById('tcb-a-rbx').textContent = threadA.rbx;
+
+            document.getElementById('tcb-b-pc').textContent = '0x' + threadB.pc.toString(16).toUpperCase();
+            document.getElementById('tcb-b-sp').textContent = '0x' + threadB.sp.toString(16).toUpperCase();
+            document.getElementById('tcb-b-rax').textContent = threadB.rax;
+            document.getElementById('tcb-b-rbx').textContent = threadB.rbx;
+
+            // Active State
+            if (currentThread === 'A') {
+                document.getElementById('tcb-a').classList.add('active');
+                document.getElementById('tcb-b').classList.remove('active');
+                document.getElementById('state-a').textContent = "RUNNING";
+                document.getElementById('state-a').style.color = "green";
+                document.getElementById('state-b').textContent = "READY";
+                document.getElementById('state-b').style.color = "orange";
+            } else {
+                document.getElementById('tcb-b').classList.add('active');
+                document.getElementById('tcb-a').classList.remove('active');
+                document.getElementById('state-b').textContent = "RUNNING";
+                document.getElementById('state-b').style.color = "green";
+                document.getElementById('state-a').textContent = "READY";
+                document.getElementById('state-a').style.color = "orange";
+            }
+        }
+
+        function runStep() {
+            // Simulate execution
+            stepIndex++;
+            const activeThread = currentThread === 'A' ? threadA : threadB;
+            
+            if (stepIndex >= activeThread.code.length) stepIndex = 0;
+            
+            cpu.pc += 4; // Simulate instruction pointer move
+            cpu.rax += 1; // Simulate work
+            
+            updateUI();
+        }
+
+        async function animateTransfer(startElId, endElId, text) {
+            const startEl = document.getElementById(startElId);
+            const endEl = document.getElementById(endElId);
+            const startRect = startEl.getBoundingClientRect();
+            const endRect = endEl.getBoundingClientRect();
+
+            animEl.style.display = 'block';
+            animEl.textContent = text;
+            animEl.style.left = startRect.left + 'px';
+            animEl.style.top = startRect.top + 'px';
+
+            return new Promise(resolve => {
+                const anim = animEl.animate([
+                    { left: startRect.left + 'px', top: startRect.top + 'px', opacity: 1 },
+                    { left: endRect.left + 'px', top: endRect.top + 'px', opacity: 0.5 }
+                ], {
+                    duration: 2000, // Slowed down to 2 seconds
+                    easing: 'ease-in-out'
+                });
+
+                anim.onfinish = () => {
+                    animEl.style.display = 'none';
+                    resolve();
+                };
+            });
+        }
+
+        async function contextSwitch() {
+            const btnStep = document.getElementById('btn-step');
+            const btnSwitch = document.getElementById('btn-switch');
+            btnStep.disabled = true;
+            btnSwitch.disabled = true;
+
+            if (currentThread === 'A') {
+                statusDiv.textContent = "Interrupt! Saving Thread A Context...";
+                
+                // 1. Save CPU -> TCB A
+                await animateTransfer('cpu-rax', 'tcb-a-rax', 'Saving Registers...');
+                threadA.pc = cpu.pc;
+                threadA.sp = cpu.sp;
+                threadA.rax = cpu.rax;
+                threadA.rbx = cpu.rbx;
+                updateUI(); // Show saved values in TCB A
+
+                statusDiv.textContent = "Loading Thread B Context...";
+                
+                // 2. Load TCB B -> CPU
+                await animateTransfer('tcb-b-rax', 'cpu-rax', 'Restoring Registers...');
+                cpu.pc = threadB.pc;
+                cpu.sp = threadB.sp;
+                cpu.rax = threadB.rax;
+                cpu.rbx = threadB.rbx;
+                
+                currentThread = 'B';
+                stepIndex = 0; // Reset code view for B (simplified)
+                
+            } else {
+                statusDiv.textContent = "Interrupt! Saving Thread B Context...";
+                
+                // 1. Save CPU -> TCB B
+                await animateTransfer('cpu-rax', 'tcb-b-rax', 'Saving Registers...');
+                threadB.pc = cpu.pc;
+                threadB.sp = cpu.sp;
+                threadB.rax = cpu.rax;
+                threadB.rbx = cpu.rbx;
+                updateUI();
+
+                statusDiv.textContent = "Loading Thread A Context...";
+                
+                // 2. Load TCB A -> CPU
+                await animateTransfer('tcb-a-rax', 'cpu-rax', 'Restoring Registers...');
+                cpu.pc = threadA.pc;
+                cpu.sp = threadA.sp;
+                cpu.rax = threadA.rax;
+                cpu.rbx = threadA.rbx;
+                
+                currentThread = 'A';
+                stepIndex = 0;
+            }
+
+            updateUI();
+            statusDiv.textContent = `Context Switch Complete. Thread ${currentThread} Running.`;
+            btnStep.disabled = false;
+            btnSwitch.disabled = false;
+        }
+
+        function resetSim() {
+            currentThread = 'A';
+            cpu = { pc: 0x100, sp: 0x5000, rax: 10, rbx: 20 };
+            threadA = { pc: 0x100, sp: 0x5000, rax: 10, rbx: 20, code: threadA.code };
+            threadB = { pc: 0x200, sp: 0x8000, rax: 99, rbx: 55, code: threadB.code };
+            stepIndex = 0;
+            statusDiv.textContent = "Reset Complete.";
+            updateUI();
+        }
+
+        function openModal() { document.getElementById('qaModal').style.display = "block"; }
+        function closeModal() { document.getElementById('qaModal').style.display = "none"; }
+        window.onclick = function(event) { if (event.target == document.getElementById('qaModal')) closeModal(); }
+
+        // Init
+        updateUI();
+
+    </script>
+</body>
+</html>

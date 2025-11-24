@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多线程同步基础演示 (Synchronization Basics)</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; }
+        .controls { margin-bottom: 20px; display: flex; gap: 10px; }
+        button { padding: 10px 20px; cursor: pointer; background: #0078d4; color: white; border: none; border-radius: 4px; font-size: 14px; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        button.reset { background: #d83b01; }
+
+        .main-container { display: flex; gap: 50px; align-items: center; margin-top: 20px; }
+        
+        /* Shared Memory (Heap) */
+        .memory-box {
+            width: 200px;
+            height: 200px;
+            background: #fff;
+            border: 3px solid #333;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .memory-title { position: absolute; top: 10px; font-weight: bold; color: #666; }
+        .variable { font-size: 40px; font-weight: bold; color: #333; }
+        .lock-icon {
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            font-size: 40px;
+            opacity: 0.2;
+            transition: all 0.3s;
+        }
+        .lock-icon.locked { opacity: 1; color: #d83b01; transform: scale(1.2); }
+
+        /* Threads */
+        .threads-container { display: flex; flex-direction: column; gap: 40px; }
+        .thread {
+            width: 250px;
+            height: 120px;
+            background: #fff;
+            border: 2px solid #999;
+            border-radius: 8px;
+            padding: 15px;
+            position: relative;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .thread.active { border-color: #0078d4; box-shadow: 0 0 15px rgba(0,120,212,0.3); background: #eef6ff; }
+        .thread.blocked { border-color: #d83b01; background: #fff0f0; opacity: 0.7; }
+        
+        .thread-header { display: flex; justify-content: space-between; font-weight: bold; }
+        .thread-status { font-size: 12px; color: #666; }
+        
+        .local-var { 
+            background: #eee; 
+            padding: 5px; 
+            border-radius: 4px; 
+            text-align: center; 
+            font-family: monospace;
+            margin-top: 10px;
+        }
+
+        /* Animation Elements */
+        .action-arrow {
+            position: absolute;
+            height: 2px;
+            background: #0078d4;
+            transition: all 0.5s;
+            width: 0;
+            transform-origin: left center;
+            z-index: 10;
+        }
+
+        .log-panel {
+            margin-top: 30px;
+            width: 600px;
+            height: 150px;
+            background: #333;
+            color: #0f0;
+            font-family: monospace;
+            padding: 10px;
+            overflow-y: auto;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+        .concept-box {
+            margin-top: 20px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .demo-guide {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-width: 800px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .demo-guide h3 { margin-top: 0; font-size: 16px; }
+        .demo-guide ol { margin-bottom: 0; padding-left: 20px; }
+        .demo-guide li { margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>多线程同步演示 (Synchronization)</h1>
+
+    <div class="demo-guide">
+        <h3>💡 Demo Guide</h3>
+        <ol>
+            <li>Click <b>Start Thread A</b> to begin the first thread's operation.</li>
+            <li>Click <b>Start Thread B</b> immediately after to simulate a race condition.</li>
+            <li>Observe how the <b>Shared Variable</b> changes (or fails to update correctly without sync).</li>
+            <li>Use <b>Reset</b> to clear the state and try again.</li>
+        </ol>
+    </div>
+    
+    <div class="concept-box" id="concept-text">
+        点击下方按钮开始演示。
+        <br><b>竞态条件 (Race Condition):</b> 两个线程同时修改共享变量，导致数据丢失。
+        <br><b>同步锁 (Synchronized):</b> 强制线程排队，保证操作的原子性。
+    </div>
+
+    <div class="controls">
+        <button onclick="startRaceCondition()" id="btn-race">演示：竞态条件 (无锁)</button>
+        <button onclick="startSynchronized()" id="btn-sync">演示：同步锁 (Synchronized)</button>
+        <button onclick="reset()" class="reset">重置</button>
+    </div>
+
+    <div class="main-container">
+        <div class="threads-container">
+            <div class="thread" id="thread-a">
+                <div class="thread-header">
+                    <span>Thread A</span>
+                    <span class="thread-status" id="status-a">IDLE</span>
+                </div>
+                <div class="local-var">local_count: <span id="local-a">-</span></div>
+            </div>
+            <div class="thread" id="thread-b">
+                <div class="thread-header">
+                    <span>Thread B</span>
+                    <span class="thread-status" id="status-b">IDLE</span>
+                </div>
+                <div class="local-var">local_count: <span id="local-b">-</span></div>
+            </div>
+        </div>
+
+        <div class="memory-box">
+            <div class="lock-icon" id="lock-icon">🔒</div>
+            <div class="memory-title">Main Memory (Heap)</div>
+            <div class="variable">count = <span id="shared-count">0</span></div>
+        </div>
+    </div>
+
+    <div class="log-panel" id="log"></div>
+
+    <script>
+        let count = 0;
+        const delay = ms => new Promise(res => setTimeout(res, ms));
+        const logPanel = document.getElementById('log');
+        
+        function log(msg) {
+            const div = document.createElement('div');
+            div.innerText = `> ${msg}`;
+            logPanel.appendChild(div);
+            logPanel.scrollTop = logPanel.scrollHeight;
+        }
+
+        function reset() {
+            count = 0;
+            document.getElementById('shared-count').innerText = '0';
+            document.getElementById('local-a').innerText = '-';
+            document.getElementById('local-b').innerText = '-';
+            document.getElementById('status-a').innerText = 'IDLE';
+            document.getElementById('status-b').innerText = 'IDLE';
+            document.getElementById('thread-a').className = 'thread';
+            document.getElementById('thread-b').className = 'thread';
+            document.getElementById('lock-icon').className = 'lock-icon';
+            logPanel.innerHTML = '';
+            document.getElementById('btn-race').disabled = false;
+            document.getElementById('btn-sync').disabled = false;
+        }
+
+        async function startRaceCondition() {
+            setupDemo();
+            log("开始演示：竞态条件 (Race Condition)");
+            log("目标：两个线程各 +1，期望结果 count=2");
+
+            // Step 1: Thread A reads
+            activateThread('a');
+            log("Thread A 读取主内存 count (0)");
+            await delay(1000);
+            document.getElementById('local-a').innerText = '0';
+            
+            // Step 2: Context Switch -> Thread B reads (BEFORE A writes back)
+            deactivateThread('a');
+            activateThread('b');
+            log("!! 上下文切换 !! Thread A 还没写回，Thread B 抢占");
+            await delay(1000);
+            log("Thread B 读取主内存 count (0) -- 读到了旧值！");
+            document.getElementById('local-b').innerText = '0';
+
+            // Step 3: Thread B increments and writes
+            log("Thread B 本地计算 0 + 1 = 1");
+            await delay(800);
+            document.getElementById('local-b').innerText = '1';
+            log("Thread B 写回主内存 count = 1");
+            count = 1;
+            document.getElementById('shared-count').innerText = '1';
+            deactivateThread('b');
+
+            // Step 4: Thread A resumes, increments OLD value, and overwrites
+            activateThread('a');
+            log("Thread A 恢复执行");
+            log("Thread A 本地计算 0 + 1 = 1 (基于它之前读到的 0)");
+            await delay(1000);
+            document.getElementById('local-a').innerText = '1';
+            log("Thread A 写回主内存 count = 1 -- 覆盖了 Thread B 的更新！");
+            count = 1; // Overwrite
+            document.getElementById('shared-count').innerText = '1';
+            deactivateThread('a');
+
+            log("演示结束。最终结果 count=1 (期望是2)。这就是【丢失更新】。");
+            document.getElementById('btn-race').disabled = false;
+            document.getElementById('btn-sync').disabled = false;
+        }
+
+        async function startSynchronized() {
+            setupDemo();
+            log("开始演示：同步锁 (Synchronized)");
+            
+            // Step 1: Thread A acquires lock
+            activateThread('a');
+            log("Thread A 尝试获取锁...");
+            await delay(500);
+            document.getElementById('lock-icon').classList.add('locked');
+            log("Thread A 获取锁成功！进入临界区");
+            
+            // Step 2: Thread B tries but fails
+            document.getElementById('thread-b').classList.add('blocked');
+            document.getElementById('status-b').innerText = 'BLOCKED';
+            log("Thread B 尝试获取锁... 失败！被阻塞 (BLOCKED)");
+            
+            // Step 3: Thread A works
+            log("Thread A 读取 count (0)");
+            await delay(800);
+            document.getElementById('local-a').innerText = '0';
+            log("Thread A 计算 0 + 1 = 1");
+            await delay(800);
+            document.getElementById('local-a').innerText = '1';
+            log("Thread A 写回 count = 1");
+            count = 1;
+            document.getElementById('shared-count').innerText = '1';
+
+            // Step 4: Thread A releases lock
+            log("Thread A 释放锁");
+            document.getElementById('lock-icon').classList.remove('locked');
+            deactivateThread('a');
+
+            // Step 5: Thread B acquires lock
+            await delay(500);
+            document.getElementById('thread-b').classList.remove('blocked');
+            activateThread('b');
+            log("Thread B 被唤醒，获取锁成功！");
+            document.getElementById('lock-icon').classList.add('locked');
+
+            // Step 6: Thread B works (sees updated value)
+            log("Thread B 读取 count (1) -- 读到了最新值！");
+            await delay(800);
+            document.getElementById('local-b').innerText = '1';
+            log("Thread B 计算 1 + 1 = 2");
+            await delay(800);
+            document.getElementById('local-b').innerText = '2';
+            log("Thread B 写回 count = 2");
+            count = 2;
+            document.getElementById('shared-count').innerText = '2';
+
+            // Step 7: Release
+            log("Thread B 释放锁");
+            document.getElementById('lock-icon').classList.remove('locked');
+            deactivateThread('b');
+
+            log("演示结束。最终结果 count=2。数据安全。");
+            document.getElementById('btn-race').disabled = false;
+            document.getElementById('btn-sync').disabled = false;
+        }
+
+        function setupDemo() {
+            reset();
+            document.getElementById('btn-race').disabled = true;
+            document.getElementById('btn-sync').disabled = true;
+        }
+
+        function activateThread(id) {
+            document.getElementById(`thread-${id}`).classList.add('active');
+            document.getElementById(`status-${id}`).innerText = 'RUNNING';
+        }
+
+        function deactivateThread(id) {
+            document.getElementById(`thread-${id}`).classList.remove('active');
+            document.getElementById(`status-${id}`).innerText = 'IDLE';
+        }
+    </script>
+</body>
+</html>

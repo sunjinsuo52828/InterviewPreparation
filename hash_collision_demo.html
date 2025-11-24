@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Why XOR? Hash Collision Visualizer</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { color: #333; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 900px; width: 100%; }
+        
+        .bit-row { display: flex; align-items: center; margin-bottom: 10px; font-family: monospace; }
+        .label { width: 120px; font-weight: bold; color: #555; }
+        .bits { display: flex; gap: 2px; }
+        .bit { 
+            width: 20px; height: 25px; 
+            display: flex; align-items: center; justify-content: center; 
+            background: #eee; border: 1px solid #ccc; 
+            cursor: pointer; user-select: none;
+            font-size: 14px;
+        }
+        .bit.one { background: #bbdefb; color: #0d47a1; font-weight: bold; }
+        .bit.high { border-bottom: 3px solid #ff9800; } /* High 16 bits */
+        .bit.low { border-bottom: 3px solid #4caf50; }  /* Low 16 bits */
+        
+        .bit:hover { opacity: 0.8; }
+        
+        .separator { height: 1px; background: #ddd; margin: 15px 0; }
+        
+        .result-box { 
+            padding: 15px; border-radius: 5px; margin-top: 10px; 
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .collision { background: #ffebee; border: 1px solid #ef5350; color: #c62828; }
+        .safe { background: #e8f5e9; border: 1px solid #66bb6a; color: #2e7d32; }
+        
+        .explanation { font-size: 14px; color: #666; margin-top: 5px; }
+        
+        .arrow-down { text-align: center; color: #999; font-size: 20px; margin: 5px 0; }
+
+        .calc-step { font-family: monospace; font-size: 12px; margin-bottom: 2px; color: #555; }
+        .calc-result { font-weight: bold; font-size: 14px; margin-top: 5px; border-top: 1px solid #ccc; padding-top: 2px; color: #000; }
+
+        button { padding: 8px 16px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #005fa3; }
+    </style>
+</head>
+<body>
+
+    <h1>Why <code>(h ^ (h >>> 16))</code>?</h1>
+    <p>Click bits to toggle. See how High Bits affect the Index only when XOR is used.</p>
+
+    <div class="container">
+        <div style="margin-bottom: 20px;">
+            <label>Table Size (n): </label>
+            <select id="tableSize" onchange="update()">
+                <option value="16">16 (Index uses last 4 bits)</option>
+                <option value="32">32 (Index uses last 5 bits)</option>
+                <option value="256">256 (Index uses last 8 bits)</option>
+            </select>
+        </div>
+
+        <!-- Key A -->
+        <h3>Key A HashCode</h3>
+        <div class="bit-row">
+            <div class="label">Original (h)</div>
+            <div class="bits" id="bitsA"></div>
+        </div>
+        <div class="explanation">High 16 bits (Orange) vs Low 16 bits (Green)</div>
+
+        <!-- Key B -->
+        <h3 style="margin-top: 30px;">Key B HashCode</h3>
+        <div class="bit-row">
+            <div class="label">Original (h)</div>
+            <div class="bits" id="bitsB"></div>
+        </div>
+        
+        <div class="separator"></div>
+
+        <!-- Comparison -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            
+            <!-- Scenario 1: Without XOR -->
+            <div>
+                <h3 style="text-align: center; color: #d32f2f;">Without XOR (Bad)</h3>
+                <div style="text-align: center; font-size: 12px; color: #777;">Index = h & (n-1)</div>
+                
+                <div id="resNoXorA" class="result-box"></div>
+                <div id="resNoXorB" class="result-box"></div>
+                <div id="statusNoXor" class="result-box" style="text-align: center; font-weight: bold;"></div>
+            </div>
+
+            <!-- Scenario 2: With XOR -->
+            <div>
+                <h3 style="text-align: center; color: #2e7d32;">With XOR (JDK 1.8)</h3>
+                <div style="text-align: center; font-size: 12px; color: #777;">Index = (h ^ (h >>> 16)) & (n-1)</div>
+
+                <div id="resXorA" class="result-box"></div>
+                <div id="resXorB" class="result-box"></div>
+                <div id="statusXor" class="result-box" style="text-align: center; font-weight: bold;"></div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 20px; text-align: center;">
+            <button onclick="setScenario()">Set Demo Scenario</button>
+        </div>
+    </div>
+
+    <script>
+        let hashA = 0;
+        let hashB = 0;
+        const BITS = 32;
+
+        function init() {
+            const containerA = document.getElementById('bitsA');
+            const containerB = document.getElementById('bitsB');
+            
+            for(let i=31; i>=0; i--) {
+                createBit(containerA, 'A', i);
+                createBit(containerB, 'B', i);
+            }
+            
+            setScenario();
+        }
+
+        function createBit(container, key, index) {
+            const div = document.createElement('div');
+            div.className = 'bit ' + (index >= 16 ? 'high' : 'low');
+            div.id = `bit-${key}-${index}`;
+            div.onclick = () => toggleBit(key, index);
+            div.innerText = '0';
+            container.appendChild(div);
+        }
+
+        function toggleBit(key, index) {
+            if(key === 'A') hashA ^= (1 << index);
+            else hashB ^= (1 << index);
+            update();
+        }
+
+        function renderBits() {
+            for(let i=0; i<32; i++) {
+                const bitA = (hashA >>> i) & 1;
+                const elA = document.getElementById(`bit-A-${i}`);
+                elA.innerText = bitA;
+                elA.className = `bit ${i >= 16 ? 'high' : 'low'} ${bitA ? 'one' : ''}`;
+
+                const bitB = (hashB >>> i) & 1;
+                const elB = document.getElementById(`bit-B-${i}`);
+                elB.innerText = bitB;
+                elB.className = `bit ${i >= 16 ? 'high' : 'low'} ${bitB ? 'one' : ''}`;
+            }
+        }
+
+        function setScenario() {
+            // Scenario: 
+            // Low bits are IDENTICAL (causing collision without XOR).
+            // High bits are DIFFERENT.
+            
+            // Low 16 bits: ... 0000 0101 (5)
+            const low = 5;
+            
+            // High 16 bits: 
+            // A: ... 0000 0000 ...
+            // B: ... 0000 0001 ... (Just 1 bit difference in high part)
+            
+            hashA = (0 << 16) | low;     // 5
+            hashB = (1 << 16) | low;     // 65541
+            
+            update();
+        }
+
+        function toBin(num, len) {
+            let s = (num >>> 0).toString(2);
+            while(s.length < len) s = "0" + s;
+            if(s.length > len) s = s.substring(s.length - len);
+            return s;
+        }
+
+        function update() {
+            renderBits();
+            
+            const n = parseInt(document.getElementById('tableSize').value);
+            const mask = n - 1;
+            const maskBits = Math.log2(n); // How many bits matter (4 for 16, 5 for 32)
+
+            // 1. Without XOR
+            const idxNoXorA = hashA & mask;
+            const idxNoXorB = hashB & mask;
+            
+            document.getElementById('resNoXorA').innerHTML = `
+                <div class="calc-step">h &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ...${toBin(hashA, maskBits)}</div>
+                <div class="calc-step">& (n-1) : ...${toBin(mask, maskBits)}</div>
+                <div class="calc-result">= Index : ${idxNoXorA}</div>
+            `;
+            document.getElementById('resNoXorB').innerHTML = `
+                <div class="calc-step">h &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: ...${toBin(hashB, maskBits)}</div>
+                <div class="calc-step">& (n-1) : ...${toBin(mask, maskBits)}</div>
+                <div class="calc-result">= Index : ${idxNoXorB}</div>
+            `;
+            
+            const statusNo = document.getElementById('statusNoXor');
+            if(idxNoXorA === idxNoXorB) {
+                statusNo.className = 'result-box collision';
+                statusNo.innerHTML = '💥 COLLISION!<br><span style="font-size:12px; font-weight:normal">High bits ignored.</span>';
+            } else {
+                statusNo.className = 'result-box safe';
+                statusNo.innerHTML = '✅ SAFE';
+            }
+
+            // 2. With XOR
+            // (h ^ (h >>> 16))
+            const hashXorA = (hashA ^ (hashA >>> 16));
+            const hashXorB = (hashB ^ (hashB >>> 16));
+            
+            const idxXorA = hashXorA & mask;
+            const idxXorB = hashXorB & mask;
+
+            document.getElementById('resXorA').innerHTML = `
+                <div class="calc-step">XORed h : ...${toBin(hashXorA, maskBits)}</div>
+                <div class="calc-step">& (n-1) : ...${toBin(mask, maskBits)}</div>
+                <div class="calc-result">= Index : ${idxXorA}</div>
+            `;
+            document.getElementById('resXorB').innerHTML = `
+                <div class="calc-step">XORed h : ...${toBin(hashXorB, maskBits)}</div>
+                <div class="calc-step">& (n-1) : ...${toBin(mask, maskBits)}</div>
+                <div class="calc-result">= Index : ${idxXorB}</div>
+            `;
+
+            const statusXor = document.getElementById('statusXor');
+            if(idxXorA === idxXorB) {
+                statusXor.className = 'result-box collision';
+                statusXor.innerHTML = '💥 COLLISION!';
+            } else {
+                statusXor.className = 'result-box safe';
+                statusXor.innerHTML = '✅ SAFE<br><span style="font-size:12px; font-weight:normal">High bits mixed in!</span>';
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

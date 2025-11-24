@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Memory & GC Simulation</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; background: #f0f0f0; margin: 0; padding: 20px; }
+        h1 { margin-bottom: 10px; }
+        
+        .main-layout { display: flex; gap: 20px; align-items: flex-start; }
+        .left-panel { display: flex; flex-direction: column; align-items: center; }
+        
+        .right-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 280px; /* Widen for text */
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .control-group label { font-weight: bold; display: block; margin-bottom: 5px; color: #333; }
+        select, input[type=range] { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ccc; }
+        
+        .status-display {
+            margin-bottom: 15px;
+            padding: 10px 20px;
+            background: #fff;
+            border-left: 5px solid #007acc;
+            font-weight: bold;
+            color: #333;
+            width: 760px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .step-tree { list-style: none; padding: 0; margin: 0 0 15px 0; display: flex; gap: 8px; width: 800px; }
+        .step-item { 
+            flex: 1;
+            padding: 8px 5px; 
+            border-radius: 4px; 
+            border-bottom: 3px solid transparent; 
+            color: #666; 
+            background: #fff;
+            transition: all 0.3s ease; 
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .step-item.active { 
+            background: #e3f2fd; 
+            border-bottom-color: #007acc; 
+            color: #0d47a1; 
+            transform: translateY(-2px);
+        }
+        .step-header { font-weight: 600; font-size: 12px; display: block; }
+        .step-algo { font-size: 10px; color: #888; display: block; margin-top: 2px; }
+        .step-detail { display: none !important; } /* Hide details in horizontal view */
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .controls { margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 10px 20px; cursor: pointer; font-size: 14px; border: none; border-radius: 4px; background: #007acc; color: white; transition: background 0.2s; }
+        button:hover { background: #005fa3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        #canvas-container { position: relative; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        svg { border: 1px solid #ddd; background: #fafafa; }
+        
+        /* SVG Styles */
+        .region-label { font-weight: bold; fill: #555; font-size: 14px; pointer-events: none; }
+        .sub-label { fill: #777; font-size: 12px; pointer-events: none; }
+        .memory-block { stroke: #333; stroke-width: 1px; transition: all 0.5s ease-in-out; }
+        .memory-block.new { fill: #4caf50; } /* Green: New/Live */
+        .memory-block.garbage { fill: #e57373; } /* Red: Garbage */
+        .memory-block.promoted { fill: #1976d2; } /* Blue: Old Gen */
+        .memory-block.meta { fill: #9c27b0; } /* Purple: Metaspace */
+        .memory-block.marked { stroke: #ffeb3b; stroke-width: 2px; }
+        
+        .legend { display: flex; gap: 15px; margin-top: 10px; font-size: 12px; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .dot { width: 12px; height: 12px; border-radius: 2px; }
+
+        .floating-label {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.5s;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .floating-label.show { opacity: 1; }
+        
+        /* Hide status display since we are moving it to floating labels */
+        .status-display { display: none; }
+        /* Keep step tree but maybe smaller or just as progress indicator */
+        .step-tree { opacity: 0.7; }
+        .step-item.active { opacity: 1; transform: scale(1.05); }
+
+        /* Modal Styles */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 100; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5); 
+            backdrop-filter: blur(2px);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; 
+            max-width: 600px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover { color: black; }
+        .qa-item { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .qa-q { font-weight: bold; color: #0d47a1; margin-bottom: 5px; }
+        .qa-a { font-size: 13px; color: #444; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+    <h1>Java Memory & GC Simulation <button onclick="openModal()" style="font-size:12px; padding:5px 10px; margin-left:10px; background:#673ab7;">🎓 Interview Q&A</button></h1>
+
+    <!-- Interview Modal -->
+    <div id="qaModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 style="margin-top:0; color:#333;">🔥 High-Frequency Interview Questions</h2>
+            
+            <div class="qa-item">
+                <div class="qa-q">Q1: Why are there two Survivor spaces (S0/S1)?</div>
+                <div class="qa-a">To solve <strong>Memory Fragmentation</strong>. By copying live objects between S0 and S1, we ensure that the Survivor space is always contiguous. If we only had one, clearing dead objects would leave holes (fragmentation).</div>
+            </div>
+            
+            <div class="qa-item">
+                <div class="qa-q">Q2: When does an object enter Old Gen?</div>
+                <div class="qa-a">
+                    1. <strong>Age Threshold:</strong> Usually 15 (CMS/Serial) or dynamic (G1).<br>
+                    2. <strong>Survivor Overflow:</strong> If Survivor space is full, objects go directly to Old Gen.<br>
+                    3. <strong>Big Objects:</strong> Large arrays/objects may skip Young Gen entirely (Humongous Objects in G1).
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-q">Q3: What is the difference between G1 and CMS?</div>
+                <div class="qa-a">
+                    <strong>CMS:</strong> Mark-Sweep (Old Gen). Low latency but causes <strong>fragmentation</strong> (needs Full GC to compact).<br>
+                    <strong>G1:</strong> Region-based + Copying. <strong>Compacts</strong> while collecting. Predictable pause times.
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-q">Q4: What causes Metaspace OOM?</div>
+                <div class="qa-a">Loading too many classes! Common in frameworks using <strong>CGLib/Dynamic Proxies</strong> (Spring, Hibernate) that generate classes at runtime. Unlike PermGen, it uses native memory, so it can eat up all server RAM if not capped.</div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-q">Q5: What are GC Roots?</div>
+                <div class="qa-a">Starting points for reachability analysis. Includes: <strong>Stack Variables</strong> (Local vars), <strong>Static Variables</strong>, <strong>JNI References</strong>, and active Threads.</div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-q">Q6: What is G1NewSizePercent?</div>
+                <div class="qa-a">It sets the <strong>Minimum Young Gen Size</strong> (Default 5%). G1 is adaptive: it shrinks Young Gen to meet <code>MaxGCPauseMillis</code>. This flag acts as a "safety floor" to prevent Young Gen from becoming too small, which would cause frequent, inefficient GCs.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="left-panel">
+            <div class="status-display" id="statusText">Ready to start simulation...</div>
+
+            <ul class="step-tree">
+                <li class="step-item" id="step-allocate">
+                    <div class="step-header">1. Allocation</div>
+                    <span class="step-algo">TLAB / Eden</span>
+                </li>
+                <li class="step-item" id="step-load">
+                    <div class="step-header">2. Class Loading</div>
+                    <span class="step-algo">Metaspace</span>
+                </li>
+                <li class="step-item" id="step-mark">
+                    <div class="step-header">3. Marking</div>
+                    <span class="step-algo">GC Roots</span>
+                </li>
+                <li class="step-item" id="step-minor">
+                    <div class="step-header">4. Minor GC</div>
+                    <span class="step-algo">Copying</span>
+                </li>
+                <li class="step-item" id="step-major">
+                    <div class="step-header">5. Major GC</div>
+                    <span class="step-algo" id="major-algo-label">Compact</span>
+                </li>
+            </ul>
+
+            <div class="controls">
+                <button onclick="toggleAutoRun()" id="btn-auto">▶ Start Auto</button>
+                <button onclick="stepSimulation()" id="btn-step">⏯ Next Step</button>
+                <button onclick="resetSimulation()" style="background: #d32f2f;">↺ Reset</button>
+            </div>
+
+            <div id="canvas-container">
+                <div id="floating-msg" class="floating-label"></div>
+                <svg width="800" height="520" id="gcSvg">
+                    <g id="gen-layout">
+                        <!-- Young Generation -->
+                        <rect x="10" y="10" width="460" height="380" fill="none" stroke="#aaa" stroke-dasharray="5,5" rx="5" />
+                        <text x="20" y="30" class="region-label">Young Generation</text>
+
+                        <!-- Eden -->
+                        <rect x="20" y="50" width="200" height="320" fill="#e8f5e9" stroke="#c8e6c9" rx="5" id="eden-bg"/>
+                        <text x="100" y="70" text-anchor="middle" class="sub-label">Eden Space</text>
+
+                        <!-- Survivor S0 -->
+                        <rect x="230" y="50" width="100" height="320" fill="#fff3e0" stroke="#ffe0b2" rx="5" id="s0-bg"/>
+                        <text x="280" y="70" text-anchor="middle" class="sub-label">Survivor S0</text>
+
+                        <!-- Survivor S1 -->
+                        <rect x="340" y="50" width="100" height="320" fill="#fff3e0" stroke="#ffe0b2" rx="5" id="s1-bg"/>
+                        <text x="390" y="70" text-anchor="middle" class="sub-label">Survivor S1</text>
+
+                        <!-- Old Generation -->
+                        <rect x="480" y="10" width="310" height="380" fill="none" stroke="#aaa" stroke-dasharray="5,5" rx="5" />
+                        <text x="490" y="30" class="region-label">Old Generation</text>
+                        
+                        <rect x="490" y="50" width="290" height="320" fill="#e3f2fd" stroke="#bbdefb" rx="5" id="old-bg"/>
+                        <text x="635" y="70" text-anchor="middle" class="sub-label">Tenured Space</text>
+                    </g>
+
+                    <g id="g1-layout" style="display:none">
+                        <!-- G1 Grid generated by JS -->
+                    </g>
+
+                    <!-- Metaspace (Non-Heap) -->
+                    <rect x="10" y="410" width="780" height="90" fill="none" stroke="#aaa" stroke-dasharray="5,5" rx="5" />
+                    <text x="20" y="430" class="region-label">Metaspace (Non-Heap)</text>
+                    <rect x="20" y="440" width="760" height="50" fill="#f3e5f5" stroke="#e1bee7" rx="5" id="meta-bg"/>
+                    <text x="400" y="470" text-anchor="middle" class="sub-label">Klass Structure, Method Bytecode, Constant Pool, Annotations</text>
+
+                    <!-- Objects Group -->
+                    <g id="objects-layer"></g>
+                </svg>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item"><div class="dot" style="background: #4caf50;"></div>Live (Young)</div>
+                <div class="legend-item"><div class="dot" style="background: #e57373;"></div>Garbage</div>
+                <div class="legend-item"><div class="dot" style="background: #1976d2;"></div>Old Gen</div>
+                <div class="legend-item"><div class="dot" style="background: #9c27b0;"></div>Metaspace</div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="control-group">
+                <label>GC Strategy:</label>
+                <select id="gcStrategy" onchange="updateStrategyInfo()">
+                    <option value="parallel">Parallel GC (JDK 8 Default)</option>
+                    <option value="cms">CMS (Deprecated in JDK 9)</option>
+                    <option value="g1" selected>G1 GC (JDK 9+ Default)</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>Speed: <span id="speed-val">1x</span></label>
+                <input type="range" id="speedRange" min="0.5" max="3" step="0.5" value="1" oninput="updateSpeed(this.value)">
+            </div>
+        
+            <div id="strategy-description" class="strategy-info">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const svg = document.getElementById('gcSvg');
+        const objectsLayer = document.getElementById('objects-layer');
+        const statusText = document.getElementById('statusText');
+        
+        // Configuration
+        const BLOCK_SIZE = 18;
+        const GAP = 2;
+        
+        // Generational Layout Config
+        const EDEN_START_X = 30;
+        const EDEN_START_Y = 80;
+        const EDEN_COLS = 9;
+        const EDEN_ROWS = 15;
+        
+        const S0_START_X = 240;
+        const S1_START_X = 350;
+        const SURVIVOR_COLS = 4;
+        
+        const OLD_START_X = 500;
+        const OLD_START_Y = 80;
+        const OLD_COLS = 13;
+
+        const META_START_X = 30;
+        const META_START_Y = 450;
+        const META_COLS = 35;
+        
+        // G1 Layout Config
+        const G1_START_X = 20;
+        const G1_START_Y = 20;
+        const G1_REGION_SIZE = 90;
+        const G1_COLS = 8;
+        const G1_ROWS = 4;
+        const G1_GAP = 5;
+        
+        let objects = [];
+        let objectIdCounter = 0;
+        let currentSurvivor = 0; // 0 for S0, 1 for S1
+        let speedMultiplier = 1;
+        let g1Regions = []; // {x, y, type, el}
+        
+        // State Machine
+        let isRunning = false;
+        let isPaused = false;
+        let currentPhase = 0; // 0:Alloc, 1:Load, 2:Mark, 3:Minor, 4:Major
+        let isStepping = false;
+
+        function initG1Layout() {
+            const g1Group = document.getElementById('g1-layout');
+            g1Group.innerHTML = '';
+            g1Regions = [];
+            
+            for(let r=0; r<G1_ROWS; r++) {
+                for(let c=0; c<G1_COLS; c++) {
+                    const x = G1_START_X + c * (G1_REGION_SIZE + G1_GAP);
+                    const y = G1_START_Y + r * (G1_REGION_SIZE + G1_GAP);
+                    
+                    const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    rect.setAttribute("x", x);
+                    rect.setAttribute("y", y);
+                    rect.setAttribute("width", G1_REGION_SIZE);
+                    rect.setAttribute("height", G1_REGION_SIZE);
+                    rect.setAttribute("rx", 4);
+                    rect.setAttribute("fill", "#f5f5f5");
+                    rect.setAttribute("stroke", "#ddd");
+                    rect.setAttribute("stroke-width", "2");
+                    
+                    g1Group.appendChild(rect);
+                    
+                    g1Regions.push({
+                        id: `r-${r}-${c}`,
+                        x: x,
+                        y: y,
+                        r: r,
+                        c: c,
+                        type: 'free', // free, eden, survivor, old
+                        el: rect
+                    });
+                }
+            }
+        }
+
+        function updateG1RegionColors() {
+            g1Regions.forEach(r => {
+                let color = '#f5f5f5'; // free
+                let stroke = '#ddd';
+                
+                if (r.type === 'eden') {
+                    color = '#e8f5e9'; // Greenish
+                    stroke = '#c8e6c9';
+                } else if (r.type === 'survivor') {
+                    color = '#fff3e0'; // Orangeish
+                    stroke = '#ffe0b2';
+                } else if (r.type === 'old') {
+                    color = '#e3f2fd'; // Blueish
+                    stroke = '#bbdefb';
+                }
+                
+                r.el.setAttribute('fill', color);
+                r.el.setAttribute('stroke', stroke);
+            });
+        }
+
+        function updateStrategyInfo() {
+            const strategy = document.getElementById('gcStrategy').value;
+            const infoDiv = document.getElementById('strategy-description');
+            const majorLabel = document.getElementById('major-algo-label');
+            const genLayout = document.getElementById('gen-layout');
+            const g1Layout = document.getElementById('g1-layout');
+            
+            if (strategy === 'g1') {
+                genLayout.style.display = 'none';
+                g1Layout.style.display = 'block';
+                infoDiv.innerHTML = `
+                    <strong>G1 (Garbage First):</strong> <span style="color:#d32f2f; font-size:11px;">(Mainstream / JDK 9+ Default)</span>
+                    <br>Region-based heap. Balances throughput and latency by:
+                    <ul style="margin: 5px 0 5px 15px; padding: 0; font-size: 11px; color: #444;">
+                        <li><strong>Predictable Pauses:</strong> Uses a prediction model to select just enough regions to meet <code>-XX:MaxGCPauseMillis</code>.</li>
+                        <li><strong>Garbage First:</strong> Prioritizes regions with the most garbage (cheapest to collect) to maximize efficiency.</li>
+                    </ul>
+                    <div style="margin: 5px 0; padding: 5px; background: #e8f5e9; border-radius: 4px; font-size: 11px;">
+                        <strong>Enable:</strong> <code>-XX:+UseG1GC</code><br>
+                        <strong>Scenario:</strong> Large Heaps (>4GB), SLA requirements (e.g. max 200ms pause), Web Servers, Microservices.
+                    </div>
+                    <ul>
+                        <li><strong>Young GC:</strong> Evacuates <b>Eden + Survivor</b> regions to new Survivor/Old regions. Triggered when Eden is full.</li>
+                        <li><strong>Mixed GC:</strong> Evacuates Young regions + <em>some</em> Old regions. Triggered when <b>Entire Heap</b> occupancy > <code>-XX:InitiatingHeapOccupancyPercent</code> (default 45%).</li>
+                    </ul>
+                    <div style="margin-top:5px; font-size:11px; color:#555;">
+                        <strong>Key Params:</strong> <code>-XX:MaxGCPauseMillis</code> (Target pause time), <code>-XX:G1NewSizePercent</code> (Min Young Gen size).
+                    </div>
+                    <div style="margin-top:5px; font-size:11px; color:#000; background: #fffde7; padding: 3px;">
+                        <strong>Note:</strong> Large objects (>50% region size) go directly to <b>Humongous Regions</b> (Old Gen), skipping Young Gen.
+                    </div>
+                    <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #ccc; font-size:11px;">
+                        <strong>Next Gen (ZGC/Shenandoah):</strong> Not simulated here. They use colored pointers/load barriers for &lt;1ms pauses (JDK 11/17+).
+                    </div>
+                `;
+                majorLabel.textContent = "Mixed";
+                
+                if(g1Regions.length === 0) initG1Layout();
+            } else {
+                genLayout.style.display = 'block';
+                g1Layout.style.display = 'none';
+                
+                if (strategy === 'parallel') {
+                    infoDiv.innerHTML = `
+                        <strong>Parallel GC:</strong> <span style="color:#d32f2f; font-size:11px;">(Legacy / JDK 8 Default)</span>
+                        <br>High throughput, Stop-The-World. Best for backend processing.
+                        <div style="margin: 5px 0; padding: 5px; background: #fff3e0; border-radius: 4px; font-size: 11px;">
+                            <strong>Enable:</strong> <code>-XX:+UseParallelGC</code><br>
+                            <strong>Scenario:</strong> Batch Processing, Data Analysis, Background Jobs where pause time is less critical than total throughput.
+                        </div>
+                        <ul>
+                            <li><strong>Minor GC:</strong> Parallel Scavenge. Triggered when Eden is full.</li>
+                            <li><strong>Major GC:</strong> Parallel Old (Mark-Compact). Triggered when Old Gen is full.</li>
+                        </ul>
+                        <div style="margin-top:5px; font-size:11px; color:#555;">
+                            <strong>Key Params:</strong> <code>-XX:ParallelGCThreads</code>, <code>-XX:MaxGCPauseMillis</code>.
+                        </div>
+                    `;
+                    majorLabel.textContent = "Compact";
+                } else {
+                    infoDiv.innerHTML = `
+                        <strong>CMS (Concurrent Mark Sweep):</strong> <span style="color:#d32f2f; font-size:11px;">(Deprecated)</span>
+                        <br>Low latency, but suffers from fragmentation.
+                        <div style="margin: 5px 0; padding: 5px; background: #ffebee; border-radius: 4px; font-size: 11px;">
+                            <strong>Enable:</strong> <code>-XX:+UseConcMarkSweepGC</code><br>
+                            <strong>Scenario:</strong> Legacy Web Apps requiring low latency (replaced by G1/ZGC).
+                        </div>
+                        <ul>
+                            <li><strong>Minor GC:</strong> ParNew. Triggered when Eden is full.</li>
+                            <li><strong>Major GC:</strong> CMS (Mark-Sweep). Triggered when Old Gen occupancy > <code>-XX:CMSInitiatingOccupancyFraction</code>.</li>
+                        </ul>
+                        <div style="margin-top:5px; font-size:11px; color:#555;">
+                            <strong>Key Params:</strong> <code>-XX:+UseConcMarkSweepGC</code>. Removed in JDK 14.
+                        </div>
+                    `;
+                    majorLabel.textContent = "Sweep";
+                }
+            }
+        }
+
+        // Initialize UI
+        updateStrategyInfo();
+
+        function updateSpeed(val) {
+            speedMultiplier = parseFloat(val);
+            document.getElementById('speed-val').textContent = val + 'x';
+        }
+
+        async function toggleAutoRun() {
+            const btn = document.getElementById('btn-auto');
+            const btnStep = document.getElementById('btn-step');
+            
+            if (isRunning && !isPaused) {
+                // Pause
+                isPaused = true;
+                btn.textContent = "▶ Resume Auto";
+                btnStep.disabled = false;
+                updateStatus("Paused.", null);
+            } else {
+                // Start or Resume
+                isRunning = true;
+                isPaused = false;
+                btn.textContent = "⏸ Pause Auto";
+                btnStep.disabled = true;
+                
+                // Start loop if not already in one (this is tricky with async, simpler to just have one loop driver)
+                if (!window.simulationLoopActive) {
+                    window.simulationLoopActive = true;
+                    runSimulationLoop();
+                }
+            }
+        }
+
+        async function stepSimulation() {
+            if (isStepping) return;
+            // If auto running, pause first
+            if (isRunning && !isPaused) {
+                await toggleAutoRun();
+            }
+            
+            isStepping = true;
+            await executePhase(currentPhase);
+            currentPhase = (currentPhase + 1) % 5;
+            isStepping = false;
+        }
+
+        async function runSimulationLoop() {
+            while (isRunning) {
+                if (isPaused) {
+                    await sleep(500);
+                    continue;
+                }
+                
+                await executePhase(currentPhase);
+                currentPhase = (currentPhase + 1) % 5;
+                
+                // Delay between phases
+                await sleep(1000);
+            }
+            window.simulationLoopActive = false;
+        }
+
+        async function executePhase(phase) {
+            const strategy = document.getElementById('gcStrategy').value;
+            
+            switch(phase) {
+                case 0: // Allocate
+                    highlightStep('step-allocate');
+                    updateStatus("1. Allocating Objects to Heap (Eden)...", 'step-allocate');
+                    allocateObjects();
+                    await sleep(1500);
+                    break;
+                    
+                case 1: // Load Classes
+                    if(Math.random() > 0.5) {
+                        highlightStep('step-load');
+                        updateStatus("2. Loading Metadata (Klass, Bytecode, ConstPool) to Metaspace...", 'step-load');
+                        loadClasses();
+                        await sleep(1500);
+                    } else {
+                        // Skip visually but keep flow
+                        highlightStep('step-load');
+                        updateStatus("2. No classes loaded this cycle.", 'step-load');
+                        await sleep(500);
+                    }
+                    break;
+                    
+                case 2: // Mark
+                    highlightStep('step-mark');
+                    updateStatus("3. Marking unreachable objects...", 'step-mark');
+                    markGarbage();
+                    await sleep(1500);
+                    break;
+                    
+                case 3: // Minor GC
+                    highlightStep('step-minor');
+                    updateStatus("4. Minor GC (Young Gen)...", 'step-minor');
+                    minorGC();
+                    await sleep(2000);
+                    break;
+                    
+                case 4: // Major GC
+                    highlightStep('step-major');
+                    const oldGenCount = objects.filter(o => o.region === 'old').length;
+                    
+                    // For G1, check regions
+                    let needsMajor = false;
+                    if (strategy === 'g1') {
+                        const oldRegions = g1Regions.filter(r => r.type === 'old');
+                        // Trigger if we have enough old regions
+                        needsMajor = oldRegions.length > 2; 
+                    } else {
+                        needsMajor = oldGenCount > 40;
+                    }
+
+                    if(needsMajor) {
+                        // Mark some old gen as garbage first for demo
+                        objects.forEach(o => {
+                            if(o.region === 'old' && Math.random() > 0.3) o.markAsGarbage();
+                        });
+                        
+                        if (strategy === 'parallel') {
+                            updateStatus("5. Major GC: Mark-Compact...", 'step-major');
+                            await sleep(1000);
+                            majorGCCompact();
+                        } else if (strategy === 'cms') {
+                            updateStatus("5. Major GC: Mark-Sweep...", 'step-major');
+                            await sleep(1000);
+                            majorGCSweep();
+                        } else if (strategy === 'g1') {
+                            updateStatus("5. Mixed GC: Evacuating Old Regions...", 'step-major');
+                            await sleep(1000);
+                            majorGCCompact(); 
+                        }
+                        await sleep(2000);
+                    } else {
+                        updateStatus("5. Major GC: Not needed yet.", 'step-major');
+                        await sleep(1000);
+                    }
+                    break;
+            }
+            highlightStep(null);
+        }
+
+        class MemoryObject {
+            constructor(id, x, y, region) {
+                this.id = id;
+                this.x = x;
+                this.y = y;
+                this.region = region; // 'eden', 's0', 's1', 'old', 'meta'
+                this.isGarbage = false;
+                this.age = 0;
+                this.el = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                this.el.setAttribute("width", BLOCK_SIZE);
+                this.el.setAttribute("height", BLOCK_SIZE);
+                this.el.setAttribute("rx", 2);
+                
+                if (region === 'meta') {
+                    this.el.setAttribute("class", "memory-block meta");
+                } else {
+                    this.el.setAttribute("class", "memory-block new");
+                }
+                
+                this.updatePosition(x, y);
+                objectsLayer.appendChild(this.el);
+            }
+
+            updatePosition(x, y) {
+                this.x = x;
+                this.y = y;
+                this.el.setAttribute("x", x);
+                this.el.setAttribute("y", y);
+            }
+
+            markAsGarbage() {
+                this.isGarbage = true;
+                this.el.setAttribute("class", "memory-block garbage");
+            }
+
+            promote() {
+                this.region = 'old';
+                this.el.setAttribute("class", "memory-block promoted");
+            }
+            
+            remove() {
+                if(this.el.parentNode) {
+                    this.el.parentNode.removeChild(this.el);
+                }
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms / speedMultiplier));
+        }
+
+        function updateStatus(msg, stepId) {
+            statusText.textContent = msg;
+            // Clear all details first
+            document.querySelectorAll('.step-detail').forEach(el => el.textContent = '');
+            
+            if (stepId) {
+                const stepEl = document.getElementById(stepId);
+                if (stepEl) {
+                    const detail = stepEl.querySelector('.step-detail');
+                    if (detail) detail.textContent = msg;
+                }
+                
+                // Show floating label based on step
+                let x = 400, y = 260; // Default center
+                
+                if (stepId === 'step-allocate') {
+                    // Eden
+                    x = EDEN_START_X + (EDEN_COLS * BLOCK_SIZE) / 2;
+                    y = EDEN_START_Y + (EDEN_ROWS * BLOCK_SIZE) / 2;
+                    if(document.getElementById('gcStrategy').value === 'g1') {
+                         x = 400; y = 200; // Center of G1 grid approx
+                    }
+                } else if (stepId === 'step-load') {
+                    // Metaspace
+                    x = META_START_X + (META_COLS * BLOCK_SIZE) / 2;
+                    y = META_START_Y + 25;
+                } else if (stepId === 'step-mark') {
+                    // Center
+                    x = 400; y = 260;
+                } else if (stepId === 'step-minor') {
+                    // Survivor
+                    x = S0_START_X + 100; // Between S0/S1
+                    y = EDEN_START_Y + 150;
+                    if(document.getElementById('gcStrategy').value === 'g1') {
+                         x = 400; y = 200;
+                    }
+                } else if (stepId === 'step-major') {
+                    // Old Gen
+                    x = OLD_START_X + (OLD_COLS * BLOCK_SIZE) / 2;
+                    y = OLD_START_Y + 150;
+                    if(document.getElementById('gcStrategy').value === 'g1') {
+                         x = 400; y = 200;
+                    }
+                }
+                
+                showFloatingLabel(msg, x, y);
+            }
+        }
+
+        function showFloatingLabel(text, x, y) {
+            const el = document.getElementById('floating-msg');
+            el.textContent = text;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            el.classList.add('show');
+            
+            // Auto hide after 2s
+            if(window.floatTimeout) clearTimeout(window.floatTimeout);
+            window.floatTimeout = setTimeout(() => {
+                el.classList.remove('show');
+            }, 2500);
+        }
+
+        function allocateObjects() {
+            const strategy = document.getElementById('gcStrategy').value;
+            
+            if (strategy === 'g1') {
+                // G1 Allocation
+                // Simulate Humongous Allocation occasionally (10% chance)
+                if (Math.random() < 0.1) {
+                    let freeRegion = g1Regions.find(r => r.type === 'free');
+                    if (freeRegion) {
+                        freeRegion.type = 'old'; // Humongous treated as Old
+                        // Visual distinction for Humongous
+                        freeRegion.el.setAttribute('stroke-dasharray', '4,2'); 
+                        updateG1RegionColors();
+                        
+                        // Add one big object
+                        const x = freeRegion.x + 10;
+                        const y = freeRegion.y + 10;
+                        const obj = new MemoryObject(objectIdCounter++, x, y, 'old');
+                        obj.el.setAttribute('width', 70);
+                        obj.el.setAttribute('height', 70);
+                        obj.el.setAttribute('class', 'memory-block promoted'); // Treat as old
+                        objects.push(obj);
+                        freeRegion.objects = [obj];
+                        
+                        updateStatus("Allocated Humongous Object directly to Old Gen", 'step-allocate');
+                        return 1;
+                    }
+                }
+
+                let edenRegion = g1Regions.find(r => r.type === 'eden' && r.objects && r.objects.length < 16);
+                if (!edenRegion) {
+                    // Find a free region
+                    edenRegion = g1Regions.find(r => r.type === 'free');
+                    if (edenRegion) {
+                        edenRegion.type = 'eden';
+                        edenRegion.objects = [];
+                        updateG1RegionColors();
+                    }
+                }
+                
+                if (edenRegion) {
+                    // Fill region (4x4 grid inside region)
+                    let count = 0;
+                    for(let i=0; i<16; i++) {
+                        if(Math.random() > 0.4) {
+                            const r_row = Math.floor(i / 4);
+                            const r_col = i % 4;
+                            const x = edenRegion.x + 10 + r_col * (BLOCK_SIZE + 2);
+                            const y = edenRegion.y + 10 + r_row * (BLOCK_SIZE + 2);
+                            
+                            if(!objects.some(o => o.x === x && o.y === y)) {
+                                const obj = new MemoryObject(objectIdCounter++, x, y, 'eden');
+                                objects.push(obj);
+                                edenRegion.objects = edenRegion.objects || [];
+                                edenRegion.objects.push(obj);
+                                count++;
+                            }
+                        }
+                    }
+                    return count;
+                }
+                return 0;
+            }
+
+            // Standard Allocation
+            let count = 0;
+            for (let r = 0; r < EDEN_ROWS; r++) {
+                for (let c = 0; c < EDEN_COLS; c++) {
+                    if (Math.random() > 0.3) { // Randomly fill
+                        const x = EDEN_START_X + c * (BLOCK_SIZE + GAP);
+                        const y = EDEN_START_Y + r * (BLOCK_SIZE + GAP);
+                        
+                        if (!objects.some(o => o.x === x && o.y === y && o.region === 'eden')) {
+                            const obj = new MemoryObject(objectIdCounter++, x, y, 'eden');
+                            objects.push(obj);
+                            count++;
+                        }
+                    }
+                }
+            }
+            return count;
+        }
+
+        function loadClasses() {
+            // Simulate class loading in Metaspace
+            let metaObjects = objects.filter(o => o.region === 'meta');
+            let nextIndex = metaObjects.length;
+            
+            // Load a few classes
+            for(let i=0; i<3; i++) {
+                let r = 0; // Single row for now, or wrap
+                let c = nextIndex;
+                
+                // Simple wrapping for meta
+                if (c >= META_COLS) {
+                     // Stop filling if full for visual simplicity
+                     break;
+                }
+
+                const x = META_START_X + c * (BLOCK_SIZE + GAP);
+                const y = META_START_Y;
+                
+                const obj = new MemoryObject(objectIdCounter++, x, y, 'meta');
+                objects.push(obj);
+                nextIndex++;
+            }
+        }
+
+        function markGarbage() {
+            if (objects.length === 0) return;
+            objects.forEach(obj => {
+                // Don't mark Metaspace as garbage often (simulate class unloading rarely)
+                if (obj.region !== 'meta' && !obj.isGarbage && Math.random() > 0.5) {
+                    obj.markAsGarbage();
+                }
+            });
+        }
+
+        function minorGC() {
+            const strategy = document.getElementById('gcStrategy').value;
+            
+            if (strategy === 'g1') {
+                // G1 Minor GC: Evacuate Eden -> Survivor/Old
+                const edenRegions = g1Regions.filter(r => r.type === 'eden');
+                const survivorRegions = g1Regions.filter(r => r.type === 'survivor');
+                
+                // Find destination region (Survivor or Old)
+                let destRegion = g1Regions.find(r => r.type === 'survivor' && (!r.objects || r.objects.length < 16));
+                if (!destRegion) {
+                    destRegion = g1Regions.find(r => r.type === 'free');
+                    if(destRegion) destRegion.type = 'survivor';
+                }
+                
+                if(!destRegion) return; // Full
+                updateG1RegionColors();
+
+                const newObjects = [];
+                objects.forEach(obj => {
+                    if (obj.region === 'eden' || obj.region === 'survivor') {
+                        if (obj.isGarbage) {
+                            obj.remove();
+                        } else {
+                            obj.age++;
+                            // Move to dest
+                            // Simplified: Just move to the found destRegion for now
+                            // In reality, we'd fill it and find next
+                            
+                            // Check if dest full
+                            if(!destRegion.objects) destRegion.objects = [];
+                            if(destRegion.objects.length >= 16) {
+                                // Find next
+                                let next = g1Regions.find(r => r.type === 'free');
+                                if(next) {
+                                    destRegion = next;
+                                    destRegion.type = obj.age > 3 ? 'old' : 'survivor';
+                                    destRegion.objects = [];
+                                    updateG1RegionColors();
+                                }
+                            }
+                            
+                            if(destRegion.objects.length < 16) {
+                                const i = destRegion.objects.length;
+                                const r_row = Math.floor(i / 4);
+                                const r_col = i % 4;
+                                const newX = destRegion.x + 10 + r_col * (BLOCK_SIZE + 2);
+                                const newY = destRegion.y + 10 + r_row * (BLOCK_SIZE + 2);
+                                
+                                obj.updatePosition(newX, newY);
+                                obj.region = destRegion.type; // survivor or old
+                                if(obj.region === 'old') obj.promote();
+                                
+                                destRegion.objects.push(obj);
+                                newObjects.push(obj);
+                            } else {
+                                // No space, lost (simplified)
+                                obj.remove();
+                            }
+                        }
+                    } else {
+                        newObjects.push(obj);
+                    }
+                });
+                
+                objects = newObjects;
+                
+                // Clear Eden regions
+                edenRegions.forEach(r => {
+                    r.type = 'free';
+                    r.objects = [];
+                });
+                updateG1RegionColors();
+                return;
+            }
+
+            // Standard Minor GC
+            const targetSurvivorX = currentSurvivor === 0 ? S1_START_X : S0_START_X;
+            const targetRegion = currentSurvivor === 0 ? 's1' : 's0';
+            let nextS_Col = 0;
+            let nextS_Row = 0;
+            let old_Col = 0;
+            let old_Row = 0;
+            
+            const oldObjects = objects.filter(o => o.region === 'old');
+            let oldIndex = oldObjects.length; 
+            old_Row = Math.floor(oldIndex / OLD_COLS);
+            old_Col = oldIndex % OLD_COLS;
+
+            const newObjectsList = [];
+
+            objects.forEach(obj => {
+                if (obj.region === 'eden' || obj.region === (currentSurvivor === 0 ? 's0' : 's1')) {
+                    if (obj.isGarbage) {
+                        obj.remove();
+                    } else {
+                        obj.age++;
+                        if (obj.age > 3) {
+                            obj.promote();
+                            const newX = OLD_START_X + old_Col * (BLOCK_SIZE + GAP);
+                            const newY = OLD_START_Y + old_Row * (BLOCK_SIZE + GAP);
+                            obj.updatePosition(newX, newY);
+                            newObjectsList.push(obj);
+                            old_Col++;
+                            if (old_Col >= OLD_COLS) { old_Col = 0; old_Row++; }
+                        } else {
+                            obj.region = targetRegion;
+                            const newX = targetSurvivorX + nextS_Col * (BLOCK_SIZE + GAP);
+                            const newY = EDEN_START_Y + nextS_Row * (BLOCK_SIZE + GAP);
+                            obj.updatePosition(newX, newY);
+                            newObjectsList.push(obj);
+                            nextS_Col++;
+                            if (nextS_Col >= SURVIVOR_COLS) { nextS_Col = 0; nextS_Row++; }
+                        }
+                    }
+                } else {
+                    newObjectsList.push(obj);
+                }
+            });
+
+            objects = newObjectsList;
+            currentSurvivor = currentSurvivor === 0 ? 1 : 0;
+            document.getElementById('s0-bg').setAttribute('fill', currentSurvivor === 0 ? '#fff3e0' : '#eceff1');
+            document.getElementById('s1-bg').setAttribute('fill', currentSurvivor === 1 ? '#fff3e0' : '#eceff1');
+        }
+
+        function majorGCSweep() {
+            const newObjectsList = [];
+            objects.forEach(obj => {
+                if (obj.region === 'old' && obj.isGarbage) {
+                    obj.remove();
+                } else {
+                    newObjectsList.push(obj);
+                }
+            });
+            objects = newObjectsList;
+        }
+
+        function majorGCCompact() {
+            const strategy = document.getElementById('gcStrategy').value;
+            if (strategy === 'g1') {
+                // G1 Mixed GC: Evacuate selected Old regions (Collection Set)
+                // Select regions with most garbage
+                const oldRegions = g1Regions.filter(r => r.type === 'old');
+                
+                // Calculate garbage ratio for each region
+                oldRegions.forEach(r => {
+                    const total = r.objects ? r.objects.length : 0;
+                    const garbage = r.objects ? r.objects.filter(o => o.isGarbage).length : 0;
+                    r.garbageRatio = total > 0 ? garbage / total : 0;
+                });
+                
+                // Sort by garbage ratio (descending) - "Garbage First"!
+                oldRegions.sort((a, b) => b.garbageRatio - a.garbageRatio);
+                
+                // Pick top 50% of regions to collect (Collection Set)
+                const collectionSet = oldRegions.slice(0, Math.ceil(oldRegions.length * 0.5));
+                
+                if(collectionSet.length === 0) {
+                    updateStatus("No Old regions worth collecting.", 'step-major');
+                    return;
+                }
+                
+                updateStatus(`Mixed GC: Evacuating ${collectionSet.length} Old regions...`, 'step-major');
+                
+                const newObjects = [];
+                const otherObjects = objects.filter(o => {
+                    // Keep objects NOT in the collection set
+                    const inSet = collectionSet.some(r => r.objects && r.objects.includes(o));
+                    return !inSet;
+                });
+                
+                // Evacuate live objects from Collection Set
+                let destRegion = null;
+                
+                collectionSet.forEach(sourceRegion => {
+                    if(!sourceRegion.objects) return;
+                    
+                    sourceRegion.objects.forEach(obj => {
+                        if(!obj.isGarbage) {
+                            // Move to new region (compacting)
+                            if(!destRegion || (destRegion.objects && destRegion.objects.length >= 16)) {
+                                destRegion = g1Regions.find(r => r.type === 'free');
+                                if(destRegion) {
+                                    destRegion.type = 'old';
+                                    destRegion.objects = [];
+                                }
+                            }
+                            
+                            if(destRegion) {
+                                const i = destRegion.objects.length;
+                                const r_row = Math.floor(i / 4);
+                                const r_col = i % 4;
+                                const newX = destRegion.x + 10 + r_col * (BLOCK_SIZE + 2);
+                                const newY = destRegion.y + 10 + r_row * (BLOCK_SIZE + 2);
+                                
+                                obj.updatePosition(newX, newY);
+                                destRegion.objects.push(obj);
+                                newObjects.push(obj);
+                            }
+                        } else {
+                            obj.remove();
+                        }
+                    });
+                    
+                    // Reclaim source region
+                    sourceRegion.type = 'free';
+                    sourceRegion.objects = [];
+                });
+                
+                objects = [...otherObjects, ...newObjects];
+                updateG1RegionColors();
+                return;
+            }
+
+            // Standard Compact
+            const newObjectsList = [];
+            let old_Col = 0;
+            let old_Row = 0;
+
+            const oldGenObjs = objects.filter(o => o.region === 'old').sort((a,b) => (a.y - b.y) || (a.x - b.x));
+            const otherObjs = objects.filter(o => o.region !== 'old');
+
+            oldGenObjs.forEach(obj => {
+                if (obj.isGarbage) {
+                    obj.remove();
+                } else {
+                    const newX = OLD_START_X + old_Col * (BLOCK_SIZE + GAP);
+                    const newY = OLD_START_Y + old_Row * (BLOCK_SIZE + GAP);
+                    obj.updatePosition(newX, newY);
+                    newObjectsList.push(obj);
+
+                    old_Col++;
+                    if (old_Col >= OLD_COLS) { old_Col = 0; old_Row++; }
+                }
+            });
+
+            objects = [...otherObjs, ...newObjectsList];
+        }
+
+        function resetSimulation() {
+            objects.forEach(o => o.remove());
+            objects = [];
+            objectIdCounter = 0;
+            currentSurvivor = 0;
+            document.getElementById('s0-bg').setAttribute('fill', '#fff3e0');
+            document.getElementById('s1-bg').setAttribute('fill', '#fff3e0');
+            
+            // Reset G1
+            g1Regions.forEach(r => {
+                r.type = 'free';
+                r.objects = [];
+            });
+            updateG1RegionColors();
+            
+            updateStatus("Ready.", null);
+            highlightStep(null);
+            
+            // Reset State
+            isRunning = false;
+            isPaused = false;
+            currentPhase = 0;
+            document.getElementById('btn-auto').textContent = "▶ Start Auto";
+            document.getElementById('btn-step').disabled = false;
+        }
+
+        function highlightStep(stepId) {
+            // Remove active class from all
+            document.querySelectorAll('.step-item').forEach(el => el.classList.remove('active'));
+            // Add to current
+            if(stepId) {
+                const el = document.getElementById(stepId);
+                if(el) el.classList.add('active');
+            }
+        }
+
+        function openModal() {
+            document.getElementById('qaModal').style.display = "block";
+        }
+        
+        function closeModal() {
+            document.getElementById('qaModal').style.display = "none";
+        }
+        
+        // Close on click outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('qaModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Thread Lifecycle & Creation</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        
+        .container { display: flex; flex-direction: column; gap: 30px; width: 100%; max-width: 900px; }
+        
+        /* Lifecycle Section */
+        .lifecycle-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        svg { border: 1px solid #eee; background: #fafafa; margin-bottom: 15px; }
+        
+        .state-node { fill: #e0e0e0; stroke: #999; stroke-width: 2px; transition: all 0.3s; }
+        .state-node.active { fill: #bbdefb; stroke: #2196f3; stroke-width: 4px; }
+        .state-text { font-weight: bold; font-size: 14px; fill: #555; pointer-events: none; text-anchor: middle; dominant-baseline: middle; }
+        .state-text.active { fill: #0d47a1; }
+        
+        .transition-arrow { stroke: #ccc; stroke-width: 2px; fill: none; marker-end: url(#arrow); }
+        .transition-arrow.active { stroke: #ff9800; stroke-width: 3px; }
+
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        button { padding: 8px 16px; border: none; border-radius: 4px; background: #007acc; color: white; cursor: pointer; font-size: 13px; transition: background 0.2s; }
+        button:hover { background: #005fa3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .status-display {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
+        /* Creation Methods Section */
+        .creation-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .tabs { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 15px; }
+        .tab { padding: 10px 20px; cursor: pointer; border-bottom: 3px solid transparent; color: #666; }
+        .tab.active { border-bottom-color: #2196f3; color: #2196f3; font-weight: bold; }
+        
+        .code-panel { display: none; background: #263238; color: #eceff1; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 13px; overflow-x: auto; }
+        .code-panel.active { display: block; }
+        
+        .keyword { color: #c792ea; }
+        .type { color: #ffcb6b; }
+        .string { color: #c3e88d; }
+        .comment { color: #546e7a; font-style: italic; }
+
+        .demo-guide {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .demo-guide h3 { margin-top: 0; font-size: 16px; }
+        .demo-guide ol { margin-bottom: 0; padding-left: 20px; }
+        .demo-guide li { margin-bottom: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Java Thread Lifecycle & Creation</h1>
+
+    <div class="container">
+        
+        <div class="demo-guide">
+            <h3>💡 Demo Guide</h3>
+            <ol>
+                <li>Click <b>start()</b> to transition the thread from <b>NEW</b> to <b>RUNNABLE</b>.</li>
+                <li>Use <b>sleep()</b> or <b>wait()</b> to move the thread to <b>TIMED_WAITING</b> or <b>WAITING</b> states.</li>
+                <li>Use <b>notify()</b> to wake up a waiting thread.</li>
+                <li>Click <b>terminate()</b> to finish the thread execution (TERMINATED).</li>
+                <li>Switch tabs below to see different ways to create threads in Java.</li>
+            </ol>
+        </div>
+
+        <!-- Section 1: Lifecycle -->
+        <div class="lifecycle-box">
+            <h2>Thread State Machine</h2>
+            <svg width="800" height="350" id="lifecycleSvg">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="19" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#999" />
+                    </marker>
+                    <marker id="arrow-active" markerWidth="10" markerHeight="10" refX="19" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#ff9800" />
+                    </marker>
+                </defs>
+
+                <!-- States -->
+                <!-- NEW -->
+                <g id="state-NEW" transform="translate(100, 175)">
+                    <circle r="40" class="state-node active" />
+                    <text class="state-text active">NEW</text>
+                </g>
+
+                <!-- RUNNABLE -->
+                <g id="state-RUNNABLE" transform="translate(300, 175)">
+                    <circle r="45" class="state-node" />
+                    <text class="state-text">RUNNABLE</text>
+                </g>
+
+                <!-- RUNNING (Logical state, in Java it's part of Runnable, but useful for visualization) -->
+                <g id="state-RUNNING" transform="translate(500, 175)">
+                    <circle r="45" class="state-node" style="stroke-dasharray: 5,5;" />
+                    <text class="state-text">RUNNING</text>
+                    <text y="20" style="font-size:10px; fill:#777; text-anchor:middle;">(CPU Executing)</text>
+                </g>
+
+                <!-- BLOCKED -->
+                <g id="state-BLOCKED" transform="translate(400, 50)">
+                    <rect x="-40" y="-25" width="80" height="50" rx="5" class="state-node" />
+                    <text class="state-text">BLOCKED</text>
+                </g>
+
+                <!-- WAITING -->
+                <g id="state-WAITING" transform="translate(400, 300)">
+                    <rect x="-40" y="-25" width="80" height="50" rx="5" class="state-node" />
+                    <text class="state-text">WAITING</text>
+                </g>
+
+                <!-- TIMED_WAITING -->
+                <g id="state-TIMED_WAITING" transform="translate(600, 300)">
+                    <rect x="-50" y="-25" width="100" height="50" rx="5" class="state-node" />
+                    <text class="state-text">TIMED_WAITING</text>
+                </g>
+
+                <!-- TERMINATED -->
+                <g id="state-TERMINATED" transform="translate(700, 175)">
+                    <circle r="40" class="state-node" />
+                    <text class="state-text">TERMINATED</text>
+                </g>
+
+                <!-- Transitions -->
+                <!-- NEW -> RUNNABLE -->
+                <path d="M140,175 L255,175" class="transition-arrow" id="tr-start" />
+                
+                <!-- RUNNABLE <-> RUNNING -->
+                <path d="M345,175 L455,175" class="transition-arrow" id="tr-schedule" />
+                <path d="M455,185 L345,185" class="transition-arrow" id="tr-yield" style="stroke-dasharray: 3,3;" />
+
+                <!-- RUNNING -> TERMINATED -->
+                <path d="M545,175 L660,175" class="transition-arrow" id="tr-finish" />
+
+                <!-- RUNNING -> BLOCKED -->
+                <path d="M500,130 L440,50" class="transition-arrow" id="tr-sync" />
+                <!-- BLOCKED -> RUNNABLE -->
+                <path d="M360,50 L300,130" class="transition-arrow" id="tr-lock-acquired" />
+
+                <!-- RUNNING -> WAITING -->
+                <path d="M500,220 L440,300" class="transition-arrow" id="tr-wait" />
+                <!-- WAITING -> RUNNABLE -->
+                <path d="M360,300 L300,220" class="transition-arrow" id="tr-notify" />
+
+                <!-- RUNNING -> TIMED_WAITING -->
+                <path d="M530,210 L600,275" class="transition-arrow" id="tr-sleep" />
+                <!-- TIMED_WAITING -> RUNNABLE -->
+                <path d="M600,325 L300,220" class="transition-arrow" id="tr-timeout" style="display:none;" /> <!-- Simplified path -->
+                <path d="M600,275 L530,210" class="transition-arrow" id="tr-wake" marker-end="none" marker-start="url(#arrow)" />
+
+            </svg>
+
+            <div class="controls">
+                <button onclick="actionStart()" id="btn-start">t.start()</button>
+                <button onclick="actionSchedule()" id="btn-schedule" disabled>OS Schedule</button>
+                <button onclick="actionYield()" id="btn-yield" disabled>Thread.yield() / Time Slice</button>
+                <button onclick="actionSync()" id="btn-sync" disabled>synchronized(lock)</button>
+                <button onclick="actionWait()" id="btn-wait" disabled>obj.wait()</button>
+                <button onclick="actionSleep()" id="btn-sleep" disabled>Thread.sleep(1000)</button>
+                <button onclick="actionFinish()" id="btn-finish" disabled>run() completes</button>
+                <div style="width:100%; height:5px;"></div>
+                <button onclick="actionNotify()" id="btn-notify" disabled style="background:#ff9800;">obj.notify()</button>
+                <button onclick="actionLock()" id="btn-lock" disabled style="background:#ff9800;">Lock Acquired</button>
+                <button onclick="actionWake()" id="btn-wake" disabled style="background:#ff9800;">Timeout / Wake</button>
+                <button onclick="resetSim()" style="background:#78909c;">Reset</button>
+            </div>
+
+            <div class="status-display" id="status-text">
+                Current State: <strong>NEW</strong>. Thread object created but not started.
+            </div>
+        </div>
+
+        <!-- Section 2: Creation Methods -->
+        <div class="creation-box">
+            <h2>4 Ways to Create Threads</h2>
+            <div class="tabs">
+                <div class="tab active" onclick="showTab(0)">1. Extend Thread</div>
+                <div class="tab" onclick="showTab(1)">2. Implement Runnable</div>
+                <div class="tab" onclick="showTab(2)">3. Implement Callable</div>
+                <div class="tab" onclick="showTab(3)">4. Thread Pool</div>
+            </div>
+
+            <!-- Tab 1: Thread -->
+            <div class="code-panel active" id="code-0">
+<span class="keyword">class</span> <span class="type">MyThread</span> <span class="keyword">extends</span> <span class="type">Thread</span> {
+    <span class="keyword">public void</span> run() {
+        System.out.println(<span class="string">"Thread running"</span>);
+    }
+}
+
+<span class="comment">// Usage</span>
+<span class="type">MyThread</span> t = <span class="keyword">new</span> <span class="type">MyThread</span>();
+t.start();
+            </div>
+
+            <!-- Tab 2: Runnable -->
+            <div class="code-panel" id="code-1">
+<span class="keyword">class</span> <span class="type">MyTask</span> <span class="keyword">implements</span> <span class="type">Runnable</span> {
+    <span class="keyword">public void</span> run() {
+        System.out.println(<span class="string">"Task running"</span>);
+    }
+}
+
+<span class="comment">// Usage</span>
+<span class="type">Thread</span> t = <span class="keyword">new</span> <span class="type">Thread</span>(<span class="keyword">new</span> <span class="type">MyTask</span>());
+t.start();
+
+<span class="comment">// Or Lambda (Java 8+)</span>
+<span class="keyword">new</span> <span class="type">Thread</span>(() -> System.out.println(<span class="string">"Lambda running"</span>)).start();
+            </div>
+
+            <!-- Tab 3: Callable -->
+            <div class="code-panel" id="code-2">
+<span class="comment">// Callable returns a result and can throw Exception</span>
+<span class="type">Callable</span>&lt;<span class="type">Integer</span>&gt; task = () -> {
+    <span class="keyword">return</span> 123;
+};
+
+<span class="type">FutureTask</span>&lt;<span class="type">Integer</span>&gt; future = <span class="keyword">new</span> <span class="type">FutureTask</span>&lt;&gt;(task);
+<span class="keyword">new</span> <span class="type">Thread</span>(future).start();
+
+<span class="comment">// Get result (blocks until done)</span>
+<span class="type">Integer</span> result = future.get();
+            </div>
+
+            <!-- Tab 4: Thread Pool -->
+            <div class="code-panel" id="code-3">
+<span class="type">ExecutorService</span> pool = <span class="type">Executors</span>.newFixedThreadPool(10);
+
+pool.execute(() -> {
+    System.out.println(<span class="string">"Task executed by pool"</span>);
+});
+
+<span class="comment">// Shutdown when done</span>
+pool.shutdown();
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let currentState = 'NEW';
+        const statusText = document.getElementById('status-text');
+
+        function setState(newState, msg) {
+            // Deactivate old
+            document.getElementById(`state-${currentState}`).querySelector('.state-node').classList.remove('active');
+            document.getElementById(`state-${currentState}`).querySelector('.state-text').classList.remove('active');
+            
+            // Activate new
+            currentState = newState;
+            document.getElementById(`state-${currentState}`).querySelector('.state-node').classList.add('active');
+            document.getElementById(`state-${currentState}`).querySelector('.state-text').classList.add('active');
+            
+            statusText.innerHTML = `Current State: <strong>${currentState}</strong>. ${msg}`;
+            updateButtons();
+        }
+
+        function updateButtons() {
+            const btns = document.querySelectorAll('.controls button');
+            btns.forEach(b => b.disabled = true);
+            document.getElementById('btn-start').parentElement.querySelector('button:last-child').disabled = false; // Reset always enabled
+
+            if (currentState === 'NEW') {
+                document.getElementById('btn-start').disabled = false;
+            }
+            else if (currentState === 'RUNNABLE') {
+                document.getElementById('btn-schedule').disabled = false;
+            }
+            else if (currentState === 'RUNNING') {
+                document.getElementById('btn-yield').disabled = false;
+                document.getElementById('btn-sync').disabled = false;
+                document.getElementById('btn-wait').disabled = false;
+                document.getElementById('btn-sleep').disabled = false;
+                document.getElementById('btn-finish').disabled = false;
+            }
+            else if (currentState === 'BLOCKED') {
+                document.getElementById('btn-lock').disabled = false;
+            }
+            else if (currentState === 'WAITING') {
+                document.getElementById('btn-notify').disabled = false;
+            }
+            else if (currentState === 'TIMED_WAITING') {
+                document.getElementById('btn-wake').disabled = false;
+            }
+        }
+
+        // Actions
+        function actionStart() { setState('RUNNABLE', 'Thread is ready to run, waiting for CPU time slice.'); }
+        function actionSchedule() { setState('RUNNING', 'OS Scheduler assigned CPU to this thread.'); }
+        function actionYield() { setState('RUNNABLE', 'Thread yielded CPU or time slice expired.'); }
+        function actionFinish() { setState('TERMINATED', 'Execution completed.'); }
+        
+        function actionSync() { setState('BLOCKED', 'Waiting to acquire a synchronized lock.'); }
+        function actionLock() { setState('RUNNABLE', 'Lock acquired! Ready to run again.'); }
+        
+        function actionWait() { setState('WAITING', 'Waiting for another thread to call notify().'); }
+        function actionNotify() { setState('RUNNABLE', 'Notified! Moved back to Runnable.'); }
+        
+        function actionSleep() { setState('TIMED_WAITING', 'Sleeping for fixed time.'); }
+        function actionWake() { setState('RUNNABLE', 'Time expired or interrupted.'); }
+
+        function resetSim() {
+            setState('NEW', 'Thread object created but not started.');
+        }
+
+        // Tabs
+        function showTab(index) {
+            const tabs = document.querySelectorAll('.tab');
+            const panels = document.querySelectorAll('.code-panel');
+            
+            tabs.forEach((t, i) => {
+                if (i === index) t.classList.add('active');
+                else t.classList.remove('active');
+            });
+            
+            panels.forEach((p, i) => {
+                if (i === index) p.classList.add('active');
+                else p.classList.remove('active');
+            });
+        }
+
+        // Init
+        updateButtons();
+
+    </script>
+</body>
+</html>

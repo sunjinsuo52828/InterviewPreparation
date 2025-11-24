@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thread Pool: Different Logic Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        
+        .container { display: flex; gap: 40px; align-items: flex-start; margin-top: 20px; }
+        
+        /* Task Queue */
+        .queue-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .queue-box {
+            width: 150px;
+            height: 300px;
+            border: 3px solid #555;
+            border-top: none;
+            background: #e0e0e0;
+            display: flex;
+            flex-direction: column-reverse; /* Items stack from bottom */
+            padding: 5px;
+            gap: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+        .queue-label { font-weight: bold; margin-bottom: 5px; }
+
+        /* Thread Pool */
+        .pool-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .thread-card {
+            width: 300px;
+            height: 80px;
+            background: white;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            gap: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        .thread-card.busy { border-color: #2196f3; background: #e3f2fd; }
+        
+        .thread-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #90a4ae;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        .thread-card.busy .thread-icon { background: #2196f3; }
+
+        .thread-info { flex: 1; }
+        .thread-status { font-size: 12px; color: #666; }
+        .current-task { font-weight: bold; color: #333; font-size: 14px; }
+
+        /* Tasks */
+        .task {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            animation: popIn 0.3s ease-out;
+        }
+        @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .task-math { background: #e91e63; }
+        .task-net { background: #4caf50; }
+        .task-db { background: #ff9800; }
+
+        .controls { margin-top: 20px; display: flex; gap: 10px; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; color: white; cursor: pointer; font-weight: bold; transition: transform 0.1s; }
+        button:active { transform: scale(0.95); }
+        
+        .btn-math { background: #e91e63; }
+        .btn-net { background: #4caf50; }
+        .btn-db { background: #ff9800; }
+
+        .explanation {
+            margin-top: 30px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 800px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .demo-guide {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-width: 800px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .demo-guide h3 { margin-top: 0; font-size: 16px; }
+        .demo-guide ol { margin-bottom: 0; padding-left: 20px; }
+        .demo-guide li { margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>Can Threads in a Pool Run Different Logic? <span style="color:#2196f3;">YES!</span></h1>
+
+    <div class="demo-guide">
+        <h3>💡 Demo Guide</h3>
+        <ol>
+            <li>Click <b>Submit Math/Network/DB Task</b> to add different types of tasks to the queue.</li>
+            <li>Observe how the <b>Task Queue</b> holds the tasks until a thread is available.</li>
+            <li>Watch the <b>Threads</b> pick up tasks. Note that any thread can execute any type of task (Runnable).</li>
+            <li>See the thread status change to <b>Busy</b> and then back to <b>Idle</b>.</li>
+        </ol>
+    </div>
+
+    <div class="controls">
+        <button class="btn-math" onclick="submitTask('math')">+ Submit Math Task</button>
+        <button class="btn-net" onclick="submitTask('net')">⬇ Submit Network Task</button>
+        <button class="btn-db" onclick="submitTask('db')">💾 Submit DB Task</button>
+    </div>
+
+    <div class="container">
+        <!-- Queue -->
+        <div class="queue-section">
+            <div class="queue-label">BlockingQueue</div>
+            <div class="queue-box" id="taskQueue">
+                <!-- Tasks go here -->
+            </div>
+        </div>
+
+        <!-- Pool -->
+        <div class="pool-section">
+            <div class="queue-label">Thread Pool (3 Threads)</div>
+            
+            <!-- Thread 1 -->
+            <div class="thread-card" id="thread-1">
+                <div class="thread-icon">T1</div>
+                <div class="thread-info">
+                    <div class="thread-status">Status: <span id="status-1">IDLE</span></div>
+                    <div class="current-task" id="task-1">Waiting for tasks...</div>
+                </div>
+            </div>
+
+            <!-- Thread 2 -->
+            <div class="thread-card" id="thread-2">
+                <div class="thread-icon">T2</div>
+                <div class="thread-info">
+                    <div class="thread-status">Status: <span id="status-2">IDLE</span></div>
+                    <div class="current-task" id="task-2">Waiting for tasks...</div>
+                </div>
+            </div>
+
+            <!-- Thread 3 -->
+            <div class="thread-card" id="thread-3">
+                <div class="thread-icon">T3</div>
+                <div class="thread-info">
+                    <div class="thread-status">Status: <span id="status-3">IDLE</span></div>
+                    <div class="current-task" id="task-3">Waiting for tasks...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="explanation">
+        <h3>How it works:</h3>
+        <p>The Thread Pool is just a container of <strong>Worker Threads</strong>.</p>
+        <p>The logic is encapsulated in the <strong>Runnable / Callable</strong> object (the Task), not the Thread itself.</p>
+        <pre style="background:#f5f5f5; padding:10px; border-radius:4px;">
+// Thread's internal loop (Simplified)
+while (true) {
+    Runnable task = queue.take(); // Get ANY task
+    task.run(); // Execute the task's specific logic
+}
+        </pre>
+        <p>So, <strong>Thread T1</strong> can execute a Math calculation now, and a Database query 1 second later.</p>
+    </div>
+
+    <script>
+        const queueEl = document.getElementById('taskQueue');
+        const threads = [
+            { id: 1, busy: false, el: document.getElementById('thread-1'), statusEl: document.getElementById('status-1'), taskEl: document.getElementById('task-1') },
+            { id: 2, busy: false, el: document.getElementById('thread-2'), statusEl: document.getElementById('status-2'), taskEl: document.getElementById('task-2') },
+            { id: 3, busy: false, el: document.getElementById('thread-3'), statusEl: document.getElementById('status-3'), taskEl: document.getElementById('task-3') }
+        ];
+        
+        let taskQueue = [];
+        let taskIdCounter = 1;
+
+        function submitTask(type) {
+            const task = {
+                id: taskIdCounter++,
+                type: type,
+                name: getTaskName(type),
+                duration: getTaskDuration(type),
+                colorClass: `task-${type}`
+            };
+            
+            taskQueue.push(task);
+            renderQueue();
+            processQueue();
+        }
+
+        function getTaskName(type) {
+            if (type === 'math') return "Calculate Pi";
+            if (type === 'net') return "Download Image";
+            if (type === 'db') return "Save User Data";
+        }
+
+        function getTaskDuration(type) {
+            if (type === 'math') return 2000;
+            if (type === 'net') return 4000;
+            if (type === 'db') return 3000;
+        }
+
+        function renderQueue() {
+            queueEl.innerHTML = '';
+            // Show max 6 items visually
+            taskQueue.slice(0, 6).forEach(t => {
+                const div = document.createElement('div');
+                div.className = `task ${t.colorClass}`;
+                div.textContent = `#${t.id} ${t.name}`;
+                queueEl.appendChild(div);
+            });
+        }
+
+        function processQueue() {
+            if (taskQueue.length === 0) return;
+
+            // Find idle thread
+            const idleThread = threads.find(t => !t.busy);
+            
+            if (idleThread) {
+                const task = taskQueue.shift();
+                renderQueue();
+                runTask(idleThread, task);
+            }
+        }
+
+        function runTask(thread, task) {
+            thread.busy = true;
+            
+            // Update UI
+            thread.el.classList.add('busy');
+            thread.statusEl.textContent = "RUNNING";
+            thread.statusEl.style.color = "green";
+            thread.taskEl.textContent = `Executing: ${task.name}`;
+            thread.taskEl.className = `current-task ${task.colorClass}`;
+            thread.taskEl.style.padding = "2px 5px";
+            thread.taskEl.style.borderRadius = "3px";
+            thread.taskEl.style.color = "white";
+
+            // Simulate work
+            setTimeout(() => {
+                // Task Done
+                thread.busy = false;
+                thread.el.classList.remove('busy');
+                thread.statusEl.textContent = "IDLE";
+                thread.statusEl.style.color = "#666";
+                thread.taskEl.textContent = "Waiting for tasks...";
+                thread.taskEl.className = "current-task";
+                thread.taskEl.style.color = "#333";
+                thread.taskEl.style.background = "none";
+                
+                // Check for more work
+                processQueue();
+            }, task.duration);
+        }
+
+    </script>
+</body>
+</html>

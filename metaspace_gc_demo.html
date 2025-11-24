@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metaspace GC & Class Unloading Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        
+        .container { display: flex; gap: 20px; }
+        
+        .canvas-area {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        svg { border: 1px solid #eee; background: #fafafa; }
+
+        .memory-region { fill: none; stroke-width: 2; stroke-dasharray: 5,5; }
+        .region-label { font-weight: bold; font-size: 14px; fill: #777; }
+
+        .node rect { stroke: #333; stroke-width: 2px; transition: all 0.3s; }
+        .node text { font-size: 13px; fill: #333; pointer-events: none; text-anchor: middle; dominant-baseline: middle; }
+        .link { stroke: #555; stroke-width: 2px; marker-end: url(#arrow); transition: opacity 0.3s; }
+        .link.hidden { opacity: 0.1; }
+
+        .controls { margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; }
+        button { padding: 8px 16px; border: none; border-radius: 4px; background: #007acc; color: white; cursor: pointer; }
+        button:hover { background: #005fa3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        button.danger { background: #e53935; }
+        button.danger:hover { background: #c62828; }
+
+        .info-panel {
+            width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .status-box {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            font-size: 13px;
+        }
+        
+        .highlight { color: #d32f2f; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>Metaspace GC (Class Unloading)</h1>
+
+    <div class="container">
+        <div class="canvas-area">
+            <svg width="600" height="500" id="metaSvg">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#555" />
+                    </marker>
+                </defs>
+                
+                <!-- Regions -->
+                <rect x="20" y="20" width="560" height="100" class="memory-region" stroke="#9c27b0" />
+                <text x="30" y="45" class="region-label" fill="#9c27b0">Stack (Roots)</text>
+
+                <rect x="20" y="140" width="260" height="340" class="memory-region" stroke="#4caf50" />
+                <text x="30" y="165" class="region-label" fill="#4caf50">Java Heap</text>
+
+                <rect x="300" y="140" width="280" height="340" class="memory-region" stroke="#ff9800" />
+                <text x="310" y="165" class="region-label" fill="#ff9800">Metaspace (Native Memory)</text>
+
+                <g id="links-layer"></g>
+                <g id="nodes-layer"></g>
+            </svg>
+
+            <div class="controls">
+                <button onclick="resetSim()">↺ Reset</button>
+                <button onclick="toggleInstance()" id="btn-instance">❌ Remove Instance Ref</button>
+                <button onclick="toggleLoader()" id="btn-loader">❌ Remove Loader Ref</button>
+                <button onclick="runGC()" class="danger">🔥 Run Full GC</button>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <h3>Can Metaspace be collected?</h3>
+            <p><strong>YES</strong>, but it's harder than Heap GC.</p>
+            <p>Metaspace garbage collection is actually <strong>Class Unloading</strong>.</p>
+            
+            <div class="status-box" id="status">
+                System State: <span style="color:green">Healthy</span><br>
+                Class Loaded: Yes<br>
+                Instance Exists: Yes
+            </div>
+
+            <h4>Conditions for Unloading:</h4>
+            <ul style="font-size:13px; padding-left:20px;">
+                <li id="cond-1">1. No instances of the class exist.</li>
+                <li id="cond-2">2. The ClassLoader is unreachable.</li>
+                <li id="cond-3">3. The Class object is unreachable.</li>
+            </ul>
+            <p style="font-size:12px; color:#666;">
+                Note: Classes hold a reference to their ClassLoader. Instances hold a reference to their Class.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const svg = document.getElementById('metaSvg');
+        const nodesLayer = document.getElementById('nodes-layer');
+        const linksLayer = document.getElementById('links-layer');
+        const statusDiv = document.getElementById('status');
+        
+        // State
+        let hasInstanceRef = true;
+        let hasLoaderRef = true;
+        let isClassLoaded = true;
+        let isInstanceAlive = true;
+
+        function render() {
+            nodesLayer.innerHTML = '';
+            linksLayer.innerHTML = '';
+
+            // Nodes Data
+            const nodes = [
+                // Roots
+                { id: 'var1', label: 'myObj', x: 100, y: 70, type: 'root', visible: hasInstanceRef },
+                { id: 'var2', label: 'myLoader', x: 400, y: 70, type: 'root', visible: hasLoaderRef },
+                
+                // Heap
+                { id: 'Instance', label: 'Object Instance', x: 100, y: 250, type: 'heap', visible: isInstanceAlive },
+                { id: 'Loader', label: 'Custom ClassLoader', x: 150, y: 400, type: 'heap', visible: isClassLoaded }, // Loader lives in Heap!
+
+                // Metaspace
+                { id: 'ClassMeta', label: 'Class Metadata (Klass)', x: 440, y: 300, type: 'meta', visible: isClassLoaded }
+            ];
+
+            // Links Data
+            const links = [];
+            
+            if (hasInstanceRef && isInstanceAlive) links.push({ from: 'var1', to: 'Instance' });
+            if (hasLoaderRef && isClassLoaded) links.push({ from: 'var2', to: 'Loader' });
+            
+            if (isInstanceAlive && isClassLoaded) {
+                links.push({ from: 'Instance', to: 'ClassMeta', label: 'header' });
+            }
+            
+            if (isClassLoaded) {
+                links.push({ from: 'ClassMeta', to: 'Loader', label: 'loader' });
+                // Loader also keeps track of its classes, but for GC reachability, 
+                // the critical chain is Instance -> Class -> Loader.
+                // Actually, Loader -> Class is strong too (Vector<Class> classes).
+                links.push({ from: 'Loader', to: 'ClassMeta', label: 'classes' });
+            }
+
+            // Draw Links
+            links.forEach(l => {
+                const src = nodes.find(n => n.id === l.from);
+                const dst = nodes.find(n => n.id === l.to);
+                if (src && dst && src.visible && dst.visible) {
+                    drawLine(src, dst, l.label);
+                }
+            });
+
+            // Draw Nodes
+            nodes.forEach(n => {
+                if (!n.visible) return;
+                
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute("class", "node");
+                g.setAttribute("transform", `translate(${n.x},${n.y})`);
+                
+                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                rect.setAttribute("width", 140);
+                rect.setAttribute("height", 50);
+                rect.setAttribute("rx", 5);
+                rect.setAttribute("x", -70);
+                rect.setAttribute("y", -25);
+                
+                if (n.type === 'root') rect.setAttribute("fill", "#e1bee7");
+                if (n.type === 'heap') rect.setAttribute("fill", "#c8e6c9");
+                if (n.type === 'meta') rect.setAttribute("fill", "#ffe0b2");
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.textContent = n.label;
+                
+                g.appendChild(rect);
+                g.appendChild(text);
+                nodesLayer.appendChild(g);
+            });
+            
+            updateStatusUI();
+        }
+
+        function drawLine(src, dst, label) {
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", src.x);
+            line.setAttribute("y1", src.y + 25); // Bottom of src
+            line.setAttribute("x2", dst.x);
+            line.setAttribute("y2", dst.y - 25); // Top of dst
+            
+            // Adjust for side-by-side or bottom-up
+            if (src.y > dst.y) { // Bottom up (Loader -> Class)
+                 line.setAttribute("y1", src.y - 25);
+                 line.setAttribute("y2", dst.y + 25);
+            }
+            if (src.y === dst.y) { // Side by side
+                 line.setAttribute("x1", src.x + 70);
+                 line.setAttribute("y1", src.y);
+                 line.setAttribute("x2", dst.x - 70);
+                 line.setAttribute("y2", dst.y);
+            }
+
+            line.setAttribute("class", "link");
+            linksLayer.appendChild(line);
+        }
+
+        function updateStatusUI() {
+            const btnInst = document.getElementById('btn-instance');
+            const btnLoad = document.getElementById('btn-loader');
+            
+            btnInst.textContent = hasInstanceRef ? "❌ Remove Instance Ref" : "➕ Add Instance Ref";
+            btnLoad.textContent = hasLoaderRef ? "❌ Remove Loader Ref" : "➕ Add Loader Ref";
+            
+            // Check conditions
+            const cond1 = !hasInstanceRef; // Simplified: if root ref gone, instance is garbage
+            const cond2 = !hasLoaderRef;
+            
+            document.getElementById('cond-1').style.color = cond1 ? "green" : "black";
+            document.getElementById('cond-1').style.fontWeight = cond1 ? "bold" : "normal";
+            
+            document.getElementById('cond-2').style.color = cond2 ? "green" : "black";
+            document.getElementById('cond-2').style.fontWeight = cond2 ? "bold" : "normal";
+        }
+
+        function toggleInstance() {
+            hasInstanceRef = !hasInstanceRef;
+            render();
+        }
+
+        function toggleLoader() {
+            hasLoaderRef = !hasLoaderRef;
+            render();
+        }
+
+        function runGC() {
+            // GC Logic
+            let log = "GC Run: ";
+            
+            // 1. Collect Instance?
+            if (!hasInstanceRef) {
+                isInstanceAlive = false;
+                log += "Instance collected. ";
+            } else {
+                isInstanceAlive = true; // Resurrect if ref added back (simulating new instance)
+            }
+
+            // 2. Collect Class/Loader? (Metaspace GC)
+            // Condition: No Instance AND No Loader Ref
+            // Why? 
+            // Instance -> Class -> Loader
+            // Root -> Loader
+            
+            // If Instance is alive, it holds Class, which holds Loader. So Loader is alive.
+            // If Root holds Loader, Loader is alive.
+            
+            // So Loader is dead ONLY IF: !isInstanceAlive AND !hasLoaderRef
+            
+            if (!isInstanceAlive && !hasLoaderRef) {
+                isClassLoaded = false;
+                log += "Class Unloaded! Metaspace freed.";
+                statusDiv.innerHTML = log + "<br><span style='color:red'>Metaspace Cleaned!</span>";
+            } else {
+                let reason = "";
+                if (isInstanceAlive) reason = "Instance still exists.";
+                else if (hasLoaderRef) reason = "Loader is still referenced.";
+                
+                log += "Metaspace NOT collected. " + reason;
+                statusDiv.innerHTML = log;
+            }
+            
+            render();
+        }
+
+        function resetSim() {
+            hasInstanceRef = true;
+            hasLoaderRef = true;
+            isClassLoaded = true;
+            isInstanceAlive = true;
+            statusDiv.innerHTML = "System Reset.";
+            render();
+        }
+
+        render();
+
+    </script>
+</body>
+</html>

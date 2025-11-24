@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Memory Model (JMM) Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        
+        .container { display: flex; gap: 20px; flex-direction: column; align-items: center; }
+        
+        .canvas-area {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        svg { border: 1px solid #eee; background: #fafafa; }
+
+        .component-box { fill: #fff; stroke-width: 2px; rx: 8; }
+        .main-mem { stroke: #673ab7; }
+        .thread-box { stroke: #2196f3; }
+        .cache-box { stroke: #ff9800; fill: #fff3e0; }
+        
+        .label { font-weight: bold; font-size: 14px; fill: #555; pointer-events: none; text-anchor: middle; }
+        .val-text { font-family: monospace; font-size: 16px; font-weight: bold; fill: #333; text-anchor: middle; }
+        
+        .data-packet { fill: #e91e63; stroke: #fff; stroke-width: 1px; }
+        
+        .controls { margin-top: 15px; display: flex; gap: 15px; align-items: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        
+        button { padding: 10px 20px; border: none; border-radius: 4px; background: #007acc; color: white; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+        button:hover { background: #005fa3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .toggle-switch { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #333; }
+        
+        .status-log {
+            width: 600px;
+            height: 150px;
+            background: #263238;
+            color: #eceff1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #37474f; padding-bottom: 2px; }
+        .highlight { color: #ffeb3b; }
+        .error { color: #ff5252; }
+        .success { color: #69f0ae; }
+
+        /* Animation Classes */
+        .dirty { fill: #ffcdd2 !important; stroke: #e53935 !important; }
+        .invalid { fill: #cfd8dc !important; stroke: #90a4ae !important; opacity: 0.6; }
+        .stale-text { text-decoration: line-through; fill: #999; }
+
+        .demo-guide {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-width: 800px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .demo-guide h3 { margin-top: 0; font-size: 16px; }
+        .demo-guide ol { margin-bottom: 0; padding-left: 20px; }
+        .demo-guide li { margin-bottom: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Java Memory Model (JMM) Visualization <button onclick="openModal()" style="font-size:12px; padding:5px 10px; margin-left:10px; background:#673ab7;">🎓 Interview Q&A</button></h1>
+
+    <div class="demo-guide">
+        <h3>💡 Demo Guide</h3>
+        <ol>
+            <li>Click <b>Write (Volatile)</b> or <b>Write (Normal)</b> to update the variable in Main Memory.</li>
+            <li>Click <b>Read (Thread 1/2)</b> to load the value into the thread's local cache.</li>
+            <li>Observe how <b>Volatile</b> writes force immediate updates to Main Memory and invalidate other caches.</li>
+            <li>Observe how <b>Normal</b> writes might stay in the cache, leading to stale reads in other threads.</li>
+            <li>Click <b>🎓 Interview Q&A</b> for key concepts.</li>
+        </ol>
+    </div>
+
+    <!-- Interview Modal -->
+    <div id="qaModal" class="modal" style="display:none; position:fixed; z-index:100; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); backdrop-filter:blur(2px);">
+        <div class="modal-content" style="background-color:#fefefe; margin:10% auto; padding:20px; border:1px solid #888; width:80%; max-width:600px; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.2);">
+            <span class="close" onclick="closeModal()" style="color:#aaa; float:right; font-size:28px; font-weight:bold; cursor:pointer;">&times;</span>
+            <h2 style="margin-top:0; color:#333;">🔥 JMM Interview Key Points</h2>
+            
+            <div class="qa-item" style="margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                <div class="qa-q" style="font-weight:bold; color:#0d47a1;">Q1: Does `volatile` guarantee thread safety?</div>
+                <div class="qa-a" style="font-size:13px; color:#444;">
+                    <strong>No.</strong> It only guarantees <strong>Visibility</strong> and <strong>Ordering</strong> (happens-before).<br>
+                    It does NOT guarantee <strong>Atomicity</strong>. For example, `x++` is not atomic (Read-Modify-Write). You need `AtomicInteger` or `synchronized` for that.
+                </div>
+            </div>
+            
+            <div class="qa-item" style="margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                <div class="qa-q" style="font-weight:bold; color:#0d47a1;">Q2: What is the "Happens-Before" rule?</div>
+                <div class="qa-a" style="font-size:13px; color:#444;">
+                    It's a rule that guarantees memory visibility. If Action A <em>happens-before</em> Action B, then B is guaranteed to see the results of A.<br>
+                    Key rule: A write to a `volatile` field <em>happens-before</em> every subsequent read of that same field.
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-q" style="font-weight:bold; color:#0d47a1;">Q3: Why is `volatile` faster than `synchronized`?</div>
+                <div class="qa-a" style="font-size:13px; color:#444;">
+                    `volatile` is a lightweight synchronization mechanism. It doesn't cause context switching or thread blocking. It just uses CPU memory barriers (StoreStore, StoreLoad, etc.) to prevent reordering and ensure cache coherence.
+                </div>
+            </div>
+
+            <div class="qa-item" style="margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                <div class="qa-q" style="font-weight:bold; color:#0d47a1;">Q4: How does it guarantee Visibility? (Lock Prefix / MESI)</div>
+                <div class="qa-a" style="font-size:13px; color:#444;">
+                    On the hardware level (e.g., x86), a `volatile` write triggers a <strong>Lock Prefix</strong> instruction.
+                    <ul>
+                        <li>It forces the CPU to write the cache line back to Main Memory immediately.</li>
+                        <li>It uses the <strong>MESI Protocol</strong> to broadcast an "Invalidate" message, forcing other CPUs to mark their cached copies of this variable as Invalid.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-q" style="font-weight:bold; color:#0d47a1;">Q5: How does it prevent Reordering? (Memory Barriers)</div>
+                <div class="qa-a" style="font-size:13px; color:#444;">
+                    The JVM inserts <strong>Memory Barriers</strong> (CPU fences) to disable compiler and CPU optimizations that reorder instructions:
+                    <ul>
+                        <li><strong>StoreStore Barrier</strong> (Before Write): Ensures all previous writes are visible before this volatile write.</li>
+                        <li><strong>StoreLoad Barrier</strong> (After Write): Prevents subsequent reads/writes from passing this write. (This is the heavy one!).</li>
+                        <li><strong>LoadLoad & LoadStore</strong> (After Read): Ensures this read happens before subsequent operations.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="canvas-area">
+            <svg width="700" height="450" id="jmmSvg">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#555" />
+                    </marker>
+                </defs>
+
+                <!-- Main Memory -->
+                <rect x="250" y="320" width="200" height="100" class="component-box main-mem" />
+                <text x="350" y="340" class="label">Main Memory (RAM)</text>
+                <rect x="300" y="360" width="100" height="40" fill="#ede7f6" stroke="#673ab7" rx="4" id="main-var-box" />
+                <text x="350" y="385" class="val-text" id="main-val">x = 0</text>
+
+                <!-- Thread A -->
+                <g transform="translate(50, 50)">
+                    <rect x="0" y="0" width="200" height="180" class="component-box thread-box" />
+                    <text x="100" y="25" class="label">Thread A</text>
+                    
+                    <!-- Working Memory A -->
+                    <rect x="20" y="50" width="160" height="100" class="component-box cache-box" id="cache-a-box" />
+                    <text x="100" y="70" class="label" style="font-size:12px;">Working Memory</text>
+                    <rect x="50" y="90" width="100" height="40" fill="white" stroke="#ff9800" rx="4" id="var-a-box" />
+                    <text x="100" y="115" class="val-text" id="val-a">x = 0</text>
+                </g>
+
+                <!-- Thread B -->
+                <g transform="translate(450, 50)">
+                    <rect x="0" y="0" width="200" height="180" class="component-box thread-box" />
+                    <text x="100" y="25" class="label">Thread B</text>
+                    
+                    <!-- Working Memory B -->
+                    <rect x="20" y="50" width="160" height="100" class="component-box cache-box" id="cache-b-box" />
+                    <text x="100" y="70" class="label" style="font-size:12px;">Working Memory</text>
+                    <rect x="50" y="90" width="100" height="40" fill="white" stroke="#ff9800" rx="4" id="var-b-box" />
+                    <text x="100" y="115" class="val-text" id="val-b">x = 0</text>
+                </g>
+
+                <!-- Bus Lines -->
+                <line x1="150" y1="230" x2="150" y2="370" stroke="#ccc" stroke-width="4" /> <!-- A Vertical -->
+                <line x1="550" y1="230" x2="550" y2="370" stroke="#ccc" stroke-width="4" /> <!-- B Vertical -->
+                <line x1="150" y1="370" x2="250" y2="370" stroke="#ccc" stroke-width="4" /> <!-- A to Main -->
+                <line x1="550" y1="370" x2="450" y2="370" stroke="#ccc" stroke-width="4" /> <!-- B to Main -->
+
+                <!-- Barrier Visuals (Hidden by default) -->
+                <g id="barrier-group" style="opacity: 0; transition: opacity 0.3s;">
+                    <rect x="30" y="135" width="240" height="25" fill="#ff5722" rx="4" />
+                    <text x="150" y="152" class="label" fill="white" style="fill:white; font-size:12px;">⛔ StoreLoad Barrier (No Reordering) ⛔</text>
+                </g>
+
+                <g id="anim-layer"></g>
+            </svg>
+        </div>
+
+        <div class="controls">
+            <div class="toggle-switch">
+                <input type="checkbox" id="volatile-check">
+                <label for="volatile-check">Declare 'volatile int x'</label>
+            </div>
+            <div style="width: 1px; height: 30px; background: #eee;"></div>
+            <button onclick="threadAWrite()">Thread A: x = 1</button>
+            <button onclick="threadBRead()">Thread B: Read x</button>
+            <button onclick="flushToMain()" id="btn-flush" disabled>Flush A to Main</button>
+            <div style="width: 1px; height: 30px; background: #eee;"></div>
+            <button onclick="simulateRaceCondition()" style="background:#e64a19;" title="Simulate x++ race condition">⚡ Race Condition (x++)</button>
+            <button onclick="resetSim()" style="background:#78909c;">Reset</button>
+        </div>
+
+        <div class="status-log" id="log"></div>
+    </div>
+
+    <script>
+        const logBox = document.getElementById('log');
+        const animLayer = document.getElementById('anim-layer');
+        const volatileCheck = document.getElementById('volatile-check');
+        const btnFlush = document.getElementById('btn-flush');
+
+        // State
+        let mainMem = 0;
+        let threadA = { val: 0, dirty: false };
+        let threadB = { val: 0, invalid: false };
+
+        function log(msg, type='') {
+            const div = document.createElement('div');
+            div.className = 'log-entry ' + type;
+            div.innerHTML = `> ${msg}`;
+            logBox.appendChild(div);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function updateUI() {
+            // Main
+            document.getElementById('main-val').textContent = `x = ${mainMem}`;
+            
+            // Thread A
+            document.getElementById('val-a').textContent = `x = ${threadA.val}`;
+            const boxA = document.getElementById('var-a-box');
+            if (threadA.dirty) {
+                boxA.classList.add('dirty');
+            } else {
+                boxA.classList.remove('dirty');
+            }
+
+            // Thread B
+            const valB = document.getElementById('val-b');
+            const boxB = document.getElementById('var-b-box');
+            
+            if (threadB.invalid) {
+                valB.textContent = "Invalid";
+                boxB.classList.add('invalid');
+            } else {
+                valB.textContent = `x = ${threadB.val}`;
+                boxB.classList.remove('invalid');
+            }
+            
+            // Flush Button
+            btnFlush.disabled = !threadA.dirty;
+        }
+
+        async function animatePacket(fromX, fromY, toX, toY, color="#e91e63") {
+            return new Promise(resolve => {
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", fromX);
+                circle.setAttribute("cy", fromY);
+                circle.setAttribute("r", 8);
+                circle.setAttribute("fill", color);
+                animLayer.appendChild(circle);
+
+                const duration = 600;
+                const start = performance.now();
+
+                function step(timestamp) {
+                    const progress = Math.min((timestamp - start) / duration, 1);
+                    const currX = fromX + (toX - fromX) * progress;
+                    const currY = fromY + (toY - fromY) * progress;
+                    
+                    circle.setAttribute("cx", currX);
+                    circle.setAttribute("cy", currY);
+
+                    if (progress < 1) {
+                        requestAnimationFrame(step);
+                    } else {
+                        animLayer.removeChild(circle);
+                        resolve();
+                    }
+                }
+                requestAnimationFrame(step);
+            });
+        }
+
+        async function threadAWrite() {
+            const isVolatile = volatileCheck.checked;
+            
+            log(`Thread A executes: x = 1`);
+            threadA.val = 1;
+            threadA.dirty = true;
+            updateUI();
+
+            if (isVolatile) {
+                log("Volatile detected! Triggering immediate flush...", "highlight");
+                
+                // Show Barrier
+                const barrier = document.getElementById('barrier-group');
+                barrier.style.opacity = 1;
+                setTimeout(() => barrier.style.opacity = 0, 2000);
+                log("[JMM] Inserting StoreLoad Barrier to prevent reordering.", "highlight");
+
+                await flushToMain();
+            } else {
+                log("Non-volatile: Change is only in Working Memory A.", "error");
+                log("Main Memory and Thread B still see x = 0.");
+            }
+        }
+
+        async function flushToMain() {
+            if (!threadA.dirty) return;
+
+            log("Flushing 'x=1' from Working Memory A -> Main Memory...");
+            // Anim: A(150, 110) -> Main(300, 380) approx path
+            await animatePacket(150, 110, 150, 370);
+            await animatePacket(150, 370, 300, 370);
+
+            mainMem = threadA.val;
+            threadA.dirty = false;
+            updateUI();
+            log("Main Memory updated: x = 1", "success");
+
+            // If volatile, or MESI protocol simulation, invalidate others
+            const isVolatile = volatileCheck.checked;
+            if (isVolatile) {
+                log("Volatile write forces invalidation of other caches.");
+                threadB.invalid = true;
+                updateUI();
+            }
+        }
+
+        async function threadBRead() {
+            const isVolatile = volatileCheck.checked;
+            
+            log("Thread B tries to read x...");
+
+            if (threadB.invalid) {
+                log("Cache B is INVALID. Must reload from Main Memory.", "highlight");
+                // Anim: Main -> B
+                await animatePacket(300, 370, 550, 370, "#2196f3");
+                await animatePacket(550, 370, 550, 110, "#2196f3");
+                
+                threadB.val = mainMem;
+                threadB.invalid = false;
+                updateUI();
+                log(`Thread B reloaded x = ${threadB.val}`, "success");
+            } 
+            else if (isVolatile) {
+                 // Volatile read always checks main memory (conceptually)
+                 log("Volatile read: Ensuring visibility from Main Memory.");
+                 await animatePacket(300, 370, 550, 370, "#2196f3");
+                 await animatePacket(550, 370, 550, 110, "#2196f3");
+                 threadB.val = mainMem;
+                 updateUI();
+                 log(`Thread B read x = ${threadB.val}`, "success");
+            }
+            else {
+                // Normal read, might be stale
+                if (threadB.val !== mainMem) {
+                    log(`Thread B reads from Working Memory: x = ${threadB.val}`, "error");
+                    log(`(Stale value! Main Memory has x = ${mainMem})`);
+                } else {
+                    log(`Thread B reads from Working Memory: x = ${threadB.val}`);
+                }
+            }
+        }
+
+        async function simulateRaceCondition() {
+            log("--- Starting Race Condition Simulation (x++) ---", "highlight");
+            log("Goal: Thread A and B both do x++. Expected: x=2.");
+            
+            // Reset
+            mainMem = 0;
+            threadA.val = 0; threadA.dirty = false;
+            threadB.val = 0; threadB.invalid = false;
+            updateUI();
+            
+            // Step 1: Both Read 0
+            log("Step 1: Thread A reads x (0) from Main.");
+            await animatePacket(300, 370, 150, 370, "#2196f3"); // Main -> A
+            await animatePacket(150, 370, 150, 110, "#2196f3");
+            
+            log("Step 2: Thread B reads x (0) from Main.");
+            await animatePacket(300, 370, 550, 370, "#2196f3"); // Main -> B
+            await animatePacket(550, 370, 550, 110, "#2196f3");
+            
+            // Step 3: Both Increment locally
+            log("Step 3: Thread A computes 0 + 1 = 1");
+            threadA.val = 1; threadA.dirty = true;
+            updateUI();
+            
+            log("Step 4: Thread B computes 0 + 1 = 1 (Race!)", "error");
+            threadB.val = 1; // B doesn't know A changed it!
+            // Note: In real hardware, B's cache line might not be dirty yet, or they are dirty in parallel buffers.
+            // For demo, we show B has 1.
+            updateUI();
+            
+            // Step 5: Write Back
+            log("Step 5: Thread A writes 1 to Main.");
+            await animatePacket(150, 110, 150, 370);
+            await animatePacket(150, 370, 300, 370);
+            mainMem = 1;
+            updateUI();
+            
+            log("Step 6: Thread B writes 1 to Main (Overwrites A!)", "error");
+            await animatePacket(550, 110, 550, 370);
+            await animatePacket(550, 370, 300, 370);
+            mainMem = 1;
+            updateUI();
+            
+            log("Result: x = 1. Lost Update! (Expected 2)", "error");
+            log("Conclusion: volatile does NOT guarantee Atomicity.");
+        }
+
+        function resetSim() {
+            mainMem = 0;
+            threadA = { val: 0, dirty: false };
+            threadB = { val: 0, invalid: false };
+            logBox.innerHTML = '';
+            log("Simulation Reset.");
+            updateUI();
+        }
+
+        function openModal() {
+            document.getElementById('qaModal').style.display = "block";
+        }
+        
+        function closeModal() {
+            document.getElementById('qaModal').style.display = "none";
+        }
+        
+        // Close on click outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('qaModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Init
+        updateUI();
+        log("Ready. x = 0 in all memories.");
+
+    </script>
+</body>
+</html>

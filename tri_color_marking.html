@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tri-color Marking Algorithm Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; background: #f0f0f0; margin: 0; padding: 20px; }
+        h1 { margin-bottom: 10px; color: #333; }
+        
+        .container { display: flex; gap: 20px; }
+        
+        .canvas-area {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .info-panel {
+            width: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        svg { border: 1px solid #eee; background: #fafafa; }
+        
+        .node circle { stroke: #333; stroke-width: 2px; transition: fill 0.5s, stroke 0.5s; }
+        .node text { font-size: 14px; font-weight: bold; fill: #333; pointer-events: none; text-anchor: middle; dominant-baseline: middle; }
+        .link { stroke: #999; stroke-width: 2px; marker-end: url(#arrow); transition: stroke 0.3s; }
+        
+        /* Colors */
+        .white { fill: #fff; }
+        .gray { fill: #bdbdbd; }
+        .black { fill: #333; }
+        .black-text { fill: #fff !important; }
+        
+        .controls { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; }
+        button { padding: 8px 16px; cursor: pointer; border: none; border-radius: 4px; background: #007acc; color: white; font-size: 14px; }
+        button:hover { background: #005fa3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .legend { margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 13px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #333; }
+        
+        .status-box {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            font-size: 13px;
+            min-height: 60px;
+        }
+
+        .problem-section {
+            margin-top: 20px;
+            padding: 10px;
+            background: #fff3e0;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 100; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5); 
+            backdrop-filter: blur(2px);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; 
+            max-width: 600px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover { color: black; }
+        .qa-item { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .qa-q { font-weight: bold; color: #0d47a1; margin-bottom: 5px; }
+        .qa-a { font-size: 13px; color: #444; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+    <h1>Tri-color Marking Algorithm <button onclick="openModal()" style="font-size:12px; padding:5px 10px; margin-left:10px; background:#673ab7;">🎓 Interview Q&A</button></h1>
+
+    <!-- Interview Modal -->
+    <div id="qaModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 style="margin-top:0; color:#333;">🔥 Tri-color Marking Interview Questions</h2>
+            
+            <div class="qa-item">
+                <div class="qa-q">Q1: What is the "Lost Object" problem?</div>
+                <div class="qa-a">It happens during concurrent marking when two conditions are met simultaneously:
+                    <ol>
+                        <li>A <strong>Black</strong> object (scanned) points to a <strong>White</strong> object (unscanned).</li>
+                        <li>All <strong>Gray</strong> objects (currently scanning) lose their reference to that White object.</li>
+                    </ol>
+                    Result: The White object is live (referenced by Black) but will be collected as garbage because the collector thinks it's unreachable.
+                </div>
+            </div>
+            
+            <div class="qa-item">
+                <div class="qa-q">Q2: How does CMS solve this? (Incremental Update)</div>
+                <div class="qa-a">CMS uses a <strong>Write Barrier</strong>. When a Black object acquires a reference to a White object, the barrier intercepts this write.
+                <br>It can either:
+                <ul>
+                    <li><strong>Revert Black to Gray:</strong> The source object is marked "dirty" (Gray) and will be rescanned. (This is what our simulation does).</li>
+                    <li><strong>Mark White as Gray:</strong> The target object is immediately pushed to the mark stack.</li>
+                </ul>
+                Both ensure the White object is eventually scanned.
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-q">Q3: How does G1 solve this? (SATB)</div>
+                <div class="qa-a"><strong>Snapshot At The Beginning (SATB)</strong>. 
+                <br>G1 focuses on the reference being <em>broken</em> (A->D removed).
+                <br>When <code>A.field = null</code> happens:
+                <ul>
+                    <li>The Write Barrier records the <strong>Old Value (D)</strong>.</li>
+                    <li>It treats D as "Live" for this cycle, even if D is actually garbage now (Floating Garbage).</li>
+                    <li>This guarantees that any object live at the start of marking remains live.</li>
+                </ul>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-q">Q4: Why do we need a "Stop-The-World" Remark phase?</div>
+                <div class="qa-a">To process the changes captured by the Write Barriers (the "dirty cards" or SATB buffers) during the concurrent phase. Since the mutator is stopped, we can safely finalize the graph without new changes happening.</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="canvas-area">
+            <svg width="600" height="400" id="graphSvg">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="18" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#999" />
+                    </marker>
+                </defs>
+                <g id="links-layer"></g>
+                <g id="nodes-layer"></g>
+            </svg>
+            
+            <div class="controls">
+                <button onclick="resetGraph()">↺ Reset</button>
+                <button onclick="nextStep()" id="btn-step">⏯ Next Step</button>
+                <button onclick="autoRun()" id="btn-auto">▶ Auto Run</button>
+            </div>
+            <div class="controls">
+                <button onclick="simulateMutator()" style="background: #e64a19;" title="Simulate a concurrent modification that could cause issues">⚡ Simulate Mutator (Break Ref)</button>
+                <div style="display:flex; flex-direction:column; gap:5px; background:#e8f5e9; padding:8px; border-radius:4px; font-size:13px;">
+                    <strong>Write Barrier Strategy:</strong>
+                    <label><input type="radio" name="wb-strategy" value="none" checked> None (Problem Demo)</label>
+                    <label><input type="radio" name="wb-strategy" value="cms"> Incremental Update (CMS)</label>
+                    <label><input type="radio" name="wb-strategy" value="satb"> SATB (G1)</label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <div class="status-box" id="status">
+                Ready. Click "Next Step" to start marking from GC Roots.
+            </div>
+
+            <div class="legend">
+                <strong>Color Meanings:</strong>
+                <div class="legend-item">
+                    <div class="dot white" style="background:#fff;"></div>
+                    <span><strong>White:</strong> Not visited (Potential Garbage)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="dot gray" style="background:#bdbdbd;"></div>
+                    <span><strong>Gray:</strong> Visited, children not fully processed</span>
+                </div>
+                <div class="legend-item">
+                    <div class="dot black" style="background:#333;"></div>
+                    <span><strong>Black:</strong> Visited, all children processed (Live)</span>
+                </div>
+            </div>
+
+            <div class="problem-section">
+                <strong>The "Lost Object" Problem:</strong><br>
+                If a Mutator moves a reference from a Gray node to a Black node during marking, the White node might be missed (collected by mistake).<br><br>
+                <strong>Solutions:</strong><br>
+                1. <strong>Incremental Update (CMS):</strong> If Black points to White, turn Black -> Gray.<br>
+                2. <strong>SATB (G1):</strong> Snapshot At The Beginning. Keep track of old references.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const svg = document.getElementById('graphSvg');
+        const nodesLayer = document.getElementById('nodes-layer');
+        const linksLayer = document.getElementById('links-layer');
+        const statusDiv = document.getElementById('status');
+        
+        // Graph Data
+        let nodes = [
+            { id: 'Root', x: 300, y: 50, color: 'white', isRoot: true },
+            { id: 'A', x: 200, y: 150, color: 'white' },
+            { id: 'B', x: 400, y: 150, color: 'white' },
+            { id: 'C', x: 150, y: 250, color: 'white' },
+            { id: 'D', x: 250, y: 250, color: 'white' },
+            { id: 'E', x: 400, y: 250, color: 'white' }, // Garbage
+            { id: 'F', x: 500, y: 250, color: 'white' }  // Garbage
+        ];
+        
+        let links = [
+            { from: 'Root', to: 'A' },
+            { from: 'Root', to: 'B' },
+            { from: 'A', to: 'C' },
+            { from: 'A', to: 'D' },
+            { from: 'E', to: 'F' } // Disconnected cycle (Garbage)
+        ];
+
+        let grayQueue = [];
+        let isRunning = false;
+        let stepIndex = 0; // 0: Init, 1: Mark Roots, 2: Loop...
+
+        function render() {
+            nodesLayer.innerHTML = '';
+            linksLayer.innerHTML = '';
+            
+            // Draw Links
+            links.forEach(l => {
+                const fromNode = nodes.find(n => n.id === l.from);
+                const toNode = nodes.find(n => n.id === l.to);
+                if(!fromNode || !toNode) return;
+                
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", fromNode.x);
+                line.setAttribute("y1", fromNode.y);
+                line.setAttribute("x2", toNode.x);
+                line.setAttribute("y2", toNode.y);
+                line.setAttribute("class", "link");
+                linksLayer.appendChild(line);
+            });
+            
+            // Draw Nodes
+            nodes.forEach(n => {
+                const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                g.setAttribute("class", "node");
+                g.setAttribute("transform", `translate(${n.x},${n.y})`);
+                
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("r", 20);
+                circle.setAttribute("class", n.color);
+                
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.textContent = n.id;
+                if(n.color === 'black') text.setAttribute("class", "black-text");
+                
+                g.appendChild(circle);
+                g.appendChild(text);
+                nodesLayer.appendChild(g);
+            });
+        }
+
+        function updateStatus(msg) {
+            statusDiv.innerHTML = msg;
+        }
+
+        function resetGraph() {
+            nodes.forEach(n => n.color = 'white');
+            grayQueue = [];
+            stepIndex = 0;
+            isRunning = false;
+            
+            // Reset links if modified by mutator
+            links = [
+                { from: 'Root', to: 'A' },
+                { from: 'Root', to: 'B' },
+                { from: 'A', to: 'C' },
+                { from: 'A', to: 'D' },
+                { from: 'E', to: 'F' }
+            ];
+            
+            render();
+            updateStatus("Reset complete. Ready to start.");
+        }
+
+        async function nextStep() {
+            if (stepIndex === 0) {
+                // Mark Roots
+                updateStatus("<strong>Step 1: Mark Roots</strong><br>GC Roots are marked Gray (Visited).");
+                nodes.filter(n => n.isRoot).forEach(n => {
+                    n.color = 'gray';
+                    grayQueue.push(n);
+                });
+                stepIndex = 1;
+            } else {
+                // Process Gray Queue
+                if (grayQueue.length > 0) {
+                    const current = grayQueue.shift();
+                    updateStatus(`<strong>Processing Node ${current.id}</strong><br>Scanning children...`);
+                    
+                    // Highlight current processing
+                    render(); // Refresh to show current state
+                    
+                    await new Promise(r => setTimeout(r, 500));
+
+                    // Find children
+                    const childrenIds = links.filter(l => l.from === current.id).map(l => l.to);
+                    
+                    let childrenText = "";
+                    childrenIds.forEach(childId => {
+                        const child = nodes.find(n => n.id === childId);
+                        if (child && child.color === 'white') {
+                            child.color = 'gray';
+                            grayQueue.push(child);
+                            childrenText += child.id + " ";
+                        }
+                    });
+                    
+                    if(childrenText) updateStatus(`Marked children <strong>${childrenText}</strong> as Gray.`);
+                    else updateStatus(`Node ${current.id} has no white children.`);
+
+                    // Mark current Black
+                    current.color = 'black';
+                    
+                } else {
+                    // Sweep
+                    updateStatus("<strong>Marking Complete!</strong><br>No more Gray nodes.<br>White nodes (E, F) are Garbage.");
+                    stepIndex = 99; // Done
+                }
+            }
+            render();
+        }
+
+        async function autoRun() {
+            if(isRunning) return;
+            isRunning = true;
+            while(stepIndex !== 99 && isRunning) {
+                await nextStep();
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            isRunning = false;
+        }
+        
+        function simulateMutator() {
+            // Simulate: A (Gray) -> D (White) link is broken
+            // And Root (Black) -> D (White) link is created
+            // This simulates "Black pointing to White" while "Gray loses ref to White"
+            
+            // Check if we are in a state where this makes sense
+            // We need Root to be Black and A to be Gray/Black and D to be White
+            
+            const root = nodes.find(n => n.id === 'Root');
+            const nodeA = nodes.find(n => n.id === 'A');
+            const nodeD = nodes.find(n => n.id === 'D');
+            
+            // Get selected strategy
+            const strategies = document.getElementsByName('wb-strategy');
+            let strategy = 'none';
+            for(let s of strategies) { if(s.checked) strategy = s.value; }
+            
+            if(root.color === 'black' && nodeD.color === 'white') {
+                // Move reference
+                links = links.filter(l => !(l.from === 'A' && l.to === 'D')); // Remove A->D
+                links.push({ from: 'Root', to: 'D' }); // Add Root->D
+                
+                if (strategy === 'cms') {
+                    // Write Barrier Logic: Incremental Update (CMS)
+                    // "Force D to be scanned" by reverting Root to Gray
+                    root.color = 'gray';
+                    if (!grayQueue.includes(root)) {
+                        grayQueue.push(root);
+                    }
+                    
+                    render();
+                    updateStatus("<strong>Mutator Event (CMS)!</strong><br>Ref A->D removed, Root->D added.<br><span style='color:green'>Barrier Triggered: Root reverted to Gray (Incremental Update). It will be rescanned.</span>");
+                } 
+                else if (strategy === 'satb') {
+                    // Write Barrier Logic: SATB (G1)
+                    // "Keep D alive because it was referenced at start of marking"
+                    // When A->D is broken, we record the OLD value (D).
+                    
+                    // In G1, we mark the *old referent* (D) as Gray immediately (or put in SATB buffer)
+                    nodeD.color = 'gray';
+                    if (!grayQueue.includes(nodeD)) {
+                        grayQueue.push(nodeD);
+                    }
+
+                    render();
+                    updateStatus("<strong>Mutator Event (G1 SATB)!</strong><br>Ref A->D removed.<br><span style='color:purple'>Barrier Triggered: Old reference 'D' recorded by SATB. D marked Gray immediately.</span><br>G1 assumes: 'If it was alive before, keep it alive this round'.");
+                }
+                else {
+                    render();
+                    updateStatus("<strong>Mutator Event!</strong><br>Ref A->D removed.<br>Ref Root->D added.<br><span style='color:red'>Problem: Root is Black (won't scan again), D is White. D will be lost!</span>");
+                }
+            } else {
+                alert("Please run the simulation until Root is Black and D is White to see the effect.");
+            }
+        }
+
+        function openModal() {
+            document.getElementById('qaModal').style.display = "block";
+        }
+        
+        function closeModal() {
+            document.getElementById('qaModal').style.display = "none";
+        }
+        
+        // Close on click outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('qaModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Init
+        render();
+
+    </script>
+</body>
+</html>

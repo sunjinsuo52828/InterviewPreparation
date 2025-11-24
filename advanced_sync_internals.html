@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Synchronization Internals Visualization (Monitor & AQS)</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; }
+        h1 { margin: 10px 0; font-size: 24px; color: #333; }
+        
+        /* Tabs */
+        .tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tab-btn { padding: 10px 20px; border: none; background: #ddd; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .tab-btn.active { background: #0078d4; color: white; }
+
+        /* Containers */
+        .scene { display: none; width: 900px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex-direction: column; align-items: center; }
+        .scene.active { display: flex; }
+
+        .controls { margin-top: 15px; display: flex; gap: 10px; position: relative; z-index: 100; }
+        button.action-btn { padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button.action-btn:disabled { background: #ccc; cursor: not-allowed; }
+        button.reset-btn { background: #dc3545; }
+
+        /* Common Elements */
+        .thread-pool { display: flex; gap: 10px; margin-bottom: 30px; min-height: 80px; }
+        .thread { 
+            width: 60px; height: 60px; border-radius: 50%; background: #eee; border: 3px solid #999; 
+            display: flex; align-items: center; justify-content: center; font-weight: bold; 
+            position: relative; transition: all 0.5s ease; z-index: 10;
+        }
+        .thread.running { background: #b3d9ff; border-color: #0078d4; }
+        .thread.blocked { background: #ffeeba; border-color: #ffc107; }
+        .thread.waiting { background: #f8d7da; border-color: #dc3545; }
+        .thread.owner { background: #d4edda; border-color: #28a745; box-shadow: 0 0 15px #28a745; }
+
+        /* --- Synchronized (Monitor) Specific --- */
+        .monitor-box {
+            width: 400px; height: 250px; border: 4px solid #333; border-radius: 10px; position: relative;
+            display: flex; flex-direction: column; align-items: center; background: #fafafa;
+        }
+        .monitor-header { background: #333; color: white; width: 100%; text-align: center; padding: 5px 0; font-weight: bold; }
+        
+        .monitor-owner-zone {
+            width: 100px; height: 100px; border: 2px dashed #28a745; margin-top: 20px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; position: relative;
+        }
+        .monitor-owner-label { position: absolute; top: -20px; font-size: 12px; color: #28a745; font-weight: bold; }
+
+        .entry-list {
+            position: absolute; left: -160px; top: 50px; width: 140px; height: 180px;
+            border: 2px solid #ffc107; background: #fff3cd; border-radius: 8px;
+            display: flex; flex-direction: column; align-items: center; padding: 10px; gap: 5px;
+        }
+        .wait-set {
+            position: absolute; right: -160px; top: 50px; width: 140px; height: 180px;
+            border: 2px solid #dc3545; background: #f8d7da; border-radius: 8px;
+            display: flex; flex-direction: column; align-items: center; padding: 10px; gap: 5px;
+        }
+        .zone-label { font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+
+        /* --- Mark Word & Upgrade --- */
+        .mark-word-container { position: relative; width: 600px; margin: 20px 0; }
+        .mark-word {
+            width: 100%; height: 50px; background: #222; color: #0f0; font-family: monospace;
+            display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 2px solid #555;
+            font-size: 16px; transition: all 0.3s;
+        }
+        .mark-label { position: absolute; top: -20px; left: 0; font-weight: bold; font-size: 12px; color: #555; }
+        .mark-word.biased { border-color: #28a745; color: #28a745; background: #e6fffa; }
+        .mark-word.light { border-color: #ffc107; color: #856404; background: #fff3cd; }
+        .mark-word.heavy { border-color: #dc3545; color: #721c24; background: #f8d7da; }
+
+        /* --- AQS (ReentrantLock/Semaphore) Specific --- */
+        .aqs-container {
+            display: flex; flex-direction: column; align-items: center; width: 100%;
+        }
+        .state-box {
+            width: 120px; height: 80px; border: 3px solid #0078d4; border-radius: 8px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: white; margin-bottom: 40px; position: relative;
+        }
+        .state-val { font-size: 32px; font-weight: bold; color: #0078d4; }
+        .state-label { font-size: 12px; color: #666; }
+        
+        .clh-queue {
+            display: flex; align-items: center; gap: 5px; min-height: 100px; padding: 10px;
+            border: 2px dashed #999; border-radius: 50px; background: #f9f9f9;
+        }
+        .clh-node {
+            width: 50px; height: 50px; border: 2px solid #666; background: #ddd; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; font-size: 12px;
+            position: relative;
+        }
+        .clh-node::after { content: '→'; position: absolute; right: -15px; font-size: 20px; color: #999; }
+        .clh-node:last-child::after { content: ''; }
+        .clh-head { border-color: #28a745; background: #d4edda; }
+        .clh-label { position: absolute; bottom: -20px; font-size: 10px; width: 100%; text-align: center; }
+
+        .log-panel {
+            width: 100%; height: 120px; background: #222; color: #0f0; font-family: monospace;
+            padding: 10px; margin-top: 20px; overflow-y: auto; border-radius: 4px; font-size: 13px;
+        }
+
+        .info-box {
+            background: #eef6ff; border-left: 5px solid #0078d4; padding: 10px; margin-bottom: 20px; width: 100%;
+            font-size: 14px; color: #333;
+        }
+        .demo-guide { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #999; color: #b71c1c; background: #fff5f5; padding: 10px; border-radius: 4px; }
+        .demo-guide strong { display: block; margin-bottom: 5px; }
+        .demo-guide ol { margin: 0 0 0 20px; padding: 0; }
+        .demo-guide li { margin-bottom: 3px; }
+    </style>
+</head>
+<body>
+
+    <h1>Java Synchronization Internals Visualization</h1>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('monitor')">Synchronized</button>
+        <button class="tab-btn" onclick="switchTab('lock')">ReentrantLock</button>
+        <button class="tab-btn" onclick="switchTab('semaphore')">Semaphore</button>
+        <button class="tab-btn" onclick="switchTab('latch')">CountDownLatch</button>
+        <button class="tab-btn" onclick="switchTab('rwlock')">ReadWriteLock</button>
+    </div>
+
+    <!-- SCENE 1: Synchronized (Monitor) -->
+    <div id="scene-monitor" class="scene active">
+        <div class="info-box">
+            <strong>Use Case:</strong> The most common mutual exclusion lock. Used to protect critical sections and prevent concurrent modification of shared data.<br>
+            <strong>Internals:</strong> Object Header (Mark Word) stores lock state. Upgrades: No Lock -> Biased -> Lightweight -> Heavyweight (Monitor).
+            <div class="demo-guide">
+                <strong>🔴 Demo Guide (Lock Upgrade Process):</strong>
+                <ol>
+                    <li>Click <b>1. Biased (T1)</b>: T1 accesses object. Mark Word turns Green (Biased Lock).</li>
+                    <li>Click <b>2. Lightweight (T2)</b>: T2 contends. Bias revoked. Mark Word turns Yellow (Ptr to Stack).</li>
+                    <li>Click <b>3. Heavyweight</b>: Contention escalates. Mark Word turns Red (Ptr to Monitor). Monitor Box activates.</li>
+                    <li>Now use <b>T1/T2/T3 Compete</b> to see standard blocking behavior in the EntryList.</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div class="thread-pool" id="pool-monitor">
+            <div class="thread" id="t1">T1</div>
+            <div class="thread" id="t2">T2</div>
+            <div class="thread" id="t3">T3</div>
+        </div>
+
+        <!-- Mark Word Visualization -->
+        <div class="mark-word-container">
+            <div class="mark-label">Object Header (Mark Word)</div>
+            <div class="mark-word" id="mark-word">Unused | Age | 001 (No Lock)</div>
+        </div>
+
+        <div class="monitor-box" id="monitor-box" style="opacity: 0.5; filter: grayscale(1);">
+            <div class="monitor-header">ObjectMonitor (Heavyweight Only)</div>
+            
+            <div class="entry-list" id="entry-list">
+                <div class="zone-label">EntryList (Blocked)</div>
+            </div>
+
+            <div class="monitor-owner-zone" id="owner-zone">
+                <div class="monitor-owner-label">_owner</div>
+            </div>
+
+            <div class="wait-set" id="wait-set">
+                <div class="zone-label">WaitSet (Waiting)</div>
+            </div>
+        </div>
+
+        <div class="controls" style="flex-direction: column; align-items: center;">
+            <div style="margin-bottom: 10px; display: flex; gap: 10px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                <span style="font-weight:bold; align-self: center;">Lock Upgrade:</span>
+                <button class="action-btn" style="background: #17a2b8;" onclick="demoBiased()">1. Biased (T1)</button>
+                <button class="action-btn" style="background: #ffc107; color: #000;" onclick="demoLight()">2. Lightweight (T2)</button>
+                <button class="action-btn" style="background: #dc3545;" onclick="demoHeavy()">3. Heavyweight (Inflate)</button>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <span style="font-weight:bold; align-self: center;">Monitor Ops:</span>
+                <button class="action-btn" onclick="monitorEnter()">T1/T2/T3 Compete</button>
+                <button class="action-btn" onclick="monitorWait()">wait()</button>
+                <button class="action-btn" onclick="monitorNotify()">notify()</button>
+                <button class="action-btn" onclick="monitorExit()">Exit</button>
+                <button class="action-btn reset-btn" onclick="resetMonitor()">Reset</button>
+            </div>
+        </div>
+        <div class="log-panel" id="log-monitor"></div>
+    </div>
+
+    <!-- SCENE 2: ReentrantLock (AQS) -->
+    <div id="scene-lock" class="scene">
+        <div class="info-box">
+            <strong>Use Case:</strong> Mutex with advanced features (fairness, tryLock, interruptible). More flexible than synchronized.<br>
+            <strong>Internals:</strong> AQS (AbstractQueuedSynchronizer). state=1 means locked. CAS modifies state. Failed threads enter CLH queue and block.
+            <div class="demo-guide">
+                <strong>🔴 Demo Guide:</strong>
+                <ol>
+                    <li>Click <b>Random Thread lock()</b>: T1 gets lock (State becomes 1).</li>
+                    <li>Click <b>Random Thread lock()</b> again: T2 fails CAS, enters CLH Queue (Blocked).</li>
+                    <li>Click <b>Current Owner unlock()</b>: T1 releases (State=0), Head node wakes up T2.</li>
+                    <li>T2 retries CAS and becomes the new Owner.</li>
+                </ol>
+            </div>
+        </div>
+        <div class="thread-pool" id="pool-lock">
+            <div class="thread" id="lt1">T1</div>
+            <div class="thread" id="lt2">T2</div>
+            <div class="thread" id="lt3">T3</div>
+        </div>
+
+        <div class="aqs-container">
+            <div class="state-box">
+                <div class="state-label">state (volatile int)</div>
+                <div class="state-val" id="lock-state">0</div>
+                <div class="state-label" id="lock-owner">Owner: null</div>
+            </div>
+
+            <div style="margin-bottom: 5px; font-weight: bold; color: #666;">CLH Queue (Doubly Linked List)</div>
+            <div class="clh-queue" id="lock-queue">
+                <!-- Nodes will be added here -->
+                <div class="clh-node clh-head"><div class="clh-label">Head</div></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="action-btn" onclick="lockAcquire()">Random Thread lock()</button>
+            <button class="action-btn" onclick="lockRelease()">Current Owner unlock()</button>
+            <button class="action-btn reset-btn" onclick="resetLock()">Reset</button>
+        </div>
+        <div class="log-panel" id="log-lock"></div>
+    </div>
+
+    <!-- SCENE 3: Semaphore (AQS) -->
+    <div id="scene-semaphore" class="scene">
+        <div class="info-box">
+            <strong>Use Case:</strong> Flow control, rate limiting. Controls number of threads accessing a resource (e.g., DB connection pool).<br>
+            <strong>Internals:</strong> AQS Shared Mode. state = permits. acquire() decrements state, release() increments state. Blocks if state < 0.
+            <div class="demo-guide">
+                <strong>🔴 Demo Guide:</strong>
+                <ol>
+                    <li>Click <b>acquire()</b> twice: State drops 2 -> 1 -> 0. Two threads become Owners.</li>
+                    <li>Click <b>acquire()</b> again: State is 0. T3 enters CLH Queue (Blocked).</li>
+                    <li>Click <b>release()</b>: State becomes 1. T3 wakes up, grabs the permit (State -> 0), and runs.</li>
+                </ol>
+            </div>
+        </div>
+        <div class="thread-pool" id="pool-sem">
+            <div class="thread" id="st1">T1</div>
+            <div class="thread" id="st2">T2</div>
+            <div class="thread" id="st3">T3</div>
+            <div class="thread" id="st4">T4</div>
+        </div>
+
+        <div class="aqs-container">
+            <div class="state-box">
+                <div class="state-label">permits (state)</div>
+                <div class="state-val" id="sem-state">2</div>
+            </div>
+
+            <div style="margin-bottom: 5px; font-weight: bold; color: #666;">CLH Queue (Wait Queue)</div>
+            <div class="clh-queue" id="sem-queue">
+                <div class="clh-node clh-head"><div class="clh-label">Head</div></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="action-btn" onclick="semAcquire()">Random Thread acquire()</button>
+            <button class="action-btn" onclick="semRelease()">release()</button>
+            <button class="action-btn reset-btn" onclick="resetSem()">Reset</button>
+        </div>
+        <div class="log-panel" id="log-sem"></div>
+    </div>
+
+    <!-- SCENE 4: CountDownLatch (AQS) -->
+    <div id="scene-latch" class="scene">
+        <div class="info-box">
+            <strong>Use Case:</strong> Wait for multiple threads. E.g., Main thread waits for 5 sub-services to initialize.<br>
+            <strong>Internals:</strong> AQS Shared Mode. state = count. await() blocks if state > 0. countDown() decrements state. Wakes all when state = 0.
+            <div class="demo-guide">
+                <strong>🔴 Demo Guide:</strong>
+                <ol>
+                    <li>Click <b>Wait Thread await()</b>: T1/T2 enter Queue (blocked) because count=3.</li>
+                    <li>Click <b>Work Thread countDown()</b> 3 times: Count drops 3 -> 2 -> 1 -> 0.</li>
+                    <li>When Count hits 0, ALL waiting threads in Queue are released (Propagate) and turn Green.</li>
+                </ol>
+            </div>
+        </div>
+        <div class="thread-pool" id="pool-latch">
+            <div class="thread" id="lat1">Wait1</div>
+            <div class="thread" id="lat2">Wait2</div>
+            <div class="thread" id="lat3">Work1</div>
+            <div class="thread" id="lat4">Work2</div>
+            <div class="thread" id="lat5">Work3</div>
+        </div>
+
+        <div class="aqs-container">
+            <div class="state-box">
+                <div class="state-label">count (state)</div>
+                <div class="state-val" id="latch-state">3</div>
+            </div>
+
+            <div style="margin-bottom: 5px; font-weight: bold; color: #666;">CLH Queue (Wait Queue)</div>
+            <div class="clh-queue" id="latch-queue">
+                <div class="clh-node clh-head"><div class="clh-label">Head</div></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="action-btn" onclick="latchAwait()">Wait Thread await()</button>
+            <button class="action-btn" onclick="latchCountDown()">Work Thread countDown()</button>
+            <button class="action-btn reset-btn" onclick="resetLatch()">Reset</button>
+        </div>
+        <div class="log-panel" id="log-latch"></div>
+    </div>
+
+    <!-- SCENE 5: ReadWriteLock (AQS) -->
+    <div id="scene-rwlock" class="scene">
+        <div class="info-box">
+            <strong>Use Case:</strong> Read-heavy, write-rare. Allows multiple readers, but exclusive writer. Improves read concurrency.<br>
+            <strong>Internals:</strong> AQS state split: High 16 bits = Read lock count, Low 16 bits = Write lock count. Read is shared, Write is exclusive.
+            <div class="demo-guide">
+                <strong>🔴 Demo Guide:</strong>
+                <ol>
+                    <li>Click <b>Read lock()</b> multiple times: R1, R2 get lock (High 16 bits increments). Shared access.</li>
+                    <li>Click <b>Write lock()</b>: W1 fails (blocked) because readers exist. Enters Queue.</li>
+                    <li>Click <b>Unlock</b> until Readers are gone: W1 wakes up and gets Write Lock (Low 16 bits = 1).</li>
+                </ol>
+            </div>
+        </div>
+        <div class="thread-pool" id="pool-rw">
+            <div class="thread" id="r1">R1</div>
+            <div class="thread" id="r2">R2</div>
+            <div class="thread" id="r3">R3</div>
+            <div class="thread" id="w1" style="border-color: #d83b01; background: #fde7e9;">W1</div>
+        </div>
+
+        <div class="aqs-container">
+            <div class="state-box" style="width: 200px;">
+                <div class="state-label">state (32bit split)</div>
+                <div style="display: flex; gap: 20px;">
+                    <div style="text-align: center;">
+                        <div class="state-val" id="rw-read-state">0</div>
+                        <div class="state-label">Read (High 16)</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div class="state-val" id="rw-write-state">0</div>
+                        <div class="state-label">Write (Low 16)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 5px; font-weight: bold; color: #666;">CLH Queue (Wait Queue)</div>
+            <div class="clh-queue" id="rw-queue">
+                <div class="clh-node clh-head"><div class="clh-label">Head</div></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="action-btn" onclick="rwReadLock()">Read Thread lock()</button>
+            <button class="action-btn" onclick="rwWriteLock()">Write Thread lock()</button>
+            <button class="action-btn" onclick="rwUnlock()">Unlock</button>
+            <button class="action-btn reset-btn" onclick="resetRw()">Reset</button>
+        </div>
+        <div class="log-panel" id="log-rw"></div>
+    </div>
+
+    <script>
+        // --- Common Utils ---
+        function log(panelId, msg) {
+            const panel = document.getElementById(panelId);
+            const div = document.createElement('div');
+            div.innerText = `> ${msg}`;
+            panel.appendChild(div);
+            panel.scrollTop = panel.scrollHeight;
+        }
+        function switchTab(tab) {
+            document.querySelectorAll('.scene').forEach(el => el.classList.remove('active'));
+            document.getElementById('scene-' + tab).classList.add('active');
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+        function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+        // --- Monitor Logic ---
+        let monitorOwner = null;
+        let entryList = [];
+        let waitSet = [];
+        let lockType = 'none'; // none, biased, light, heavy
+        const monitorThreads = ['t1', 't2', 't3'];
+
+        // Ensure clean state on load
+        window.onload = function() {
+            console.log("Visualization Loaded");
+            resetMonitor();
+        };
+
+        function resetMonitor() {
+            console.log("Resetting Monitor...");
+            monitorOwner = null;
+            entryList = [];
+            waitSet = [];
+            lockType = 'none';
+            
+            // Clear queues visually
+            document.getElementById('owner-zone').innerHTML = '<div class="monitor-owner-label">_owner</div>';
+            document.getElementById('entry-list').innerHTML = '<div class="zone-label">EntryList (Blocked)</div>';
+            document.getElementById('wait-set').innerHTML = '<div class="zone-label">WaitSet (Waiting)</div>';
+            document.getElementById('log-monitor').innerHTML = '';
+            
+            // Reset Monitor Box Visuals
+            const mb = document.getElementById('monitor-box');
+            if(mb) {
+                mb.style.opacity = '0.5';
+                mb.style.filter = 'grayscale(1)';
+            }
+
+            // Reset Threads
+            monitorThreads.forEach(id => {
+                const t = document.getElementById(id);
+                if(t) {
+                    t.className = 'thread';
+                    t.classList.remove('owner', 'blocked', 'waiting');
+                    const pool = document.getElementById('pool-monitor');
+                    if(pool) pool.appendChild(t);
+                }
+            });
+            
+            updateMarkWordUI();
+        }
+
+        function updateMarkWordUI() {
+            const mw = document.getElementById('mark-word');
+            mw.className = 'mark-word';
+            if (lockType === 'none') {
+                mw.innerText = 'Unused | Age | 001 (No Lock)';
+                mw.style.background = '#222'; mw.style.color = '#0f0';
+            } else if (lockType === 'biased') {
+                mw.innerText = `Thread: T1 | Epoch | Age | 101 (Biased)`;
+                mw.classList.add('biased');
+            } else if (lockType === 'light') {
+                mw.innerText = `Ptr to LockRecord (T1 Stack) | 00 (Lightweight)`;
+                mw.classList.add('light');
+            } else if (lockType === 'heavy') {
+                mw.innerText = `Ptr to ObjectMonitor | 10 (Heavyweight)`;
+                mw.classList.add('heavy');
+            }
+        }
+
+        function demoBiased() {
+            if (lockType !== 'none') { resetMonitor(); }
+            lockType = 'biased';
+            monitorOwner = 't1';
+            
+            // Visuals
+            const t1 = document.getElementById('t1');
+            t1.classList.add('owner');
+            // Note: In biased mode, thread is owner but NOT in Monitor Box yet
+            
+            updateMarkWordUI();
+            log('log-monitor', 'T1 accesses object. CAS ThreadID success. Mark Word records T1. State: Biased Lock.');
+        }
+
+        function demoLight() {
+            if (lockType !== 'biased') { 
+                log('log-monitor', 'Demo: Please click "Biased (T1)" first to simulate upgrade flow.');
+                return; 
+            }
+            lockType = 'light';
+            
+            // Visuals: T2 appears to contend
+            const t2 = document.getElementById('t2');
+            t2.classList.add('blocked'); // T2 spinning
+            
+            updateMarkWordUI();
+            log('log-monitor', 'T2 contends. Revoke Bias. CAS Mark Word to point to Lock Record in T1 Stack. State: Lightweight Lock.');
+        }
+
+        function demoHeavy() {
+            if (lockType === 'heavy') return;
+            lockType = 'heavy';
+            
+            // Activate Monitor Box
+            const mb = document.getElementById('monitor-box');
+            mb.style.opacity = '1';
+            mb.style.filter = 'none';
+
+            // Move T1 (Owner) into Monitor
+            if (monitorOwner) {
+                const tEl = document.getElementById(monitorOwner);
+                document.getElementById('owner-zone').appendChild(tEl);
+            }
+
+            // Move T2 (Blocked) into EntryList
+            const t2 = document.getElementById('t2');
+            if (t2.classList.contains('blocked')) {
+                entryList.push('t2');
+                document.getElementById('entry-list').appendChild(t2);
+            }
+
+            updateMarkWordUI();
+            log('log-monitor', 'Contention persists (or wait() called). Inflate to ObjectMonitor. State: Heavyweight Lock.');
+        }
+
+        async function monitorEnter() {
+            if (lockType !== 'heavy') {
+                log('log-monitor', 'Auto-inflating to Heavyweight for general competition demo...');
+                demoHeavy();
+                await delay(500);
+            }
+
+            // Pick a random idle thread
+            const idleThreads = monitorThreads.filter(id => {
+                const t = document.getElementById(id);
+                return !t.classList.contains('owner') && !entryList.includes(id) && !waitSet.includes(id);
+            });
+
+            if (idleThreads.length === 0) {
+                log('log-monitor', 'No idle threads available to compete.');
+                return;
+            }
+            const tid = idleThreads[Math.floor(Math.random() * idleThreads.length)];
+            const tEl = document.getElementById(tid);
+
+            log('log-monitor', `${tid} trying to enter synchronized block (monitorenter)...`);
+
+            if (monitorOwner === null) {
+                // Success
+                monitorOwner = tid;
+                tEl.classList.add('owner');
+                document.getElementById('owner-zone').appendChild(tEl);
+                log('log-monitor', `${tid} CAS success, became Monitor Owner`);
+            } else {
+                // Fail -> EntryList
+                entryList.push(tid);
+                tEl.classList.add('blocked');
+                document.getElementById('entry-list').appendChild(tEl);
+                log('log-monitor', `${tid} competition failed, entering EntryList`);
+            }
+        }
+
+        function monitorExit() {
+            if (lockType !== 'heavy') {
+                log('log-monitor', 'Not in Heavyweight mode. Resetting...');
+                resetMonitor();
+                return;
+            }
+            if (!monitorOwner) {
+                log('log-monitor', 'No thread currently holds the lock.');
+                return;
+            }
+            const oldOwner = monitorOwner;
+            const tEl = document.getElementById(oldOwner);
+            
+            // Release
+            tEl.className = 'thread';
+            document.getElementById('pool-monitor').appendChild(tEl);
+            monitorOwner = null;
+            log('log-monitor', `${oldOwner} finished, releasing lock (monitorexit)`);
+
+            // Wake up one from EntryList
+            if (entryList.length > 0) {
+                const next = entryList.shift(); // FIFO for simplicity (HotSpot is actually LIFO/Competition)
+                const nextEl = document.getElementById(next);
+                monitorOwner = next;
+                nextEl.className = 'thread owner';
+                document.getElementById('owner-zone').appendChild(nextEl);
+                log('log-monitor', `EntryList thread ${next} woken up and acquired lock`);
+            }
+        }
+
+        function monitorWait() {
+            if (lockType !== 'heavy') {
+                log('log-monitor', 'wait() forces inflation to Heavyweight...');
+                demoHeavy();
+            }
+            if (!monitorOwner) {
+                log('log-monitor', 'Error: Must hold lock to call wait()!');
+                return;
+            }
+            const tid = monitorOwner;
+            const tEl = document.getElementById(tid);
+
+            // Move to WaitSet
+            tEl.className = 'thread waiting';
+            document.getElementById('wait-set').appendChild(tEl);
+            waitSet.push(tid);
+            monitorOwner = null;
+            log('log-monitor', `${tid} called wait(), releasing lock and entering WaitSet`);
+
+            // Wake up EntryList
+            if (entryList.length > 0) {
+                const next = entryList.shift();
+                const nextEl = document.getElementById(next);
+                monitorOwner = next;
+                nextEl.className = 'thread owner';
+                document.getElementById('owner-zone').appendChild(nextEl);
+                log('log-monitor', `Lock released, ${next} promoted from EntryList to Owner`);
+            }
+        }
+
+        function monitorNotify() {
+            if (lockType !== 'heavy') {
+                log('log-monitor', 'Must be in Heavyweight mode.');
+                return;
+            }
+            if (!monitorOwner) {
+                log('log-monitor', 'Error: Must hold lock to call notify()!');
+                return;
+            }
+            if (waitSet.length === 0) {
+                log('log-monitor', 'WaitSet is empty, no threads to notify.');
+                return;
+            }
+            
+            const target = waitSet.shift();
+            const tEl = document.getElementById(target);
+            
+            // Move from WaitSet to EntryList
+            tEl.className = 'thread blocked';
+            document.getElementById('entry-list').appendChild(tEl);
+            entryList.push(target);
+            log('log-monitor', `${monitorOwner} called notify(), ${target} moved from WaitSet to EntryList`);
+        }
+
+
+        // --- ReentrantLock (AQS) Logic ---
+        let lockState = 0;
+        let lockOwner = null;
+        let lockQueue = []; // Array of thread IDs
+        const lockThreads = ['lt1', 'lt2', 'lt3'];
+
+        function resetLock() {
+            lockState = 0;
+            lockOwner = null;
+            lockQueue = [];
+            updateLockUI();
+            document.getElementById('log-lock').innerHTML = '';
+            document.getElementById('lock-queue').innerHTML = '<div class="clh-node clh-head"><div class="clh-label">Head</div></div>';
+            lockThreads.forEach(id => {
+                const t = document.getElementById(id);
+                t.className = 'thread';
+                document.getElementById('pool-lock').appendChild(t);
+            });
+        }
+
+        function updateLockUI() {
+            document.getElementById('lock-state').innerText = lockState;
+            document.getElementById('lock-owner').innerText = 'Owner: ' + (lockOwner ? lockOwner : 'null');
+        }
+
+        function lockAcquire() {
+            const idleThreads = lockThreads.filter(id => id !== lockOwner && !lockQueue.includes(id));
+            if (idleThreads.length === 0) {
+                log('log-lock', 'No idle threads.');
+                return;
+            }
+            const tid = idleThreads[Math.floor(Math.random() * idleThreads.length)];
+            const tEl = document.getElementById(tid);
+
+            log('log-lock', `${tid} trying lock()...`);
+
+            if (lockState === 0) {
+                // CAS Success
+                lockState = 1;
+                lockOwner = tid;
+                tEl.classList.add('owner');
+                log('log-lock', `${tid} CAS(0, 1) success, set exclusiveOwnerThread = ${tid}`);
+            } else {
+                // Fail -> Enqueue
+                lockQueue.push(tid);
+                tEl.classList.add('blocked');
+                
+                const node = document.createElement('div');
+                node.className = 'clh-node';
+                node.innerText = tid;
+                node.id = 'node-' + tid;
+                document.getElementById('lock-queue').appendChild(node);
+                
+                log('log-lock', `${tid} CAS failed, enqueued to CLH tail, park() blocked`);
+            }
+            updateLockUI();
+        }
+
+        function lockRelease() {
+            if (lockState === 0) {
+                log('log-lock', 'No lock held, cannot release.');
+                return;
+            }
+            
+            const oldOwner = lockOwner;
+            const tEl = document.getElementById(oldOwner);
+            tEl.className = 'thread';
+            
+            lockState = 0;
+            lockOwner = null;
+            log('log-lock', `${oldOwner} released lock, state = 0`);
+
+            // Wake up successor
+            if (lockQueue.length > 0) {
+                const next = lockQueue.shift();
+                const nextNode = document.getElementById('node-' + next);
+                if(nextNode) nextNode.remove();
+
+                const nextEl = document.getElementById(next);
+                
+                // Simulate unpark -> tryAcquire
+                lockState = 1;
+                lockOwner = next;
+                nextEl.className = 'thread owner';
+                log('log-lock', `Head woke up successor ${next}, ${next} CAS(0, 1) acquired lock`);
+            }
+            updateLockUI();
+        }
+
+        // --- Semaphore Logic ---
+        let permits = 2;
+        let semQueue = [];
+        const semThreads = ['st1', 'st2', 'st3', 'st4'];
+
+        function resetSem() {
+            permits = 2;
+            semQueue = [];
+            document.getElementById('sem-state').innerText = permits;
+            document.getElementById('log-sem').innerHTML = '';
+            document.getElementById('sem-queue').innerHTML = '<div class="clh-node clh-head"><div class="clh-label">Head</div></div>';
+            semThreads.forEach(id => {
+                const t = document.getElementById(id);
+                t.className = 'thread';
+                t.classList.remove('owner', 'blocked');
+            });
+        }
+
+        function semAcquire() {
+            const idleThreads = semThreads.filter(id => !semQueue.includes(id) && !document.getElementById(id).classList.contains('owner'));
+            if (idleThreads.length === 0) return;
+            
+            const tid = idleThreads[Math.floor(Math.random() * idleThreads.length)];
+            const tEl = document.getElementById(tid);
+
+            log('log-sem', `${tid} acquire()...`);
+
+            if (permits > 0) {
+                permits--;
+                tEl.classList.add('owner');
+                log('log-sem', `${tid} acquired permit, remaining = ${permits}`);
+            } else {
+                semQueue.push(tid);
+                tEl.classList.add('blocked');
+                
+                const node = document.createElement('div');
+                node.className = 'clh-node';
+                node.innerText = tid;
+                node.id = 'sem-node-' + tid;
+                document.getElementById('sem-queue').appendChild(node);
+                
+                log('log-sem', `${tid} failed (permits=0), enqueued`);
+            }
+            document.getElementById('sem-state').innerText = permits;
+        }
+
+        function semRelease() {
+            // Find an owner to release
+            const owners = semThreads.filter(id => document.getElementById(id).classList.contains('owner'));
+            if (owners.length === 0) {
+                log('log-sem', 'No thread holds permit (Demo restriction: must hold to release)');
+                return;
+            }
+            const tid = owners[0]; // Just pick one
+            const tEl = document.getElementById(tid);
+            tEl.classList.remove('owner');
+            
+            permits++;
+            log('log-sem', `${tid} released permit, permits = ${permits}`);
+
+            if (semQueue.length > 0) {
+                const next = semQueue.shift();
+                const nextNode = document.getElementById('sem-node-' + next);
+                if(nextNode) nextNode.remove();
+                
+                const nextEl = document.getElementById(next);
+                nextEl.classList.remove('blocked');
+                nextEl.classList.add('owner');
+                permits--; // The woken thread takes the permit
+                log('log-sem', `Woke up ${next}, it acquired permit, remaining = ${permits}`);
+            }
+            document.getElementById('sem-state').innerText = permits;
+        }
+
+        // --- CountDownLatch Logic ---
+        let latchCount = 3;
+        let latchQueue = [];
+        const latchWaitThreads = ['lat1', 'lat2'];
+        const latchWorkThreads = ['lat3', 'lat4', 'lat5'];
+
+        function resetLatch() {
+            latchCount = 3;
+            latchQueue = [];
+            document.getElementById('latch-state').innerText = latchCount;
+            document.getElementById('log-latch').innerHTML = '';
+            document.getElementById('latch-queue').innerHTML = '<div class="clh-node clh-head"><div class="clh-label">Head</div></div>';
+            [...latchWaitThreads, ...latchWorkThreads].forEach(id => {
+                const t = document.getElementById(id);
+                t.className = 'thread';
+                t.classList.remove('blocked', 'owner');
+            });
+        }
+
+        function latchAwait() {
+            const idleWaiters = latchWaitThreads.filter(id => !latchQueue.includes(id) && !document.getElementById(id).classList.contains('owner'));
+            if (idleWaiters.length === 0) return;
+            
+            const tid = idleWaiters[0];
+            const tEl = document.getElementById(tid);
+
+            log('log-latch', `${tid} calling await()...`);
+
+            if (latchCount > 0) {
+                latchQueue.push(tid);
+                tEl.classList.add('blocked');
+                
+                const node = document.createElement('div');
+                node.className = 'clh-node';
+                node.innerText = tid;
+                node.id = 'latch-node-' + tid;
+                document.getElementById('latch-queue').appendChild(node);
+                
+                log('log-latch', `${tid} sees count > 0, enqueued to block`);
+            } else {
+                tEl.classList.add('owner');
+                log('log-latch', `${tid} sees count == 0, proceeds immediately`);
+            }
+        }
+
+        function latchCountDown() {
+            const idleWorkers = latchWorkThreads.filter(id => !document.getElementById(id).classList.contains('owner'));
+            if (idleWorkers.length === 0 && latchCount > 0) {
+                log('log-latch', 'All workers finished.');
+                return;
+            }
+            
+            if (latchCount === 0) {
+                log('log-latch', 'Count is already 0.');
+                return;
+            }
+
+            const tid = idleWorkers[0];
+            const tEl = document.getElementById(tid);
+            tEl.classList.add('owner'); // Mark as done
+            
+            latchCount--;
+            document.getElementById('latch-state').innerText = latchCount;
+            log('log-latch', `${tid} finished work, countDown() -> ${latchCount}`);
+
+            if (latchCount === 0) {
+                log('log-latch', 'Count reached 0! Waking all waiters (PROPAGATE)');
+                while(latchQueue.length > 0) {
+                    const next = latchQueue.shift();
+                    const nextNode = document.getElementById('latch-node-' + next);
+                    if(nextNode) nextNode.remove();
+                    
+                    const nextEl = document.getElementById(next);
+                    nextEl.classList.remove('blocked');
+                    nextEl.classList.add('owner'); // Green means running/passed
+                    log('log-latch', `Waking up ${next}`);
+                }
+            }
+        }
+
+        // --- ReadWriteLock Logic ---
+        let readCount = 0;
+        let writeCount = 0;
+        let rwQueue = [];
+        let rwOwner = null; // For writer
+        const rwReaders = ['r1', 'r2', 'r3'];
+        const rwWriters = ['w1'];
+
+        function resetRw() {
+            readCount = 0;
+            writeCount = 0;
+            rwQueue = [];
+            rwOwner = null;
+            updateRwUI();
+            document.getElementById('log-rw').innerHTML = '';
+            document.getElementById('rw-queue').innerHTML = '<div class="clh-node clh-head"><div class="clh-label">Head</div></div>';
+            [...rwReaders, ...rwWriters].forEach(id => {
+                const t = document.getElementById(id);
+                t.className = 'thread';
+                if(id.startsWith('w')) t.style.borderColor = '#d83b01';
+            });
+        }
+
+        function updateRwUI() {
+            document.getElementById('rw-read-state').innerText = readCount;
+            document.getElementById('rw-write-state').innerText = writeCount;
+        }
+
+        function rwReadLock() {
+            const idleReaders = rwReaders.filter(id => !document.getElementById(id).classList.contains('owner') && !rwQueue.includes(id));
+            if (idleReaders.length === 0) return;
+            const tid = idleReaders[0];
+            const tEl = document.getElementById(tid);
+
+            log('log-rw', `${tid} trying to get Read Lock...`);
+
+            if (writeCount === 0) {
+                // Success (Shared)
+                readCount++;
+                tEl.classList.add('owner');
+                log('log-rw', `${tid} acquired Read Lock (state high 16 +1)`);
+            } else {
+                // Fail (Writer exists)
+                rwQueue.push(tid);
+                tEl.classList.add('blocked');
+                const node = document.createElement('div');
+                node.className = 'clh-node';
+                node.innerText = tid;
+                node.id = 'rw-node-' + tid;
+                document.getElementById('rw-queue').appendChild(node);
+                log('log-rw', `${tid} failed (Writer exists), enqueued`);
+            }
+            updateRwUI();
+        }
+
+        function rwWriteLock() {
+            const tid = 'w1';
+            const tEl = document.getElementById(tid);
+            if (tEl.classList.contains('owner') || rwQueue.includes(tid)) return;
+
+            log('log-rw', `${tid} trying to get Write Lock...`);
+
+            if (readCount === 0 && writeCount === 0) {
+                // Success (Exclusive)
+                writeCount = 1;
+                rwOwner = tid;
+                tEl.classList.add('owner');
+                log('log-rw', `${tid} acquired Write Lock (state low 16 = 1)`);
+            } else {
+                // Fail
+                rwQueue.push(tid);
+                tEl.classList.add('blocked');
+                const node = document.createElement('div');
+                node.className = 'clh-node';
+                node.innerText = tid;
+                node.id = 'rw-node-' + tid;
+                document.getElementById('rw-queue').appendChild(node);
+                log('log-rw', `${tid} failed (Lock held), enqueued`);
+            }
+            updateRwUI();
+        }
+
+        function rwUnlock() {
+            // Try to find someone to unlock
+            // Prioritize writer
+            if (writeCount > 0) {
+                const tid = 'w1';
+                const tEl = document.getElementById(tid);
+                tEl.classList.remove('owner');
+                writeCount = 0;
+                rwOwner = null;
+                log('log-rw', `${tid} released Write Lock`);
+            } else if (readCount > 0) {
+                // Find a reader
+                const readers = rwReaders.filter(id => document.getElementById(id).classList.contains('owner'));
+                if (readers.length === 0) return;
+                const tid = readers[0];
+                const tEl = document.getElementById(tid);
+                tEl.classList.remove('owner');
+                readCount--;
+                log('log-rw', `${tid} released Read Lock`);
+            } else {
+                return;
+            }
+            updateRwUI();
+
+            // Wake up logic (Simplified)
+            if (readCount === 0 && writeCount === 0 && rwQueue.length > 0) {
+                const next = rwQueue[0]; // Peek
+                // If next is writer
+                if (next.startsWith('w')) {
+                    rwQueue.shift();
+                    const nextNode = document.getElementById('rw-node-' + next);
+                    if(nextNode) nextNode.remove();
+                    const nextEl = document.getElementById(next);
+                    nextEl.classList.remove('blocked');
+                    nextEl.classList.add('owner');
+                    writeCount = 1;
+                    rwOwner = next;
+                    log('log-rw', `Waking up Writer ${next}`);
+                } else {
+                    // If next is reader, wake up ALL consecutive readers (Shared propagation)
+                    while(rwQueue.length > 0 && rwQueue[0].startsWith('r')) {
+                        const r = rwQueue.shift();
+                        const rNode = document.getElementById('rw-node-' + r);
+                        if(rNode) rNode.remove();
+                        const rEl = document.getElementById(r);
+                        rEl.classList.remove('blocked');
+                        rEl.classList.add('owner');
+                        readCount++;
+                        log('log-rw', `Waking up Reader ${r} (Shared Propagation)`);
+                    }
+                }
+                updateRwUI();
+            }
+        }
+
+    </script>
+</body>
+</html>

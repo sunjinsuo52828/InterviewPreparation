@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HashMap & ConcurrentHashMap Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; background: #f0f0f0; margin: 0; padding: 20px; }
+        h1 { margin-bottom: 10px; color: #333; }
+        
+        .controls {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 8px 16px; cursor: pointer; border: none; border-radius: 4px; background: #007acc; color: white; font-weight: bold; }
+        button:hover { background: #005fa3; }
+        button.secondary { background: #757575; }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 1000px;
+        }
+        
+        .map-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-x: auto;
+            min-height: 400px;
+            position: relative;
+        }
+        
+        .array-row {
+            display: flex;
+            gap: 10px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 20px;
+        }
+        
+        .bucket-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 60px;
+        }
+        
+        .bucket-index {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        
+        .bucket {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #333;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            position: relative;
+            transition: all 0.3s;
+        }
+        
+        .bucket.highlight { border-color: #e91e63; background: #fce4ec; box-shadow: 0 0 10px #e91e63; }
+        .bucket.locked { border-color: #d32f2f; background: #ffebee; }
+        
+        .lock-icon {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            font-size: 16px;
+            display: none;
+        }
+        .bucket.locked .lock-icon { display: block; }
+        
+        .chain {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .chain.tree-mode {
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 140px;
+            background: #f1f8e9;
+            border-radius: 8px;
+            padding: 5px;
+            border: 1px dashed #81c784;
+        }
+        .chain.tree-mode .arrow-down { display: none; }
+        .chain.tree-mode .node { margin: 3px; box-shadow: 0 2px 2px rgba(0,0,0,0.1); }
+
+        .node {
+            width: 40px;
+            height: 40px;
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            position: relative;
+            transition: all 0.3s;
+            z-index: 1;
+        }
+        .node.tree-node {
+            background: #e8f5e9;
+            border-color: #4caf50;
+            border-radius: 50%;
+        }
+        .node.new { animation: popIn 0.5s; }
+        
+        .arrow-down {
+            width: 0; 
+            height: 0; 
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #999;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            80% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .info-panel {
+            background: #fff3e0;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            border-left: 5px solid #ff9800;
+        }
+
+        .code-snippet {
+            font-family: monospace;
+            background: #2d2d2d;
+            color: #ccc;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-top: 10px;
+            display: none;
+        }
+        .code-snippet.show { display: block; }
+        
+        .keyword { color: #cc7832; }
+        .string { color: #6a8759; }
+        .comment { color: #808080; }
+
+        /* Modal Styles */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 100; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5); 
+            backdrop-filter: blur(2px);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%; 
+            max-width: 800px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover { color: black; }
+        
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .detail-box {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #007acc;
+        }
+        .detail-title { font-weight: bold; color: #333; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .detail-list { margin: 0; padding-left: 20px; font-size: 13px; color: #555; }
+        .detail-list li { margin-bottom: 5px; }
+        
+        .param-tag {
+            display: inline-block;
+            background: #e0e0e0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #333;
+        }
+
+        .demo-guide {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-width: 1000px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .demo-guide h3 { margin-top: 0; font-size: 16px; }
+        .demo-guide ol { margin-bottom: 0; padding-left: 20px; }
+        .demo-guide li { margin-bottom: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <h1>HashMap & ConcurrentHashMap Internals <button onclick="openModal()" style="font-size:12px; padding:5px 10px; margin-left:10px; background:#ff9800;">🔑 Key Factors & Details</button></h1>
+
+    <div class="demo-guide">
+        <h3>💡 Demo Guide</h3>
+        <ol>
+            <li>Enter a <b>Key</b> and <b>Value</b> (or use defaults).</li>
+            <li>Click <b>Put (Insert)</b> to add the entry. Watch the hash calculation and bucket placement.</li>
+            <li>Observe <b>Collisions</b>: If keys map to the same bucket, they form a Linked List (Chain).</li>
+            <li><b>Treeify</b>: If a chain gets too long (Demo limit: 4), it converts to a Red-Black Tree.</li>
+            <li><b>Resize</b>: If the map gets too full (Load Factor), the array doubles and entries are rehashed.</li>
+            <li>Toggle <b>Concurrent Mode</b> to see how <code>ConcurrentHashMap</code> uses CAS and <code>synchronized</code> on bucket heads.</li>
+        </ol>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 style="margin-top:0; color:#333;">Core Mechanics & Critical Thresholds (JDK 1.8)</h2>
+            
+            <div class="detail-grid">
+                <div class="detail-box">
+                    <div class="detail-title">HashMap Constants</div>
+                    <ul class="detail-list">
+                        <li><span class="param-tag">DEFAULT_INITIAL_CAPACITY = 16</span><br>Must be power of 2 (16, 32, 64...).</li>
+                        <li><span class="param-tag">DEFAULT_LOAD_FACTOR = 0.75</span><br>Resize when size > cap * 0.75. Trade-off between time/space.</li>
+                        <li><span class="param-tag">TREEIFY_THRESHOLD = 8</span><br>Chain converts to Red-Black Tree when length >= 8. <span style="color:#e91e63; font-weight:bold;">(Note: In this demo, it is set to 4 for easier visualization)</span></li>
+                        <li><span class="param-tag">UNTREEIFY_THRESHOLD = 6</span><br>Tree converts back to Chain when resizing splits it to <= 6.</li>
+                        <li><span class="param-tag">MIN_TREEIFY_CAPACITY = 64</span><br>Won't treeify if array size < 64 (will resize instead).</li>
+                    </ul>
+                </div>
+                
+                <div class="detail-box">
+                    <div class="detail-title">Hash Algorithm</div>
+                    <div style="font-family: monospace; font-size: 12px; background: #333; color: #fff; padding: 8px; border-radius: 4px; margin-bottom: 5px;">
+                        (h = key.hashCode()) ^ (h >>> 16)
+                    </div>
+                    <ul class="detail-list">
+                        <li><strong>Why XOR?</strong> Mixes high bits into low bits.</li>
+                        <li><strong>Why?</strong> Because index is calculated as <code>(n - 1) & hash</code>. If n is small (e.g. 16), only low bits matter. XORing ensures high-bit entropy affects the result, reducing collisions.</li>
+                    </ul>
+                </div>
+
+                <div class="detail-box">
+                    <div class="detail-title">ConcurrentHashMap (JDK 1.8)</div>
+                    <ul class="detail-list">
+                        <li><strong>No Segment Locking:</strong> Abandoned JDK 1.7 Segments.</li>
+                        <li><strong>CAS (Compare-And-Swap):</strong> Used for inserting into <strong>Empty Buckets</strong>. Lock-free.</li>
+                        <li><strong>synchronized(Node):</strong> Used for <strong>Collisions</strong>. Only locks the head of that specific chain/tree.</li>
+                        <li><strong>ForwardingNode:</strong> Special node (hash -1) placed in buckets that have been migrated during resizing. Helps readers know to check the new table.</li>
+                    </ul>
+                </div>
+
+                <div class="detail-box">
+                    <div class="detail-title">Resize (Re-hashing)</div>
+                    <ul class="detail-list">
+                        <li><strong>Power of 2 Expansion:</strong> Capacity always doubles.</li>
+                        <li><strong>Optimization:</strong> Since capacity is power of 2, index is either <code>j</code> or <code>j + oldCap</code>. No need to re-calculate hash code.</li>
+                        <li><strong>CHM Resizing:</strong> Multi-threaded transfer. Threads help transfer buckets (transferIndex).</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3 style="border-bottom: 2px solid #ff9800; padding-bottom: 5px; margin-top: 30px; color: #e65100;">🔥 High-Frequency Interview Questions</h3>
+            <div class="detail-grid">
+                <div class="detail-box" style="border-left-color: #ff9800;">
+                    <div class="detail-title">Q: Why is TREEIFY_THRESHOLD 8?</div>
+                    <p style="font-size:13px; color:#555; margin:5px 0;">
+                        <strong>A:</strong> It's based on the <strong>Poisson Distribution</strong>. With a good hash function (load factor 0.75), the probability of a bucket having 8 nodes is less than one in ten million (0.00000006). Treeify is a fallback for worst-case scenarios (e.g., DoS attacks with bad hash codes).
+                    </p>
+                </div>
+                <div class="detail-box" style="border-left-color: #ff9800;">
+                    <div class="detail-title">Q: Why use String as Key?</div>
+                    <p style="font-size:13px; color:#555; margin:5px 0;">
+                        <strong>A:</strong> 
+                        1. <strong>Immutable:</strong> Hash code is cached after first calculation (lazy loading), making it very fast.
+                        2. <strong>Security:</strong> Cannot be changed after insertion, ensuring the object can always be retrieved.
+                    </p>
+                </div>
+                <div class="detail-box" style="border-left-color: #ff9800;">
+                    <div class="detail-title">Q: JDK 1.7 vs 1.8 Resize?</div>
+                    <p style="font-size:13px; color:#555; margin:5px 0;">
+                        <strong>A:</strong> 
+                        <strong>1.7:</strong> Head Insertion. Caused <strong>Infinite Loop</strong> (Circular Reference) during concurrent resize.
+                        <br>
+                        <strong>1.8:</strong> Tail Insertion. Preserves order, preventing the circular reference issue.
+                    </p>
+                </div>
+                <div class="detail-box" style="border-left-color: #ff9800;">
+                    <div class="detail-title">Q: HashMap vs Hashtable?</div>
+                    <p style="font-size:13px; color:#555; margin:5px 0;">
+                        <strong>A:</strong> 
+                        <strong>HashMap:</strong> Not thread-safe, allows 1 null key, faster.
+                        <br>
+                        <strong>Hashtable:</strong> Thread-safe (synchronized methods), no null keys, slower (global lock).
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <label>Mode:</label>
+        <select id="mapMode" onchange="resetMap()">
+            <option value="hashmap">HashMap (JDK 1.8)</option>
+            <option value="chm">ConcurrentHashMap (JDK 1.8)</option>
+        </select>
+        
+        <div style="width: 1px; height: 30px; background: #ddd;"></div>
+        
+        <input type="text" id="inputKey" placeholder="Key (e.g. 'A')" style="width: 80px;">
+        <input type="text" id="inputValue" placeholder="Value" style="width: 80px;">
+        <button onclick="putItem()">Put</button>
+        <button class="secondary" onclick="resetMap()">Reset</button>
+        <button class="secondary" onclick="autoFill()">Auto Fill (Collision)</button>
+    </div>
+
+    <div class="container">
+        <div class="info-panel" id="statusText">
+            Select a mode and add items to see how they are stored.
+        </div>
+        
+        <div id="codeDisplay" class="code-snippet">
+            <!-- Dynamic Code -->
+        </div>
+
+        <div class="map-container">
+            <div class="array-row" id="bucketsContainer">
+                <!-- Buckets generated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CAPACITY = 8; // Small for demo
+        const TREEIFY_THRESHOLD = 4; // Lowered for demo (Real is 8)
+        
+        let mapData = new Array(CAPACITY).fill(null); // Array of arrays (chains)
+        let isCHM = false;
+        let isTreeifying = false;
+
+        function init() {
+            render();
+        }
+
+        function resetMap() {
+            mapData = new Array(CAPACITY).fill(null);
+            isCHM = document.getElementById('mapMode').value === 'chm';
+            document.getElementById('statusText').textContent = isCHM ? 
+                "ConcurrentHashMap Mode: Uses CAS for empty buckets, synchronized(Node) for collisions." : 
+                "HashMap Mode: Not thread-safe. Uses simple array + linked list (or Red-Black Tree).";
+            render();
+            updateCodeDisplay(null);
+        }
+
+        function hash(key) {
+            let h = 0;
+            for (let i = 0; i < key.length; i++) {
+                h = Math.imul(31, h) + key.charCodeAt(i) | 0;
+            }
+            return Math.abs(h) % CAPACITY;
+        }
+
+        async function putItem() {
+            const key = document.getElementById('inputKey').value || 'A';
+            const val = document.getElementById('inputValue').value || '1';
+            const idx = hash(key);
+            
+            updateStatus(`Hashing key "${key}" -> Index ${idx}`);
+            highlightBucket(idx, true);
+            
+            if (isCHM) {
+                updateCodeDisplay('cas');
+                await sleep(800);
+            }
+
+            if (!mapData[idx]) {
+                // Empty bucket
+                if (isCHM) updateStatus(`Bucket ${idx} is empty. CAS (Compare-And-Swap) to insert Node.`);
+                else updateStatus(`Bucket ${idx} is empty. Inserting Node.`);
+                
+                mapData[idx] = [{ key, val, type: 'node' }];
+            } else {
+                // Collision
+                if (isCHM) {
+                    updateStatus(`Bucket ${idx} not empty. 🔒 synchronized(head) to append.`);
+                    lockBucket(idx, true);
+                    updateCodeDisplay('sync');
+                    await sleep(1000);
+                } else {
+                    updateStatus(`Collision at Index ${idx}. Appending to Linked List.`);
+                }
+
+                // Check if key exists
+                const chain = mapData[idx];
+                const existing = chain.find(n => n.key === key);
+                if (existing) {
+                    existing.val = val;
+                    updateStatus(`Key "${key}" exists. Updating value.`);
+                } else {
+                    chain.push({ key, val, type: 'node' });
+                    
+                    // Treeify check
+                    if (chain.length >= TREEIFY_THRESHOLD) {
+                        const isAlreadyTree = chain[0].type === 'tree-node';
+                        chain.forEach(n => n.type = 'tree-node');
+                        
+                        if (!isAlreadyTree) {
+                            updateStatus(`Chain length reached threshold (${TREEIFY_THRESHOLD}). Converting to Red-Black Tree.`);
+                            updateCodeDisplay('treeify');
+                        } else {
+                            updateStatus(`Added to Red-Black Tree.`);
+                        }
+                    }
+                }
+                
+                if (isCHM) {
+                    lockBucket(idx, false);
+                }
+            }
+            
+            highlightBucket(idx, false);
+            render();
+            document.getElementById('inputKey').value = '';
+            document.getElementById('inputValue').value = '';
+        }
+
+        async function autoFill() {
+            // Generate keys that collide
+            for(let i=0; i<6; i++) {
+                const key = String.fromCharCode(65 + i * CAPACITY + 3); // A, I, Q...
+                document.getElementById('inputKey').value = key;
+                document.getElementById('inputValue').value = i;
+                await putItem();
+                await sleep(500);
+            }
+            updateStatus("Auto Fill Complete. Bucket is now a Tree.");
+        }
+
+        // Modal Logic
+        function openModal() {
+            document.getElementById('detailModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        // Close modal if clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('detailModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        function render() {
+            const container = document.getElementById('bucketsContainer');
+            container.innerHTML = '';
+            
+            for (let i = 0; i < CAPACITY; i++) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'bucket-wrapper';
+                
+                const idxLabel = document.createElement('div');
+                idxLabel.className = 'bucket-index';
+                idxLabel.textContent = `[${i}]`;
+                wrapper.appendChild(idxLabel);
+                
+                const bucket = document.createElement('div');
+                bucket.className = 'bucket';
+                bucket.id = `bucket-${i}`;
+                bucket.innerHTML = mapData[i] ? 'Head' : 'null';
+                
+                const lock = document.createElement('div');
+                lock.className = 'lock-icon';
+                lock.textContent = '🔒';
+                bucket.appendChild(lock);
+                
+                wrapper.appendChild(bucket);
+                
+                // Chain
+                if (mapData[i]) {
+                    const chainDiv = document.createElement('div');
+                    chainDiv.className = 'chain';
+                    
+                    // Check if tree
+                    if (mapData[i].length > 0 && mapData[i][0].type === 'tree-node') {
+                        chainDiv.classList.add('tree-mode');
+                    }
+                    
+                    mapData[i].forEach((node, nIdx) => {
+                        if (nIdx > 0) {
+                            const arrow = document.createElement('div');
+                            arrow.className = 'arrow-down';
+                            chainDiv.appendChild(arrow);
+                        }
+                        
+                        const nodeDiv = document.createElement('div');
+                        nodeDiv.className = `node ${node.type}`;
+                        nodeDiv.textContent = `${node.key}:${node.val}`;
+                        if(node.type === 'tree-node') nodeDiv.title = "Red-Black Tree Node";
+                        chainDiv.appendChild(nodeDiv);
+                    });
+                    wrapper.appendChild(chainDiv);
+                }
+                
+                container.appendChild(wrapper);
+            }
+        }
+
+        function highlightBucket(idx, active) {
+            const el = document.getElementById(`bucket-${idx}`);
+            if (active) el.classList.add('highlight');
+            else setTimeout(() => el.classList.remove('highlight'), 500);
+        }
+
+        function lockBucket(idx, active) {
+            const el = document.getElementById(`bucket-${idx}`);
+            if (active) el.classList.add('locked');
+            else setTimeout(() => el.classList.remove('locked'), 500);
+        }
+
+        function updateStatus(msg) {
+            document.getElementById('statusText').textContent = msg;
+        }
+        
+        function updateCodeDisplay(type) {
+            const codeDiv = document.getElementById('codeDisplay');
+            if (!type) {
+                codeDiv.classList.remove('show');
+                return;
+            }
+            
+            let html = '';
+            if (type === 'cas') {
+                html = `
+<span class="comment">// JDK 1.8 ConcurrentHashMap: CAS for empty bucket</span>
+<span class="keyword">if</span> ((f = tabAt(tab, i = (n - 1) & hash)) == <span class="keyword">null</span>) {
+    <span class="keyword">if</span> (casTabAt(tab, i, <span class="keyword">null</span>, <span class="keyword">new</span> Node&lt;K,V&gt;(hash, key, value, <span class="keyword">null</span>)))
+        <span class="keyword">break</span>;                   <span class="comment">// no lock when adding to empty bin</span>
+}`;
+            } else if (type === 'sync') {
+                html = `
+<span class="comment">// JDK 1.8 ConcurrentHashMap: Synchronized for collision</span>
+<span class="keyword">synchronized</span> (f) {
+    <span class="keyword">if</span> (tabAt(tab, i) == f) {
+        <span class="keyword">if</span> (fh >= 0) {
+            <span class="comment">// Add to linked list...</span>
+        }
+    }
+}`;
+            } else if (type === 'treeify') {
+                html = `
+<span class="comment">// Treeification (Chain length >= 8)</span>
+<span class="keyword">if</span> (binCount >= TREEIFY_THRESHOLD)
+    treeifyBin(tab, i); <span class="comment">// Convert List to Red-Black Tree</span>
+`;
+            }
+            
+            codeDiv.innerHTML = html;
+            codeDiv.classList.add('show');
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        init();
+    </script>
+</body>
+</html>
