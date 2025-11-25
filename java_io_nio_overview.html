@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java IO Models: BIO, NIO, AIO</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        
+        .container { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 20px; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 10px; margin-bottom: 10px; }
+        .tab {
+            padding: 10px 25px; background: #e0e0e0; border: none; border-radius: 4px; cursor: pointer;
+            font-weight: bold; color: #555; transition: 0.2s;
+        }
+        .tab.active { background: #0078d4; color: white; }
+        .tab:hover:not(.active) { background: #d0d0d0; }
+
+        /* Content Sections */
+        .section { display: none; animation: fadeIn 0.3s; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .card h2 { margin-top: 0; color: #005a9e; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        
+        /* Visualizations */
+        .visual-box {
+            background: #fafafa; border: 1px dashed #ccc; border-radius: 4px; padding: 20px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;
+            margin: 15px 0; min-height: 150px;
+        }
+
+        /* BIO Visuals */
+        .thread-row { display: flex; gap: 20px; align-items: center; margin-bottom: 10px; }
+        .thread-circle { width: 40px; height: 40px; border-radius: 50%; background: #90caf9; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #1976d2; }
+        .connection-line { width: 100px; height: 4px; background: #ccc; position: relative; }
+        .connection-line.active { background: #4caf50; }
+        .client-box { width: 60px; height: 40px; background: #e0e0e0; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+
+        /* NIO Visuals */
+        .selector-box { width: 80px; height: 80px; background: #ffcc80; border: 2px solid #f57c00; display: flex; align-items: center; justify-content: center; font-weight: bold; border-radius: 8px; z-index: 2; }
+        .channel-group { display: flex; flex-direction: column; gap: 10px; margin-right: 50px; }
+        .channel-item { width: 100px; padding: 5px; background: #fff; border: 1px solid #ccc; text-align: center; position: relative; }
+        .channel-item::after { content: ''; position: absolute; right: -50px; top: 50%; width: 50px; height: 2px; background: #999; }
+        
+        /* Buffer Visuals */
+        .buffer-container { display: flex; border: 2px solid #333; width: 300px; height: 40px; position: relative; margin-top: 20px; }
+        .buffer-cell { flex: 1; border-right: 1px solid #eee; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .pointer { position: absolute; top: -25px; font-size: 12px; font-weight: bold; transition: all 0.3s; }
+        .ptr-pos { color: #d83b01; }
+        .ptr-lim { color: #107c10; }
+        .ptr-cap { color: #0078d4; right: 0; }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f8f9fa; color: #333; }
+        .good { color: #2e7d32; font-weight: bold; background: #e8f5e9; }
+        .bad { color: #c62828; font-weight: bold; background: #ffebee; }
+
+        /* Q&A */
+        .qa-box { border-left: 4px solid #ff9800; background: #fff3e0; padding: 15px; margin-bottom: 10px; }
+        .qa-q { font-weight: bold; color: #d84315; margin-bottom: 5px; cursor: pointer; }
+        .qa-a { display: none; color: #333; font-size: 14px; margin-top: 5px; line-height: 1.5; }
+        .qa-q.open + .qa-a { display: block; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Java IO Models: BIO vs NIO vs AIO</h1>
+
+    <div class="container">
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('bio')">BIO (Blocking)</button>
+            <button class="tab" onclick="showTab('nio')">NIO (Non-Blocking)</button>
+            <button class="tab" onclick="showTab('aio')">AIO (Async)</button>
+            <button class="tab" onclick="showTab('buffer')">NIO Buffer</button>
+        </div>
+
+        <!-- BIO TAB -->
+        <div id="bio" class="section active">
+            <div class="card">
+                <h2>BIO (Blocking IO) - One Thread Per Connection</h2>
+                <p>Traditional IO (`java.io`). Stream-oriented. The thread blocks until data is fully read or written.</p>
+                
+                <div class="visual-box">
+                    <div class="thread-row">
+                        <div class="client-box">Client 1</div>
+                        <div class="connection-line active"></div>
+                        <div class="thread-circle">T1</div>
+                        <div style="margin-left:10px; font-size:12px; color:#d32f2f;">Blocked waiting for data...</div>
+                    </div>
+                    <div class="thread-row">
+                        <div class="client-box">Client 2</div>
+                        <div class="connection-line active"></div>
+                        <div class="thread-circle">T2</div>
+                        <div style="margin-left:10px; font-size:12px; color:#d32f2f;">Blocked waiting for data...</div>
+                    </div>
+                </div>
+
+                <h3>🔥 Interview Key Points</h3>
+                <div class="qa-box">
+                    <div class="qa-q" onclick="toggleQa(this)">Q: What is the main drawback of BIO?</div>
+                    <div class="qa-a"><b>Scalability.</b> Each connection requires a dedicated thread. Threads are heavy (stack memory, context switching). If you have 10,000 idle connections, you need 10,000 threads, which will crash the JVM.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NIO TAB -->
+        <div id="nio" class="section">
+            <div class="card">
+                <h2>NIO (Non-blocking IO) - IO Multiplexing</h2>
+                <p>Introduced in Java 1.4 (`java.nio`). Buffer-oriented, Channel-based. Uses a <b>Selector</b> to handle multiple connections with a single thread.</p>
+                
+                <div class="visual-box" style="flex-direction: row;">
+                    <div class="channel-group">
+                        <div class="channel-item">Channel 1</div>
+                        <div class="channel-item">Channel 2</div>
+                        <div class="channel-item">Channel 3</div>
+                    </div>
+                    <div class="selector-box">Selector</div>
+                    <div style="margin-left: 20px; text-align: center;">
+                        <div class="thread-circle" style="background:#ffcc80; border-color:#f57c00;">T1</div>
+                        <div style="font-size:12px; margin-top:5px;">Polling Events</div>
+                    </div>
+                </div>
+
+                <h3>Core Components</h3>
+                <ul>
+                    <li><b>Buffer:</b> A block of memory for data (unlike Stream which is byte-by-byte).</li>
+                    <li><b>Channel:</b> A connection to a file or socket. Can read/write to Buffer.</li>
+                    <li><b>Selector:</b> A component that monitors multiple Channels for events (Connect, Accept, Read, Write).</li>
+                </ul>
+
+                <h3>🔥 Interview Key Points</h3>
+                <div class="qa-box">
+                    <div class="qa-q" onclick="toggleQa(this)">Q: How does Selector work? (epoll)</div>
+                    <div class="qa-a">It relies on OS-level system calls like <code>select</code>, <code>poll</code>, or <code>epoll</code> (Linux). <b>epoll</b> is efficient because it doesn't iterate over all connections; it only notifies the application about the connections that are actually ready (event-driven).</div>
+                </div>
+                <div class="qa-box">
+                    <div class="qa-q" onclick="toggleQa(this)">Q: Direct Buffer vs Heap Buffer?</div>
+                    <div class="qa-a">
+                        <b>Heap Buffer:</b> On Java Heap. GC managed. IO requires copying to OS memory first.<br>
+                        <b>Direct Buffer:</b> Off-heap (Native memory). Zero-copy capable. Expensive to allocate/destroy, but faster IO.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AIO TAB -->
+        <div id="aio" class="section">
+            <div class="card">
+                <h2>AIO (Asynchronous IO) - NIO.2</h2>
+                <p>Introduced in Java 7. Event-driven. The OS handles the IO and notifies the application (via Callback or Future) when it's <b>done</b>.</p>
+                
+                <h3>Comparison Table</h3>
+                <table>
+                    <tr><th>Model</th><th>Blocking?</th><th>Sync/Async?</th><th>Analogy</th></tr>
+                    <tr><td>BIO</td><td class="bad">Blocking</td><td>Sync</td><td>Waiting at the kitchen for your food.</td></tr>
+                    <tr><td>NIO</td><td class="good">Non-Blocking</td><td>Sync (Selector blocks)</td><td>Checking the order screen periodically.</td></tr>
+                    <tr><td>AIO</td><td class="good">Non-Blocking</td><td class="good">Async</td><td>Waiter brings food to your table when ready.</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- BUFFER TAB -->
+        <div id="buffer" class="section">
+            <div class="card">
+                <h2>NIO Buffer Mechanics</h2>
+                <p>Understanding <code>position</code>, <code>limit</code>, and <code>capacity</code> is crucial.</p>
+                
+                <div class="visual-box">
+                    <div style="margin-bottom:30px;">
+                        <button onclick="bufPut()">Put 'A'</button>
+                        <button onclick="bufFlip()">Flip (Read Mode)</button>
+                        <button onclick="bufGet()">Get</button>
+                        <button onclick="bufClear()">Clear</button>
+                    </div>
+
+                    <div class="buffer-container" id="buf-cont">
+                        <div class="buffer-cell"></div>
+                        <div class="buffer-cell"></div>
+                        <div class="buffer-cell"></div>
+                        <div class="buffer-cell"></div>
+                        <div class="buffer-cell"></div>
+                        
+                        <div class="pointer ptr-pos" id="ptr-pos" style="left: 0;">⬇ Position: 0</div>
+                        <div class="pointer ptr-lim" id="ptr-lim" style="left: 100%;">⬇ Limit: 5</div>
+                        <div class="pointer ptr-cap" style="right: -10px;">⬇ Capacity: 5</div>
+                    </div>
+                </div>
+
+                <h3>Key Methods</h3>
+                <ul>
+                    <li><code>flip()</code>: Switch from Write Mode to Read Mode. Sets <code>limit = position</code>, <code>position = 0</code>.</li>
+                    <li><code>clear()</code>: Reset for Writing. Sets <code>position = 0</code>, <code>limit = capacity</code>.</li>
+                    <li><code>rewind()</code>: Re-read data. Sets <code>position = 0</code>.</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function showTab(tabId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            // Highlight button (simple logic for demo)
+            const buttons = document.querySelectorAll('.tab');
+            if(tabId === 'bio') buttons[0].classList.add('active');
+            if(tabId === 'nio') buttons[1].classList.add('active');
+            if(tabId === 'aio') buttons[2].classList.add('active');
+            if(tabId === 'buffer') buttons[3].classList.add('active');
+        }
+
+        function toggleQa(el) {
+            el.classList.toggle('open');
+        }
+
+        // Buffer Simulation State
+        let pos = 0;
+        let limit = 5;
+        let capacity = 5;
+        let data = ['', '', '', '', ''];
+        let mode = 'WRITE'; // WRITE or READ
+
+        function updateVisuals() {
+            const cells = document.querySelectorAll('.buffer-cell');
+            cells.forEach((cell, i) => {
+                cell.innerText = data[i];
+                cell.style.background = (i >= pos && i < limit && mode === 'READ') ? '#e3f2fd' : 'transparent';
+            });
+
+            const cellWidth = 300 / 5;
+            document.getElementById('ptr-pos').style.left = (pos * cellWidth) + 'px';
+            document.getElementById('ptr-pos').innerText = `⬇ Position: ${pos}`;
+            
+            document.getElementById('ptr-lim').style.left = (limit * cellWidth) + 'px';
+            document.getElementById('ptr-lim').innerText = `⬇ Limit: ${limit}`;
+        }
+
+        function bufPut() {
+            if (mode !== 'WRITE') { alert("Call clear() to switch to Write Mode first!"); return; }
+            if (pos >= limit) { alert("Buffer Overflow!"); return; }
+            data[pos] = String.fromCharCode(65 + pos); // A, B, C...
+            pos++;
+            updateVisuals();
+        }
+
+        function bufFlip() {
+            mode = 'READ';
+            limit = pos;
+            pos = 0;
+            updateVisuals();
+        }
+
+        function bufGet() {
+            if (mode !== 'READ') { alert("Call flip() to switch to Read Mode first!"); return; }
+            if (pos >= limit) { alert("No more data to read!"); return; }
+            // Read logic (visual only)
+            pos++;
+            updateVisuals();
+        }
+
+        function bufClear() {
+            mode = 'WRITE';
+            pos = 0;
+            limit = capacity;
+            data = ['', '', '', '', ''];
+            updateVisuals();
+        }
+    </script>
+</body>
+</html>
