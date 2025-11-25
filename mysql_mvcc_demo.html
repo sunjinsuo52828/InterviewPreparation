@@ -247,7 +247,8 @@
                 addr: Date.now(), // Fake address
                 id: rowData.id,
                 name: rowData.name,
-                trx_id: rowData.trx_id
+                trx_id: rowData.trx_id,
+                roll_ptr: rowData.roll_ptr // Point to previous version
             };
             undoLog.push(undoRecord);
 
