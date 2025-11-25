@@ -101,9 +101,23 @@
             },
             {
                 id: 'refresh',
-                title: '6. Refresh Context',
-                desc: 'The core method! Instantiates all singletons, performs component scanning, creates the Web Server (Tomcat/Jetty).',
-                code: 'refreshContext(context); // Calls AbstractApplicationContext.refresh()'
+                title: '6. Refresh Context (The Core)',
+                desc: 'The heart of Spring. <code>AbstractApplicationContext.refresh()</code> performs these 12 steps:<br>' +
+                      '<ol style="text-align:left; font-size:0.9rem; margin-top:5px;">' +
+                      '<li><b>prepareRefresh()</b>: Set start time, active flag, init property sources.</li>' +
+                      '<li><b>obtainFreshBeanFactory()</b>: Load BeanDefinitions (XML/JavaConfig), create BeanFactory.</li>' +
+                      '<li><b>prepareBeanFactory()</b>: Configure ClassLoader, BPPs, ignore interfaces.</li>' +
+                      '<li><b>postProcessBeanFactory()</b>: Hook for subclasses (e.g., WebContext registers ServletContextAware).</li>' +
+                      '<li><b>invokeBeanFactoryPostProcessors()</b>: Run BFPPs (e.g., scan packages, replace placeholders).</li>' +
+                      '<li><b>registerBeanPostProcessors()</b>: Find and register BPPs (AutowiredAnnotationBPP, etc.).</li>' +
+                      '<li><b>initMessageSource()</b>: Setup i18n.</li>' +
+                      '<li><b>initApplicationEventMulticaster()</b>: Setup event broadcasting.</li>' +
+                      '<li><b>onRefresh()</b>: Special bean init (e.g., <b>Create Embedded Web Server</b> like Tomcat).</li>' +
+                      '<li><b>registerListeners()</b>: Register ApplicationListeners.</li>' +
+                      '<li><b>finishBeanFactoryInitialization()</b>: <b>Instantiate all non-lazy singletons</b>. (DI, AOP proxies created here).</li>' +
+                      '<li><b>finishRefresh()</b>: Publish ContextRefreshedEvent, start LifecycleProcessor.</li>' +
+                      '</ol>',
+                code: 'public void refresh() throws BeansException, IllegalStateException {\n    synchronized (this.startupShutdownMonitor) {\n        prepareRefresh();\n        ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();\n        prepareBeanFactory(beanFactory);\n        try {\n            postProcessBeanFactory(beanFactory);\n            invokeBeanFactoryPostProcessors(beanFactory);\n            registerBeanPostProcessors(beanFactory);\n            initMessageSource();\n            initApplicationEventMulticaster();\n            onRefresh();\n            registerListeners();\n            finishBeanFactoryInitialization(beanFactory);\n            finishRefresh();\n        } ...\n    }\n}'
             },
             {
                 id: 'runners',
