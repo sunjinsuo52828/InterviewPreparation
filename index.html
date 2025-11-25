@@ -119,65 +119,20 @@
 
     <div class="container">
 
-        <!-- Section: Concurrency -->
+        <!-- Section: Java Memory Structure -->
         <div class="card-section">
-            <h2>⚡ Concurrency & Synchronization</h2>
+            <h2>🏗️ Java Memory Structure (内存结构)</h2>
         </div>
 
-        <a href="synchronization_basics.html" class="card">
-            <div class="card-header">Synchronization Basics</div>
+        <a href="metaspace_gc_demo.html" class="card">
+            <div class="card-header">Metaspace & PermGen</div>
             <div class="card-body">
-                Visualize Race Conditions and how <code>synchronized</code> blocks ensure thread safety.
+                Visualize the Metaspace memory area, class loading, and OOM scenarios.
             </div>
             <div class="card-footer">
                 <span>View Demo</span> <span class="tag">HTML</span>
             </div>
         </a>
-
-        <a href="advanced_sync_internals.html" class="card">
-            <div class="card-header">Advanced Sync Internals</div>
-            <div class="card-body">
-                Deep dive into Monitor Locks, Mark Word transitions (Biased -> Light -> Heavy), and AQS queues.
-            </div>
-            <div class="card-footer">
-                <span>View Demo</span> <span class="tag">HTML</span>
-            </div>
-        </a>
-
-        <a href="jmm_visualization.html" class="card">
-            <div class="card-header">Java Memory Model (JMM)</div>
-            <div class="card-body">
-                Understand <code>volatile</code>, visibility, atomicity, and CPU cache interactions.
-            </div>
-            <div class="card-footer">
-                <span>View Demo</span> <span class="tag">HTML</span>
-            </div>
-        </a>
-
-        <a href="java_thread_lifecycle_demo.html" class="card">
-            <div class="card-header">Thread Lifecycle</div>
-            <div class="card-body">
-                Interactive state machine showing NEW, RUNNABLE, BLOCKED, WAITING, and TERMINATED states.
-            </div>
-            <div class="card-footer">
-                <span>View Demo</span> <span class="tag">HTML</span>
-            </div>
-        </a>
-
-        <a href="thread_pool_logic_demo.html" class="card">
-            <div class="card-header">Thread Pool Logic</div>
-            <div class="card-body">
-                See how Thread Pools reuse threads to execute different types of tasks (Math, Network, DB).
-            </div>
-            <div class="card-footer">
-                <span>View Demo</span> <span class="tag">HTML</span>
-            </div>
-        </a>
-
-        <!-- Section: Java Internals -->
-        <div class="card-section">
-            <h2>🧠 Java Internals & Memory</h2>
-        </div>
 
         <a href="hashmap_simulation.html" class="card">
             <div class="card-header">HashMap Internals</div>
@@ -199,23 +154,13 @@
             </div>
         </a>
 
-        <a href="java_references_simulation.html" class="card">
-            <div class="card-header">Java References</div>
-            <div class="card-body">
-                Interactive demo of Strong, Soft, Weak, and Phantom references and their GC behavior.
-            </div>
-            <div class="card-footer">
-                <span>View Demo</span> <span class="tag">HTML</span>
-            </div>
-        </a>
-
         <!-- Section: Garbage Collection -->
         <div class="card-section">
-            <h2>♻️ Garbage Collection</h2>
+            <h2>♻️ Garbage Collection (垃圾回收)</h2>
         </div>
 
         <a href="java_gc_simulation.html" class="card">
-            <div class="card-header">GC Simulation</div>
+            <div class="card-header">Generational GC</div>
             <div class="card-body">
                 General Garbage Collection concepts, Eden/Survivor spaces, and promotion.
             </div>
@@ -244,25 +189,90 @@
             </div>
         </a>
 
-        <!-- Section: Code -->
+        <a href="java_references_simulation.html" class="card">
+            <div class="card-header">Java References</div>
+            <div class="card-body">
+                Interactive demo of Strong, Soft, Weak, and Phantom references and their GC behavior.
+            </div>
+            <div class="card-footer">
+                <span>View Demo</span> <span class="tag">HTML</span>
+            </div>
+        </a>
+
+        <!-- Section: Java Memory Model -->
         <div class="card-section">
-            <h2>💻 Code Examples</h2>
+            <h2>🧠 Java Memory Model (内存模型)</h2>
         </div>
+
+        <a href="jmm_visualization.html" class="card">
+            <div class="card-header">JMM Visualization</div>
+            <div class="card-body">
+                Understand <code>volatile</code>, visibility, atomicity, and CPU cache interactions.
+            </div>
+            <div class="card-footer">
+                <span>View Demo</span> <span class="tag">HTML</span>
+            </div>
+        </a>
+
+        <!-- Section: Multi-threading & Synchronization -->
+        <div class="card-section">
+            <h2>⚡ Multi-threading & Synchronization (多线程/同步)</h2>
+        </div>
+
+        <a href="synchronization_basics.html" class="card">
+            <div class="card-header">Synchronization Basics</div>
+            <div class="card-body">
+                Visualize Race Conditions and how <code>synchronized</code> blocks ensure thread safety.
+            </div>
+            <div class="card-footer">
+                <span>View Demo</span> <span class="tag">HTML</span>
+            </div>
+        </a>
+
+        <a href="advanced_sync_internals.html" class="card">
+            <div class="card-header">Advanced Sync Internals</div>
+            <div class="card-body">
+                Deep dive into Monitor Locks, Mark Word transitions (Biased -> Light -> Heavy), and AQS queues.
+            </div>
+            <div class="card-footer">
+                <span>View Demo</span> <span class="tag">HTML</span>
+            </div>
+        </a>
+
+        <a href="java_thread_lifecycle_demo.html" class="card">
+            <div class="card-header">Thread Lifecycle</div>
+            <div class="card-body">
+                Interactive state machine showing NEW, RUNNABLE, BLOCKED, WAITING, and TERMINATED states.
+            </div>
+            <div class="card-footer">
+                <span>View Demo</span> <span class="tag">HTML</span>
+            </div>
+        </a>
+
+        <a href="thread_pool_logic_demo.html" class="card">
+            <div class="card-header">Thread Pool Logic</div>
+            <div class="card-body">
+                See how Thread Pools reuse threads to execute different types of tasks (Math, Network, DB).
+            </div>
+            <div class="card-footer">
+                <span>View Demo</span> <span class="tag">HTML</span>
+            </div>
+        </a>
+
+        <a href="thread_context_switch.html" class="card">
+            <div class="card-header">Context Switching</div>
+            <div class="card-body">
+                Visualize the cost and mechanics of CPU context switching between threads.
+            </div>
+            <div class="card-footer">
+                <span>View Demo</span> <span class="tag">HTML</span>
+            </div>
+        </a>
 
         <a href="InterviewConcurrency.java" class="card" target="_blank">
             <div class="card-header">InterviewConcurrency.java</div>
             <div class="card-body">
                 <b>All-in-One Cheat Sheet</b>: 11+ Scenarios including Deadlock, DCL Singleton, Producer-Consumer, etc.
-            </div>
-            <div class="card-footer">
-                <span>View Code</span> <span class="tag java">JAVA</span>
-            </div>
-        </a>
-
-        <a href="HashMap_Source_Analysis.java" class="card" target="_blank">
-            <div class="card-header">HashMap_Source_Analysis.java</div>
-            <div class="card-body">
-                Simplified source code analysis of HashMap implementation details.
             </div>
             <div class="card-footer">
                 <span>View Code</span> <span class="tag java">JAVA</span>
