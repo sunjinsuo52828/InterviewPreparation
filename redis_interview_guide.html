@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis Interview Cheat Sheet</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; line-height: 1.6; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        
+        h1 { color: #d82c20; text-align: center; border-bottom: 2px solid #eee; padding-bottom: 20px; }
+        h2 { color: #333; margin-top: 40px; border-left: 5px solid #d82c20; padding-left: 15px; }
+        h3 { color: #555; margin-top: 25px; }
+        
+        .highlight { background: #fff3e0; padding: 15px; border-radius: 8px; border: 1px solid #ffe0b2; margin: 15px 0; }
+        .code-block { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 6px; font-family: 'Consolas', monospace; overflow-x: auto; }
+        .keyword { color: #ff79c6; }
+        .string { color: #f1fa8c; }
+        .comment { color: #6272a4; }
+
+        .comparison-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .comparison-table th, .comparison-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .comparison-table th { background-color: #f8f9fa; color: #333; }
+        .comparison-table tr:nth-child(even) { background-color: #f9f9f9; }
+
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin-right: 5px; }
+        .tag.high { background: #ffebee; color: #c62828; }
+        .tag.med { background: #fff3e0; color: #ef6c00; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Redis Interview Cheat Sheet</h1>
+        <p>Beyond data structures and speed, here are the critical topics for senior-level interviews.</p>
+
+        <!-- 1. Persistence -->
+        <h2>1. Persistence: RDB vs AOF <span class="tag high">High Frequency</span></h2>
+        <p>Redis is in-memory, but data needs to be saved to disk to survive restarts.</p>
+        
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>RDB (Redis Database)</th>
+                    <th>AOF (Append Only File)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Mechanism</strong></td>
+                    <td>Snapshots of dataset at intervals (e.g., every 5 mins).</td>
+                    <td>Logs every write command (append-only).</td>
+                </tr>
+                <tr>
+                    <td><strong>Recovery Speed</strong></td>
+                    <td>🚀 Fast (Compact binary file).</td>
+                    <td>🐢 Slower (Replays commands).</td>
+                </tr>
+                <tr>
+                    <td><strong>Data Loss</strong></td>
+                    <td>⚠️ High (Loses last 5 mins if crash).</td>
+                    <td>✅ Low (Loses last 1 sec with <code>fsync everysec</code>).</td>
+                </tr>
+                <tr>
+                    <td><strong>File Size</strong></td>
+                    <td>Small.</td>
+                    <td>Large (Needs AOF Rewrite to shrink).</td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="highlight">
+            <strong>Best Practice:</strong> Use <strong>Hybrid Persistence</strong> (Redis 4.0+). It uses RDB for fast startup + AOF for recent data durability.
+        </div>
+
+        <!-- 2. Cache Consistency -->
+        <h2>2. Cache Consistency (DB vs Redis) <span class="tag high">High Frequency</span></h2>
+        <p>How to keep Redis and MySQL in sync?</p>
+
+        <h3>❌ Bad Approach: Update Cache</h3>
+        <p>Don't update the cache when DB changes. If two threads update concurrently, you might get dirty data (Race Condition).</p>
+
+        <h3>✅ Standard Pattern: Cache Aside (Delete Cache)</h3>
+        <ol>
+            <li><strong>Read:</strong> Get from Cache -> Miss? -> Get from DB -> Set Cache.</li>
+            <li><strong>Write:</strong> Update DB -> <strong>Delete Cache</strong>.</li>
+        </ol>
+        
+        <h3>⚠️ Edge Case: Delayed Double Delete</h3>
+        <p>If you delete cache <em>before</em> DB commit, a reader might load old data back into cache. Solution: Delete once, wait 500ms, delete again.</p>
+
+        <!-- 3. Distributed Locks -->
+        <h2>3. Distributed Locks <span class="tag med">Medium Frequency</span></h2>
+        <p>Using Redis to ensure only one service instance executes a task.</p>
+
+        <div class="code-block">
+            <span class="comment">// Atomic Command (Set if Not Exists + Expiry)</span><br>
+            <span class="keyword">SET</span> lock_key unique_id <span class="keyword">NX PX</span> 30000
+        </div>
+
+        <ul>
+            <li><strong>NX:</strong> Only set if key doesn't exist (Mutex).</li>
+            <li><strong>PX 30000:</strong> Auto-expire after 30s (Prevent Deadlock if server crashes).</li>
+            <li><strong>Value (unique_id):</strong> Ensure you only delete your own lock (Validation).</li>
+        </ul>
+        <p><strong>Redlock Algorithm:</strong> For distributed Redis (Cluster), acquire locks on N/2 + 1 nodes.</p>
+
+        <!-- 4. Big Key & Hot Key -->
+        <h2>4. Big Key & Hot Key Problems <span class="tag med">Medium Frequency</span></h2>
+        
+        <h3>🐘 Big Key (Value is too large)</h3>
+        <ul>
+            <li><strong>Symptom:</strong> Network blocking, slow serialization.</li>
+            <li><strong>Example:</strong> A Hash with 1 million fields.</li>
+            <li><strong>Fix:</strong> Split into multiple keys (<code>hash_1</code>, <code>hash_2</code>...).</li>
+        </ul>
+
+        <h3>🔥 Hot Key (Too much traffic on one key)</h3>
+        <ul>
+            <li><strong>Symptom:</strong> Single Redis node CPU 100%.</li>
+            <li><strong>Fix:</strong> Local Cache (Guava/Caffeine) on application server.</li>
+        </ul>
+
+        <!-- 5. Redis 6.0 Threading -->
+        <h2>5. Redis 6.0 Threading Model <span class="tag med">New Topic</span></h2>
+        <p><strong>Question:</strong> "Is Redis single-threaded?"</p>
+        <p><strong>Answer:</strong></p>
+        <ul>
+            <li><strong>Command Execution:</strong> Still <strong>Single-Threaded</strong> (No locks needed, atomic).</li>
+            <li><strong>Network I/O:</strong> Now <strong>Multi-Threaded</strong> in Redis 6.0.</li>
+        </ul>
+        <p><strong>Why?</strong> The bottleneck was network packet parsing, not CPU execution.</p>
+
+    </div>
+
+</body>
+</html>
