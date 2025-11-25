@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kafka Partition & Consumer Group Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #212121; }
+        
+        .container { display: flex; gap: 20px; width: 1100px; margin-top: 20px; }
+        
+        .col { display: flex; flex-direction: column; gap: 15px; }
+        .col-left { width: 400px; }
+        .col-right { width: 650px; }
+
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .card h3 { margin-top: 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+
+        .partition-container { display: flex; flex-direction: column; gap: 10px; }
+        .partition { 
+            background: #e3f2fd; border: 1px solid #90caf9; padding: 10px; border-radius: 4px; 
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .partition-id { font-weight: bold; color: #1565c0; width: 50px; }
+        .msg-queue { display: flex; gap: 2px; flex-grow: 1; overflow: hidden; height: 20px; background: white; border: 1px solid #eee; margin: 0 10px; }
+        .msg { width: 10px; height: 100%; background: #ff9800; }
+        .assigned-to { font-size: 0.8rem; color: #666; background: #fff; padding: 2px 5px; border-radius: 3px; border: 1px solid #ddd; }
+
+        .consumer-container { display: flex; gap: 10px; flex-wrap: wrap; }
+        .consumer { 
+            width: 80px; height: 80px; background: #4caf50; color: white; border-radius: 50%; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-weight: bold; position: relative; transition: all 0.3s;
+        }
+        .consumer-id { font-size: 1.2rem; }
+        .consumer-partitions { font-size: 0.7rem; margin-top: 2px; }
+
+        button { padding: 8px 12px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; margin-right: 5px; }
+        .btn-add { background: #4caf50; }
+        .btn-remove { background: #f44336; }
+        .btn-produce { background: #2196f3; }
+
+        .log-console {
+            width: 100%; background: #212121; color: #00e676; padding: 10px; border-radius: 8px; 
+            font-family: 'Consolas', monospace; height: 200px; overflow-y: auto; font-size: 0.85rem;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; }
+    </style>
+</head>
+<body>
+    <h1>Kafka Partitions & Consumer Groups</h1>
+    
+    <div class="container">
+        <!-- Left: Topic & Partitions -->
+        <div class="col col-left">
+            <div class="card">
+                <h3>Topic: "user-events" (4 Partitions)</h3>
+                <div id="partitions" class="partition-container">
+                    <!-- Partitions injected here -->
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>Producer</h3>
+                <div>
+                    <button class="btn-produce" onclick="produceMessage()">Produce Message (Round Robin)</button>
+                    <button class="btn-produce" onclick="produceKeyedMessage()" style="background:#9c27b0">Produce Keyed (Hash)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Consumers & Logs -->
+        <div class="col col-right">
+            <div class="card">
+                <h3>Consumer Group: "group-1"</h3>
+                <div style="margin-bottom: 10px;">
+                    <button class="btn-add" onclick="addConsumer()">Add Consumer</button>
+                    <button class="btn-remove" onclick="removeConsumer()">Remove Consumer</button>
+                </div>
+                <div id="consumers" class="consumer-container">
+                    <!-- Consumers injected here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Rebalance & Consumption Log</h3>
+                <div class="log-console" id="log">
+                    <div class="log-entry">> System Init. Topic created with 4 partitions.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PARTITION_COUNT = 4;
+        let partitions = []; // { id, messages: [], assignedTo: null }
+        let consumers = []; // { id, assignedPartitions: [] }
+        let consumerIdCounter = 1;
+        let msgCounter = 1;
+
+        // Init Partitions
+        for(let i=0; i<PARTITION_COUNT; i++) {
+            partitions.push({ id: i, messages: [], assignedTo: null });
+        }
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerText = `> ${msg}`;
+            const console = document.getElementById('log');
+            console.appendChild(div);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function render() {
+            // Render Partitions
+            const pContainer = document.getElementById('partitions');
+            pContainer.innerHTML = '';
+            partitions.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'partition';
+                div.innerHTML = `
+                    <div class="partition-id">P${p.id}</div>
+                    <div class="msg-queue">
+                        ${p.messages.map(() => '<div class="msg"></div>').join('')}
+                    </div>
+                    <div class="assigned-to">${p.assignedTo ? p.assignedTo : 'Unassigned'}</div>
+                `;
+                pContainer.appendChild(div);
+            });
+
+            // Render Consumers
+            const cContainer = document.getElementById('consumers');
+            cContainer.innerHTML = '';
+            consumers.forEach(c => {
+                const div = document.createElement('div');
+                div.className = 'consumer';
+                div.innerHTML = `
+                    <div class="consumer-id">C${c.id}</div>
+                    <div class="consumer-partitions">${c.assignedPartitions.map(pid => 'P'+pid).join(', ')}</div>
+                `;
+                cContainer.appendChild(div);
+            });
+        }
+
+        function rebalance() {
+            log("--- Rebalancing Group ---");
+            
+            // Reset assignments
+            partitions.forEach(p => p.assignedTo = null);
+            consumers.forEach(c => c.assignedPartitions = []);
+
+            if (consumers.length === 0) {
+                log("No consumers available.");
+                render();
+                return;
+            }
+
+            // Range Assignment Strategy (Simplified)
+            // P0, P1, P2, P3
+            // C1, C2
+            // C1 gets P0, P1; C2 gets P2, P3
+            
+            const numPartitions = partitions.length;
+            const numConsumers = consumers.length;
+            const size = Math.floor(numPartitions / numConsumers);
+            let remainder = numPartitions % numConsumers;
+
+            let pIdx = 0;
+            for (let i = 0; i < numConsumers; i++) {
+                let mySize = size + (remainder > 0 ? 1 : 0);
+                remainder--;
+                
+                for (let j = 0; j < mySize; j++) {
+                    const p = partitions[pIdx];
+                    const c = consumers[i];
+                    
+                    p.assignedTo = `C${c.id}`;
+                    c.assignedPartitions.push(p.id);
+                    log(`Assigned P${p.id} -> C${c.id}`);
+                    pIdx++;
+                }
+            }
+            render();
+        }
+
+        function addConsumer() {
+            const id = consumerIdCounter++;
+            consumers.push({ id, assignedPartitions: [] });
+            log(`Consumer C${id} joined group.`);
+            rebalance();
+        }
+
+        function removeConsumer() {
+            if(consumers.length === 0) return;
+            const removed = consumers.pop();
+            log(`Consumer C${removed.id} left group.`);
+            rebalance();
+        }
+
+        function produceMessage() {
+            // Round Robin
+            const pId = (msgCounter - 1) % PARTITION_COUNT;
+            const p = partitions[pId];
+            p.messages.push(msgCounter++);
+            if(p.messages.length > 15) p.messages.shift(); // Keep visual clean
+            
+            log(`Produced Msg #${msgCounter-1} to P${pId}`);
+            consume(pId);
+            render();
+        }
+
+        function produceKeyedMessage() {
+            const key = prompt("Enter Key (e.g. 'user123'):", "user1");
+            if(!key) return;
+            
+            // Simple Hash
+            let hash = 0;
+            for(let i=0; i<key.length; i++) hash += key.charCodeAt(i);
+            const pId = hash % PARTITION_COUNT;
+            
+            const p = partitions[pId];
+            p.messages.push(msgCounter++);
+            if(p.messages.length > 15) p.messages.shift();
+            
+            log(`Produced Keyed Msg ('${key}') to P${pId}`);
+            consume(pId);
+            render();
+        }
+
+        function consume(pId) {
+            const p = partitions[pId];
+            if(p.assignedTo) {
+                // Simulate consumption
+                setTimeout(() => {
+                    if(p.messages.length > 0) {
+                        p.messages.shift(); // Consume
+                        render();
+                        // log(`Consumer ${p.assignedTo} processed msg from P${pId}`); // Too noisy?
+                    }
+                }, 1000);
+            }
+        }
+
+        // Init
+        render();
+        addConsumer(); // Start with 1 consumer
+    </script>
+</body>
+</html>

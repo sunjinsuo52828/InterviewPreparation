@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consistent Hashing Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #673ab7; }
+        
+        .container { display: flex; gap: 20px; width: 1000px; margin-top: 20px; }
+        
+        .canvas-area { 
+            width: 600px; height: 600px; background: white; border-radius: 50%; position: relative; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1); border: 2px solid #ddd;
+        }
+        
+        .controls-area { width: 350px; display: flex; flex-direction: column; gap: 15px; }
+        
+        .control-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        
+        button { padding: 10px; width: 100%; margin-bottom: 5px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; color: white; }
+        .btn-add-node { background: #4caf50; }
+        .btn-remove-node { background: #f44336; }
+        .btn-add-key { background: #2196f3; }
+        
+        .node { 
+            position: absolute; width: 30px; height: 30px; border-radius: 50%; 
+            transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: bold; font-size: 0.8rem; z-index: 10; transition: all 0.5s;
+        }
+        
+        .key {
+            position: absolute; width: 10px; height: 10px; background: #333; border-radius: 50%;
+            transform: translate(-50%, -50%); z-index: 5; transition: all 0.5s;
+        }
+
+        .log-console {
+            width: 100%; background: #212121; color: #00e676; padding: 10px; border-radius: 8px; 
+            font-family: 'Consolas', monospace; height: 200px; overflow-y: auto; font-size: 0.85rem;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; }
+
+        /* SVG Lines */
+        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        line { stroke: #ccc; stroke-width: 1; stroke-dasharray: 5; }
+    </style>
+</head>
+<body>
+    <h1>Consistent Hashing Ring</h1>
+    
+    <div class="container">
+        <div class="canvas-area" id="ring">
+            <svg id="lines"></svg>
+            <!-- Nodes and Keys injected here -->
+        </div>
+
+        <div class="controls-area">
+            <div class="control-card">
+                <h3>Nodes (Servers)</h3>
+                <button class="btn-add-node" onclick="addNode()">Add Node</button>
+                <button class="btn-remove-node" onclick="removeNode()">Remove Random Node</button>
+                <div style="margin-top:10px">
+                    <label><input type="checkbox" id="vnodes" onchange="toggleVNodes()"> Use Virtual Nodes (x3)</label>
+                </div>
+            </div>
+
+            <div class="control-card">
+                <h3>Data Keys</h3>
+                <button class="btn-add-key" onclick="addKey()">Add Random Key</button>
+                <button class="btn-add-key" onclick="addKeyBatch()" style="background:#00bcd4">Add 10 Keys</button>
+            </div>
+
+            <div class="log-console" id="log">
+                <div class="log-entry">> Hash Ring Initialized (0 - 2^32).</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const RING_RADIUS = 280;
+        const CENTER = 300;
+        let nodes = []; // { id, angle, color, isVirtual, parentId }
+        let keys = [];  // { id, angle }
+        let nodeIdCounter = 1;
+        let keyIdCounter = 1;
+        const COLORS = ['#e91e63', '#9c27b0', '#3f51b5', '#009688', '#ff9800', '#795548'];
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerText = `> ${msg}`;
+            const console = document.getElementById('log');
+            console.appendChild(div);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function getPos(angle) {
+            const rad = (angle - 90) * (Math.PI / 180); // -90 to start at top
+            return {
+                x: CENTER + RING_RADIUS * Math.cos(rad),
+                y: CENTER + RING_RADIUS * Math.sin(rad)
+            };
+        }
+
+        function addNode() {
+            const id = `N${nodeIdCounter++}`;
+            const angle = Math.floor(Math.random() * 360);
+            const color = COLORS[nodes.length % COLORS.length];
+            
+            const node = { id, angle, color, isVirtual: false };
+            nodes.push(node);
+            
+            // Virtual Nodes
+            if(document.getElementById('vnodes').checked) {
+                for(let i=1; i<=3; i++) {
+                    nodes.push({ 
+                        id: `${id}-v${i}`, 
+                        angle: (angle + i*90 + Math.random()*20) % 360, 
+                        color: color, 
+                        isVirtual: true,
+                        parentId: id
+                    });
+                }
+            }
+
+            nodes.sort((a, b) => a.angle - b.angle);
+            render();
+            rebalanceKeys();
+            log(`Added Node ${id} at ${angle}°. Total Nodes: ${nodes.length}`);
+        }
+
+        function removeNode() {
+            if(nodes.length === 0) return;
+            // Find a real node
+            const realNodes = nodes.filter(n => !n.isVirtual);
+            if(realNodes.length === 0) return;
+            
+            const target = realNodes[Math.floor(Math.random() * realNodes.length)];
+            
+            // Remove target and its virtuals
+            nodes = nodes.filter(n => n.id !== target.id && n.parentId !== target.id);
+            
+            render();
+            rebalanceKeys();
+            log(`Removed Node ${target.id}. Keys re-routed.`);
+        }
+
+        function toggleVNodes() {
+            // Reset and re-add current real nodes with/without vnodes
+            // Simplified: Just clear and ask user to add again or implement complex logic.
+            // For demo, let's just clear.
+            nodes = [];
+            keys = [];
+            render();
+            log("Toggled Virtual Nodes. Ring cleared.");
+        }
+
+        function addKey() {
+            const id = `K${keyIdCounter++}`;
+            const angle = Math.floor(Math.random() * 360);
+            keys.push({ id, angle });
+            render();
+            routeKey(id, angle);
+        }
+
+        function addKeyBatch() {
+            for(let i=0; i<10; i++) addKey();
+        }
+
+        function routeKey(keyId, keyAngle) {
+            if(nodes.length === 0) {
+                log(`Key ${keyId} dropped (No Nodes).`);
+                return;
+            }
+            
+            // Find first node with angle >= keyAngle
+            let targetNode = nodes.find(n => n.angle >= keyAngle);
+            // If not found (wrap around), take the first node (smallest angle)
+            if(!targetNode) targetNode = nodes[0];
+
+            log(`Key ${keyId} (${keyAngle}°) -> Node ${targetNode.id} (${Math.floor(targetNode.angle)}°)`);
+            
+            // Draw line
+            drawRouteLine(keyAngle, targetNode.angle);
+        }
+
+        function rebalanceKeys() {
+            document.getElementById('lines').innerHTML = ''; // Clear lines
+            keys.forEach(k => routeKey(k.id, k.angle));
+        }
+
+        function drawRouteLine(startAngle, endAngle) {
+            const start = getPos(startAngle);
+            const end = getPos(endAngle);
+            
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", start.x);
+            line.setAttribute("y1", start.y);
+            line.setAttribute("x2", end.x);
+            line.setAttribute("y2", end.y);
+            document.getElementById('lines').appendChild(line);
+        }
+
+        function render() {
+            const container = document.getElementById('ring');
+            // Keep SVG, remove divs
+            const children = Array.from(container.children);
+            children.forEach(c => {
+                if(c.tagName !== 'svg') c.remove();
+            });
+
+            nodes.forEach(n => {
+                const pos = getPos(n.angle);
+                const el = document.createElement('div');
+                el.className = 'node';
+                el.style.left = pos.x + 'px';
+                el.style.top = pos.y + 'px';
+                el.style.backgroundColor = n.color;
+                if(n.isVirtual) {
+                    el.style.width = '15px';
+                    el.style.height = '15px';
+                    el.style.opacity = '0.7';
+                    el.innerText = '';
+                } else {
+                    el.innerText = n.id;
+                }
+                container.appendChild(el);
+            });
+
+            keys.forEach(k => {
+                const pos = getPos(k.angle);
+                const el = document.createElement('div');
+                el.className = 'key';
+                el.style.left = pos.x + 'px';
+                el.style.top = pos.y + 'px';
+                container.appendChild(el);
+            });
+        }
+
+        // Init
+        addNode();
+        addNode();
+        addNode();
+    </script>
+</body>
+</html>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySQL MVCC Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #00695c; }
+        
+        .container { display: flex; gap: 20px; width: 1100px; margin-top: 20px; }
+        
+        .col { display: flex; flex-direction: column; gap: 15px; }
+        .col-left { width: 300px; }
+        .col-center { width: 400px; }
+        .col-right { width: 350px; }
+
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .card h3 { margin-top: 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+
+        .trx-panel { display: flex; flex-direction: column; gap: 10px; }
+        .trx-row { display: flex; align-items: center; justify-content: space-between; background: #e0f2f1; padding: 10px; border-radius: 4px; }
+        .trx-status { font-weight: bold; font-size: 0.9rem; }
+        .trx-active { color: #009688; }
+        .trx-committed { color: #757575; }
+
+        button { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; }
+        .btn-start { background: #4caf50; }
+        .btn-update { background: #2196f3; }
+        .btn-commit { background: #ff9800; }
+        .btn-read { background: #9c27b0; }
+
+        .undo-log-chain { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        .version-record { 
+            width: 100%; background: #fff3e0; border: 1px solid #ffb74d; padding: 10px; border-radius: 4px; position: relative;
+            transition: all 0.3s;
+        }
+        .version-record.latest { background: #e8f5e9; border-color: #81c784; }
+        .version-meta { font-size: 0.8rem; color: #666; display: flex; justify-content: space-between; }
+        .version-data { font-size: 1.1rem; font-weight: bold; margin: 5px 0; text-align: center; }
+        .roll-ptr { text-align: center; font-size: 1.2rem; color: #999; line-height: 0.8; }
+
+        .log-console {
+            width: 100%; background: #212121; color: #00e676; padding: 10px; border-radius: 8px; 
+            font-family: 'Consolas', monospace; height: 300px; overflow-y: auto; font-size: 0.85rem;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; }
+        .log-hl { color: #ffeb3b; }
+
+        .read-view-box { background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <h1>MySQL MVCC (Multi-Version Concurrency Control)</h1>
+    
+    <div class="container">
+        <!-- Left: Transactions -->
+        <div class="col col-left">
+            <div class="card">
+                <h3>Active Transactions</h3>
+                <div id="trx-list" class="trx-panel">
+                    <!-- Trx items injected here -->
+                </div>
+                <div style="margin-top: 15px; text-align: center;">
+                    <button class="btn-start" onclick="startTrx()">Start New Transaction</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>Read View Rules</h3>
+                <div style="font-size: 0.85rem; color: #555;">
+                    <p><strong>m_ids:</strong> Active Trx List</p>
+                    <p><strong>min_id:</strong> Smallest Active ID</p>
+                    <p><strong>max_id:</strong> Next ID to assign</p>
+                    <hr>
+                    <p>1. trx_id < min_id: <span style="color:green">Visible</span> (Committed before)</p>
+                    <p>2. trx_id >= max_id: <span style="color:red">Invisible</span> (Future)</p>
+                    <p>3. trx_id in m_ids: <span style="color:red">Invisible</span> (Active)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center: Undo Log Chain -->
+        <div class="col col-center">
+            <div class="card">
+                <h3>Undo Log Chain (Row History)</h3>
+                <div id="undo-log" class="undo-log-chain">
+                    <!-- Versions injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Log & Read -->
+        <div class="col col-right">
+            <div class="card">
+                <h3>Operation Log</h3>
+                <div class="log-console" id="log">
+                    <div class="log-entry">> System Init. Row: id=1, name="Alice" (trx_id=0)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let globalTrxId = 100;
+        let transactions = []; // { id, status: 'ACTIVE'|'COMMITTED', snapshot: null }
+        
+        // The Row History
+        let rowVersions = [
+            { trx_id: 0, value: "Alice", roll_ptr: null }
+        ];
+
+        function log(msg, highlight=false) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            if(highlight) div.classList.add('log-hl');
+            div.innerHTML = `> ${msg}`;
+            const console = document.getElementById('log');
+            console.appendChild(div);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function startTrx() {
+            const id = globalTrxId++;
+            transactions.push({ id, status: 'ACTIVE', snapshot: null });
+            renderTrx();
+            log(`Transaction <span style="color:#4caf50">TRX_${id}</span> Started.`);
+        }
+
+        function commitTrx(id) {
+            const trx = transactions.find(t => t.id === id);
+            if(trx && trx.status === 'ACTIVE') {
+                trx.status = 'COMMITTED';
+                renderTrx();
+                log(`Transaction <span style="color:#ff9800">TRX_${id}</span> Committed.`);
+            }
+        }
+
+        function updateRow(id) {
+            const trx = transactions.find(t => t.id === id);
+            if(!trx || trx.status !== 'ACTIVE') return;
+
+            const newValue = prompt(`TRX_${id}: Update name to?`, "Bob");
+            if(!newValue) return;
+
+            // Create new version
+            const latest = rowVersions[0];
+            const newVersion = {
+                trx_id: id,
+                value: newValue,
+                roll_ptr: latest // Point to previous
+            };
+            
+            rowVersions.unshift(newVersion); // Add to top
+            renderUndoLog();
+            log(`TRX_${id} updated row. New Value: "${newValue}". Added to Undo Log.`);
+        }
+
+        function readRow(id) {
+            const trx = transactions.find(t => t.id === id);
+            if(!trx) return;
+
+            // Generate Read View if RC/RR (Simplified: Assume RR - create once)
+            // For demo purposes, let's generate a fresh Read View every read to simulate RC, 
+            // or reuse if we want RR. Let's do "Snapshot Read" (create if null).
+            let readView = trx.snapshot;
+            if(!readView) {
+                // Create Read View
+                const activeIds = transactions.filter(t => t.status === 'ACTIVE').map(t => t.id);
+                readView = {
+                    m_ids: activeIds,
+                    min_id: activeIds.length > 0 ? Math.min(...activeIds) : globalTrxId,
+                    max_id: globalTrxId,
+                    creator_id: id
+                };
+                trx.snapshot = readView; // Save for RR
+                log(`TRX_${id} created Read View: [min=${readView.min_id}, max=${readView.max_id}, active=${JSON.stringify(readView.m_ids)}]`);
+            } else {
+                log(`TRX_${id} reusing Read View.`);
+            }
+
+            // Traverse Undo Log
+            let visibleVersion = null;
+            for(let v of rowVersions) {
+                if(checkVisibility(v.trx_id, readView)) {
+                    visibleVersion = v;
+                    break;
+                }
+            }
+
+            if(visibleVersion) {
+                alert(`TRX_${id} sees: "${visibleVersion.value}" (from TRX_${visibleVersion.trx_id})`);
+                log(`TRX_${id} READ result: <span style="color:#00e676">"${visibleVersion.value}"</span> (Found version TRX_${visibleVersion.trx_id})`, true);
+            } else {
+                alert("No visible version found!");
+            }
+        }
+
+        function checkVisibility(trx_id, view) {
+            // 1. If current trx created it, visible
+            if(trx_id === view.creator_id) return true;
+
+            // 2. If trx_id < min_id, committed before view creation -> Visible
+            if(trx_id < view.min_id) return true;
+
+            // 3. If trx_id >= max_id, created after view -> Invisible
+            if(trx_id >= view.max_id) return false;
+
+            // 4. If in m_ids, active when view created -> Invisible
+            if(view.m_ids.includes(trx_id)) return false;
+
+            // Else (between min and max, but not active) -> Committed -> Visible
+            return true;
+        }
+
+        function renderTrx() {
+            const container = document.getElementById('trx-list');
+            container.innerHTML = '';
+            transactions.forEach(t => {
+                const div = document.createElement('div');
+                div.className = 'trx-row';
+                div.innerHTML = `
+                    <div>
+                        <div class="trx-status ${t.status === 'ACTIVE' ? 'trx-active' : 'trx-committed'}">TRX_${t.id}</div>
+                        <div style="font-size:0.8rem">${t.status}</div>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        ${t.status === 'ACTIVE' ? `
+                            <button class="btn-update" onclick="updateRow(${t.id})">Upd</button>
+                            <button class="btn-read" onclick="readRow(${t.id})">Read</button>
+                            <button class="btn-commit" onclick="commitTrx(${t.id})">Com</button>
+                        ` : ''}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderUndoLog() {
+            const container = document.getElementById('undo-log');
+            container.innerHTML = '';
+            rowVersions.forEach((v, idx) => {
+                const div = document.createElement('div');
+                div.className = 'version-record';
+                if(idx === 0) div.classList.add('latest');
+                
+                div.innerHTML = `
+                    <div class="version-meta">
+                        <span>TRX_ID: ${v.trx_id}</span>
+                        <span>${idx === 0 ? '(Latest)' : ''}</span>
+                    </div>
+                    <div class="version-data">name = "${v.value}"</div>
+                `;
+                container.appendChild(div);
+
+                if(idx < rowVersions.length - 1) {
+                    const arrow = document.createElement('div');
+                    arrow.className = 'roll-ptr';
+                    arrow.innerHTML = '↓<br><span style="font-size:0.8rem">roll_ptr</span>';
+                    container.appendChild(arrow);
+                }
+            });
+        }
+
+        // Init
+        renderUndoLog();
+        startTrx(); // Start 100
+    </script>
+</body>
+</html>

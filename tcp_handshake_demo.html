@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCP Handshake & State Machine Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #0078d4; }
+        .container { display: flex; justify-content: space-between; width: 800px; margin-top: 50px; position: relative; }
+        
+        .host { width: 200px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; z-index: 2; }
+        .host-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 10px; }
+        .state-box { background: #e1f5fe; padding: 10px; border-radius: 5px; font-weight: bold; color: #0277bd; transition: all 0.3s; }
+        
+        .network-space { flex-grow: 1; position: relative; min-height: 300px; }
+        
+        .packet {
+            position: absolute; padding: 8px 15px; background: #ff9800; color: white; border-radius: 20px; font-weight: bold;
+            font-size: 0.9rem; box-shadow: 0 2px 5px rgba(0,0,0,0.2); opacity: 0; transition: all 0.5s; z-index: 5;
+        }
+
+        .controls { margin-top: 30px; display: flex; gap: 10px; }
+        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; background: #333; color: white; }
+        button:hover { background: #555; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        .log-console {
+            width: 800px; background: #212121; color: #00e676; padding: 15px; border-radius: 8px; 
+            font-family: 'Consolas', monospace; height: 200px; overflow-y: auto; margin-top: 30px;
+        }
+        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #333; }
+        .log-time { color: #888; margin-right: 10px; }
+
+        /* Connection Line */
+        .conn-line {
+            position: absolute; top: 50px; left: 220px; right: 220px; height: 2px; background: #ccc; z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>TCP 3-Way Handshake & 4-Way Wave</h1>
+    
+    <div class="container">
+        <div class="host" id="client">
+            <div class="host-title">Client</div>
+            <div class="state-box" id="client-state">CLOSED</div>
+        </div>
+
+        <div class="network-space" id="network">
+            <!-- Packets will fly here -->
+        </div>
+
+        <div class="host" id="server">
+            <div class="host-title">Server</div>
+            <div class="state-box" id="server-state">LISTEN</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="startHandshake()" id="btn-connect">Connect (3-Way)</button>
+        <button onclick="startTeardown()" id="btn-disconnect" disabled>Disconnect (4-Way)</button>
+        <button onclick="reset()" style="background: #d32f2f;">Reset</button>
+    </div>
+
+    <div class="log-console" id="log">
+        <div class="log-entry">> Ready. Server is in LISTEN state.</div>
+    </div>
+
+    <script>
+        const clientState = document.getElementById('client-state');
+        const serverState = document.getElementById('server-state');
+        let isConnected = false;
+
+        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
+            const console = document.getElementById('log');
+            console.appendChild(div);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function setState(side, state) {
+            const el = document.getElementById(`${side}-state`);
+            el.innerText = state;
+            el.style.transform = "scale(1.2)";
+            setTimeout(() => el.style.transform = "scale(1)", 300);
+            log(`${side.toUpperCase()} State Changed -> <strong>${state}</strong>`);
+        }
+
+        async function sendPacket(from, type, seq, ack) {
+            const packet = document.createElement('div');
+            packet.className = 'packet';
+            let text = `${type}`;
+            if(seq) text += ` Seq=${seq}`;
+            if(ack) text += ` Ack=${ack}`;
+            packet.innerText = text;
+            
+            const network = document.getElementById('network');
+            network.appendChild(packet);
+
+            // Animation positions
+            const startX = from === 'client' ? '0%' : '90%';
+            const endX = from === 'client' ? '90%' : '0%';
+            
+            packet.style.left = startX;
+            packet.style.top = '50%';
+            packet.style.opacity = 1;
+
+            log(`${from.toUpperCase()} sends <strong>${text}</strong>`);
+
+            // Trigger reflow
+            packet.offsetHeight; 
+
+            packet.style.transition = "left 1.5s ease-in-out";
+            packet.style.left = endX;
+
+            await wait(1500);
+            packet.remove();
+        }
+
+        async function startHandshake() {
+            if(isConnected) return;
+            document.getElementById('btn-connect').disabled = true;
+            
+            // Step 1: Client sends SYN
+            setState('client', 'SYN_SENT');
+            await sendPacket('client', 'SYN', 100, null);
+
+            // Step 2: Server receives SYN, sends SYN-ACK
+            setState('server', 'SYN_RCVD');
+            await sendPacket('server', 'SYN-ACK', 300, 101);
+
+            // Step 3: Client receives SYN-ACK, sends ACK
+            setState('client', 'ESTABLISHED');
+            await sendPacket('client', 'ACK', 101, 301);
+
+            setState('server', 'ESTABLISHED');
+            isConnected = true;
+            document.getElementById('btn-disconnect').disabled = false;
+            log("✅ Connection ESTABLISHED!");
+        }
+
+        async function startTeardown() {
+            if(!isConnected) return;
+            document.getElementById('btn-disconnect').disabled = true;
+
+            // Step 1: Client sends FIN
+            setState('client', 'FIN_WAIT_1');
+            await sendPacket('client', 'FIN', 500, null);
+
+            // Step 2: Server receives FIN, sends ACK
+            setState('server', 'CLOSE_WAIT');
+            await sendPacket('server', 'ACK', null, 501);
+
+            setState('client', 'FIN_WAIT_2');
+            log("Server is processing remaining data (CLOSE_WAIT)...");
+            await wait(1000); // Simulate server doing work
+
+            // Step 3: Server sends FIN
+            setState('server', 'LAST_ACK');
+            await sendPacket('server', 'FIN', 700, null);
+
+            // Step 4: Client receives FIN, sends ACK
+            setState('client', 'TIME_WAIT');
+            await sendPacket('client', 'ACK', 501, 701);
+
+            setState('server', 'CLOSED');
+            log("Client entering TIME_WAIT (2MSL) to ensure Server received ACK...");
+            
+            await wait(2000);
+            setState('client', 'CLOSED');
+            isConnected = false;
+            document.getElementById('btn-connect').disabled = false;
+            log("❌ Connection CLOSED.");
+        }
+
+        function reset() {
+            setState('client', 'CLOSED');
+            setState('server', 'LISTEN');
+            isConnected = false;
+            document.getElementById('btn-connect').disabled = false;
+            document.getElementById('btn-disconnect').disabled = true;
+            document.getElementById('log').innerHTML = '';
+            log("Reset complete.");
+        }
+    </script>
+</body>
+</html>

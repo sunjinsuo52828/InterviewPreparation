@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circuit Breaker Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #d84315; }
+        
+        .container { display: flex; gap: 20px; width: 1000px; margin-top: 20px; }
+        
+        .visual-area { 
+            width: 600px; background: white; padding: 20px; border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; flex-direction: column; align-items: center;
+        }
+        
+        .controls-area { width: 350px; display: flex; flex-direction: column; gap: 15px; }
+        
+        .state-diagram { display: flex; justify-content: space-between; width: 100%; margin-bottom: 30px; position: relative; }
+        .state-node { 
+            width: 100px; height: 100px; border-radius: 50%; border: 3px solid #ddd; 
+            display: flex; align-items: center; justify-content: center; font-weight: bold; color: #999;
+            background: #fafafa; transition: all 0.3s; z-index: 2;
+        }
+        .state-node.active { transform: scale(1.1); box-shadow: 0 0 15px rgba(0,0,0,0.2); color: white; border: none; }
+        
+        #state-closed.active { background: #4caf50; }
+        #state-open.active { background: #f44336; }
+        #state-half-open.active { background: #ff9800; }
+
+        .metrics-box { 
+            width: 100%; background: #eceff1; padding: 15px; border-radius: 4px; 
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .metric { text-align: center; }
+        .metric-val { font-size: 1.5rem; font-weight: bold; color: #37474f; }
+        .metric-label { font-size: 0.8rem; color: #78909c; }
+
+        .control-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        
+        button { padding: 12px; width: 100%; margin-bottom: 8px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; color: white; font-size: 1rem; }
+        .btn-success { background: #4caf50; }
+        .btn-fail { background: #f44336; }
+        .btn-reset { background: #607d8b; margin-top: 10px; }
+
+        .log-console {
+            width: 100%; background: #212121; color: #00e676; padding: 10px; border-radius: 8px; 
+            font-family: 'Consolas', monospace; height: 250px; overflow-y: auto; font-size: 0.85rem;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; }
+        .log-err { color: #ff5252; }
+        .log-warn { color: #ffb74d; }
+
+        /* Arrows */
+        .arrow-line { position: absolute; height: 2px; background: #ddd; top: 50%; z-index: 1; }
+    </style>
+</head>
+<body>
+    <h1>Circuit Breaker Pattern</h1>
+    
+    <div class="container">
+        <div class="visual-area">
+            <div class="state-diagram">
+                <div id="state-closed" class="state-node active">CLOSED</div>
+                <div class="arrow-line" style="width: 100px; left: 100px;"></div>
+                <div id="state-open" class="state-node">OPEN</div>
+                <div class="arrow-line" style="width: 100px; left: 300px;"></div>
+                <div id="state-half-open" class="state-node">HALF-OPEN</div>
+            </div>
+
+            <div class="metrics-box">
+                <div class="metric">
+                    <div class="metric-val" id="fail-rate">0%</div>
+                    <div class="metric-label">Failure Rate</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-val" id="req-count">0</div>
+                    <div class="metric-label">Total Requests</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-val" id="fail-count">0</div>
+                    <div class="metric-label">Failures (Window)</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-val" id="threshold">50%</div>
+                    <div class="metric-label">Threshold</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; text-align: center; color: #666;">
+                <p><strong>CLOSED:</strong> Normal operation. Counts failures.</p>
+                <p><strong>OPEN:</strong> Fails fast. No requests sent downstream.</p>
+                <p><strong>HALF-OPEN:</strong> Test mode. Allows 1 request to check recovery.</p>
+            </div>
+        </div>
+
+        <div class="controls-area">
+            <div class="control-card">
+                <h3>Simulate Traffic</h3>
+                <button class="btn-success" onclick="sendRequest(true)">Send Success Request</button>
+                <button class="btn-fail" onclick="sendRequest(false)">Send Failed Request</button>
+                <button class="btn-reset" onclick="resetBreaker()">Reset Breaker</button>
+            </div>
+
+            <div class="log-console" id="log">
+                <div class="log-entry">> Circuit Breaker Initialized. State: CLOSED</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STATE = {
+            CLOSED: 'closed',
+            OPEN: 'open',
+            HALF_OPEN: 'half-open'
+        };
+
+        let currentState = STATE.CLOSED;
+        let failureCount = 0;
+        let totalCount = 0;
+        let failureThreshold = 3; // Simplified: Failures count instead of rate for easier demo
+        let resetTimeout = 3000; // 3 seconds to switch from Open to Half-Open
+
+        function log(msg, type='info') {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            if(type === 'error') div.classList.add('log-err');
+            if(type === 'warn') div.classList.add('log-warn');
+            div.innerText = `> ${msg}`;
+            const console = document.getElementById('log');
+            console.appendChild(div);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        function updateUI() {
+            // Update State Nodes
+            document.querySelectorAll('.state-node').forEach(n => n.classList.remove('active'));
+            document.getElementById(`state-${currentState}`).classList.add('active');
+
+            // Update Metrics
+            document.getElementById('req-count').innerText = totalCount;
+            document.getElementById('fail-count').innerText = failureCount;
+            document.getElementById('threshold').innerText = `${failureThreshold} Fails`;
+            
+            const rate = totalCount > 0 ? Math.round((failureCount / totalCount) * 100) : 0;
+            document.getElementById('fail-rate').innerText = `${rate}%`; // Not strictly used for logic here but good for display
+        }
+
+        function sendRequest(isSuccess) {
+            if (currentState === STATE.OPEN) {
+                log("Request BLOCKED (Circuit OPEN). Fail Fast.", 'error');
+                return;
+            }
+
+            totalCount++;
+
+            if (currentState === STATE.HALF_OPEN) {
+                if (isSuccess) {
+                    log("Half-Open Probe SUCCESS. Closing Circuit.");
+                    transitionTo(STATE.CLOSED);
+                } else {
+                    log("Half-Open Probe FAILED. Re-opening Circuit.", 'error');
+                    transitionTo(STATE.OPEN);
+                }
+                return;
+            }
+
+            // CLOSED State Logic
+            if (isSuccess) {
+                log("Request Success.");
+            } else {
+                failureCount++;
+                log(`Request Failed. Count: ${failureCount}/${failureThreshold}`, 'warn');
+                if (failureCount >= failureThreshold) {
+                    log("Failure Threshold Reached! Tripping Circuit.", 'error');
+                    transitionTo(STATE.OPEN);
+                }
+            }
+            updateUI();
+        }
+
+        function transitionTo(newState) {
+            currentState = newState;
+            
+            if (newState === STATE.CLOSED) {
+                failureCount = 0;
+                totalCount = 0;
+                log("State changed to CLOSED. Counters reset.");
+            } else if (newState === STATE.OPEN) {
+                log(`State changed to OPEN. Cooling down for ${resetTimeout/1000}s...`);
+                setTimeout(() => {
+                    if(currentState === STATE.OPEN) {
+                        transitionTo(STATE.HALF_OPEN);
+                    }
+                }, resetTimeout);
+            } else if (newState === STATE.HALF_OPEN) {
+                log("State changed to HALF-OPEN. Next request will determine fate.");
+            }
+            updateUI();
+        }
+
+        function resetBreaker() {
+            transitionTo(STATE.CLOSED);
+            log("Manually Reset Breaker.");
+        }
+
+        // Init
+        updateUI();
+    </script>
+</body>
+</html>
