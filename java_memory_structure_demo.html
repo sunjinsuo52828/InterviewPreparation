@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Memory Structure & Class Loading Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        
+        .controls {
+            background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            display: flex; gap: 15px; margin-bottom: 20px;
+        }
+        button { padding: 10px 20px; cursor: pointer; border: none; border-radius: 4px; background: #0078d4; color: white; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #005a9e; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        button.reset { background: #d83b01; }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* Class Loader Section */
+        .loader-section {
+            background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .section-title { font-weight: bold; border-bottom: 2px solid #eee; padding-bottom: 5px; margin-bottom: 10px; color: #555; }
+        
+        .loader-step {
+            padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9;
+            text-align: center; font-size: 13px; transition: all 0.3s; opacity: 0.5;
+        }
+        .loader-step.active { background: #e3f2fd; border-color: #2196f3; opacity: 1; transform: scale(1.05); font-weight: bold; }
+        .loader-step.done { background: #e8f5e9; border-color: #4caf50; opacity: 1; }
+
+        /* Memory Areas */
+        .memory-area {
+            background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 20px;
+            position: relative;
+            min-height: 500px;
+        }
+
+        .area-box {
+            border: 2px dashed #ccc; border-radius: 8px; padding: 10px; position: relative;
+            min-height: 150px; background: #fafafa;
+        }
+        .area-label {
+            position: absolute; top: -12px; left: 10px; background: #fff; padding: 0 5px;
+            font-weight: bold; color: #666; font-size: 14px;
+        }
+
+        /* Specific Areas */
+        #metaspace { grid-column: 1 / 3; border-color: #9c27b0; background: #f3e5f5; height: 120px; }
+        #stack { border-color: #ff9800; background: #fff3e0; }
+        #heap { border-color: #4caf50; background: #e8f5e9; }
+        #pc-register { border-color: #607d8b; background: #eceff1; height: 80px; grid-column: 1 / 2; }
+        #native-stack { border-color: #795548; background: #efebe9; height: 80px; grid-column: 2 / 3; }
+
+        /* Objects & Classes */
+        .class-meta {
+            width: 120px; height: 60px; background: #ba68c8; color: white; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; font-size: 12px;
+            position: absolute; top: 40px; left: 20px; opacity: 0; transition: all 0.5s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .stack-frame {
+            width: 90%; background: #ffb74d; padding: 5px; margin: 5px auto; border-radius: 4px;
+            font-size: 12px; color: #333; opacity: 0; transform: translateY(-20px); transition: all 0.5s;
+        }
+        .stack-var {
+            background: white; padding: 2px 5px; margin-top: 2px; border-radius: 2px; font-family: monospace;
+            display: flex; justify-content: space-between;
+        }
+
+        .heap-obj {
+            width: 80px; height: 80px; background: #81c784; border-radius: 50%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 11px; color: #1b5e20; position: absolute; opacity: 0; transition: all 0.5s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .heap-obj span { font-weight: bold; }
+
+        /* Connections */
+        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        .ref-line { stroke: #333; stroke-width: 2; fill: none; stroke-dasharray: 5; animation: dash 1s linear infinite; }
+        @keyframes dash { to { stroke-dashoffset: -10; } }
+
+        .log-panel {
+            grid-column: 1 / -1;
+            background: #333; color: #0f0; font-family: monospace; padding: 10px;
+            height: 120px; overflow-y: auto; border-radius: 4px; font-size: 13px;
+        }
+
+        .demo-guide {
+            grid-column: 1 / -1;
+            background: #fff3cd; border: 1px solid #ffeeba; color: #856404;
+            padding: 15px; border-radius: 8px; margin-bottom: 10px;
+        }
+        .demo-guide h3 { margin-top: 0; font-size: 16px; }
+        .demo-guide ol { margin-bottom: 0; padding-left: 20px; }
+        .demo-guide li { margin-bottom: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Java Memory Structure & Class Loading</h1>
+
+    <div class="controls">
+        <button id="btnLoad" onclick="loadClass()">1. Load Class (User.class)</button>
+        <button id="btnAlloc" onclick="allocateObject()" disabled>2. new User()</button>
+        <button id="btnMethod" onclick="callMethod()" disabled>3. user.sayHello()</button>
+        <button class="reset" onclick="location.reload()">Reset</button>
+    </div>
+
+    <div class="main-container">
+        
+        <div class="demo-guide">
+            <h3>💡 Demo Guide</h3>
+            <ol>
+                <li>Click <b>Load Class</b> to simulate the ClassLoader subsystem (Loading -> Linking -> Initialization) putting metadata into Metaspace.</li>
+                <li>Click <b>new User()</b> to see memory allocation: Stack Frame creation -> Heap Object allocation -> Reference linking.</li>
+                <li>Click <b>user.sayHello()</b> to see a new Stack Frame pushed onto the VM Stack for the method call.</li>
+            </ol>
+        </div>
+
+        <!-- Left: Class Loader -->
+        <div class="loader-section">
+            <div class="section-title">Class Loader Subsystem</div>
+            <div class="loader-step" id="step-loading">1. Loading<br><span style="font-size:10px">(Read .class file)</span></div>
+            <div class="loader-step" id="step-verify">2. Verification<br><span style="font-size:10px">(Bytecode check)</span></div>
+            <div class="loader-step" id="step-prepare">3. Preparation<br><span style="font-size:10px">(Static vars default)</span></div>
+            <div class="loader-step" id="step-resolve">4. Resolution<br><span style="font-size:10px">(Symbolic -> Direct)</span></div>
+            <div class="loader-step" id="step-init">5. Initialization<br><span style="font-size:10px">(Static blocks)</span></div>
+        </div>
+
+        <!-- Right: Runtime Data Areas -->
+        <div class="memory-area">
+            <svg id="connections"></svg>
+
+            <div class="area-box" id="metaspace">
+                <div class="area-label">Method Area / Metaspace (JDK 8+)</div>
+                <!-- Class Metadata will appear here -->
+            </div>
+
+            <div class="area-box" id="stack">
+                <div class="area-label">JVM Stack (Per Thread)</div>
+                <!-- Stack Frames will appear here -->
+            </div>
+
+            <div class="area-box" id="heap">
+                <div class="area-label">Heap (Eden / Old)</div>
+                <!-- Objects will appear here -->
+            </div>
+
+            <div class="area-box" id="pc-register">
+                <div class="area-label">PC Register</div>
+                <div style="text-align:center; margin-top:20px; font-family:monospace; color:#555;" id="pc-val">0x0000</div>
+            </div>
+
+            <div class="area-box" id="native-stack">
+                <div class="area-label">Native Method Stack</div>
+                <div style="text-align:center; margin-top:20px; color:#aaa;">(C++ Stack)</div>
+            </div>
+        </div>
+
+        <div class="log-panel" id="console">
+            > Ready to start JVM simulation...
+        </div>
+    </div>
+
+    <script>
+        const log = (msg) => {
+            const consoleDiv = document.getElementById('console');
+            consoleDiv.innerHTML += `<div>> ${msg}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        };
+
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+        let classLoaded = false;
+        let objectAllocated = false;
+
+        async function loadClass() {
+            document.getElementById('btnLoad').disabled = true;
+            log("ClassLoader: Request to load 'User.class'...");
+
+            // 1. Loading
+            highlightStep('step-loading');
+            await sleep(800);
+            log("Loading: Read bytecode from file system.");
+            
+            // Show Class Meta in Metaspace
+            const meta = document.createElement('div');
+            meta.className = 'class-meta';
+            meta.id = 'userClassMeta';
+            meta.innerHTML = 'User.class<br>Meta Info';
+            document.getElementById('metaspace').appendChild(meta);
+            
+            // Animate appearance
+            setTimeout(() => { meta.style.opacity = 1; meta.style.transform = 'scale(1.1)'; }, 100);
+            setTimeout(() => { meta.style.transform = 'scale(1)'; }, 400);
+
+            // 2. Verification
+            highlightStep('step-verify');
+            await sleep(800);
+            log("Verification: Bytecode format check passed.");
+
+            // 3. Preparation
+            highlightStep('step-prepare');
+            await sleep(800);
+            log("Preparation: Static variables allocated (default values).");
+
+            // 4. Resolution
+            highlightStep('step-resolve');
+            await sleep(800);
+            log("Resolution: Symbolic references replaced with direct references.");
+
+            // 5. Initialization
+            highlightStep('step-init');
+            await sleep(800);
+            log("Initialization: Executing <clinit> (static blocks).");
+            
+            meta.style.background = '#8e24aa'; // Darker purple to show initialized
+            log("Class 'User' fully loaded into Metaspace.");
+            
+            classLoaded = true;
+            document.getElementById('btnAlloc').disabled = false;
+        }
+
+        function highlightStep(id) {
+            // Reset others
+            document.querySelectorAll('.loader-step').forEach(el => el.classList.remove('active'));
+            // Mark previous as done
+            document.querySelectorAll('.loader-step').forEach(el => {
+                if(el.classList.contains('active')) el.classList.add('done');
+            });
+            
+            const el = document.getElementById(id);
+            el.classList.add('active');
+        }
+
+        async function allocateObject() {
+            document.getElementById('btnAlloc').disabled = true;
+            log("Executing: User user = new User();");
+
+            // 1. Stack Frame (main)
+            const stack = document.getElementById('stack');
+            const frame = document.createElement('div');
+            frame.className = 'stack-frame';
+            frame.id = 'mainFrame';
+            frame.innerHTML = '<strong>main() Frame</strong><div class="stack-var"><span>user:</span> <span id="ref-val">null</span></div>';
+            stack.appendChild(frame);
+            
+            // Animate Frame
+            setTimeout(() => { frame.style.opacity = 1; frame.style.transform = 'translateY(0)'; }, 100);
+            log("Stack: Created stack frame for main().");
+            await sleep(1000);
+
+            // 2. Heap Allocation
+            const heap = document.getElementById('heap');
+            const obj = document.createElement('div');
+            obj.className = 'heap-obj';
+            obj.id = 'userObj';
+            obj.style.top = '40px';
+            obj.style.left = '50px';
+            obj.innerHTML = '<span>User</span>Instance';
+            heap.appendChild(obj);
+
+            // Animate Object
+            setTimeout(() => { obj.style.opacity = 1; }, 100);
+            log("Heap: Allocated memory for User instance in Eden.");
+            await sleep(1000);
+
+            // 3. Linking
+            document.getElementById('ref-val').innerText = '0x1A2B';
+            document.getElementById('ref-val').style.color = '#d83b01';
+            
+            drawArrow('mainFrame', 'userObj', '#d83b01');
+            log("Assignment: 'user' reference now points to Heap object.");
+            
+            // 4. Object Header to Class
+            drawArrow('userObj', 'userClassMeta', '#999', true);
+            log("Header: Object header points to Class Metadata in Metaspace.");
+
+            objectAllocated = true;
+            document.getElementById('btnMethod').disabled = false;
+            updatePC('0x001A');
+        }
+
+        async function callMethod() {
+            document.getElementById('btnMethod').disabled = true;
+            log("Executing: user.sayHello();");
+            updatePC('0x002B');
+
+            const stack = document.getElementById('stack');
+            const frame = document.createElement('div');
+            frame.className = 'stack-frame';
+            frame.style.background = '#ffcc80';
+            frame.innerHTML = '<strong>sayHello() Frame</strong><div class="stack-var"><span>this:</span> <span>0x1A2B</span></div>';
+            
+            // Insert before main (stack grows up visually or down depending on impl, here we stack visually)
+            stack.insertBefore(frame, stack.firstChild);
+            
+            setTimeout(() => { frame.style.opacity = 1; frame.style.transform = 'translateY(0)'; }, 100);
+            log("Stack: Pushed new frame for sayHello().");
+            
+            await sleep(1500);
+            log("Method execution completed.");
+            frame.style.opacity = 0;
+            setTimeout(() => frame.remove(), 500);
+            log("Stack: Popped sayHello() frame.");
+            updatePC('0x001C');
+        }
+
+        function updatePC(val) {
+            document.getElementById('pc-val').innerText = val;
+            document.getElementById('pc-val').style.color = '#e91e63';
+            setTimeout(() => document.getElementById('pc-val').style.color = '#555', 500);
+        }
+
+        function drawArrow(fromId, toId, color, dashed = false) {
+            const fromEl = document.getElementById(fromId);
+            const toEl = document.getElementById(toId);
+            const svg = document.getElementById('connections');
+            
+            const fRect = fromEl.getBoundingClientRect();
+            const tRect = toEl.getBoundingClientRect();
+            const cRect = document.querySelector('.memory-area').getBoundingClientRect();
+
+            // Calculate relative coordinates
+            const x1 = fRect.left + fRect.width / 2 - cRect.left;
+            const y1 = fRect.top + fRect.height / 2 - cRect.top;
+            const x2 = tRect.left + tRect.width / 2 - cRect.left;
+            const y2 = tRect.top + tRect.height / 2 - cRect.top;
+
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            line.setAttribute('stroke', color);
+            line.setAttribute('stroke-width', '2');
+            if(dashed) line.setAttribute('stroke-dasharray', '5,5');
+            
+            svg.appendChild(line);
+        }
+    </script>
+</body>
+</html>
