@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySQL B+ Tree Index Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        h1 { color: #333; }
+        .controls { margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        button { background: #0078d4; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-left: 5px; }
+        button:hover { background: #005a9e; }
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 60px; }
+        #canvas-container { 
+            width: 100%; max-width: 1000px; height: 500px; 
+            background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+            position: relative; overflow: hidden;
+        }
+        .node {
+            position: absolute;
+            background: #fff;
+            border: 2px solid #333;
+            border-radius: 4px;
+            display: flex;
+            transition: all 0.5s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .key-box {
+            padding: 5px 10px;
+            border-right: 1px solid #ccc;
+            min-width: 20px;
+            text-align: center;
+        }
+        .key-box:last-child { border-right: none; }
+        .leaf { border-color: #28a745; background: #f0fff4; }
+        .internal { border-color: #0078d4; background: #f0f8ff; }
+        .highlight { background-color: #fff3cd !important; transform: scale(1.05); z-index: 10; }
+        .found { background-color: #ffeeba !important; border-color: #ffc107 !important; }
+        
+        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        line { stroke: #999; stroke-width: 2; transition: all 0.5s; }
+        
+        .legend { margin-top: 10px; font-size: 0.9rem; color: #666; }
+        .legend span { display: inline-block; width: 12px; height: 12px; margin-right: 5px; border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <h1>MySQL B+ Tree Index Visualization</h1>
+    <div class="controls">
+        <input type="number" id="inputValue" placeholder="Val" min="1" max="99">
+        <button onclick="insertValue()">Insert</button>
+        <button onclick="searchValue()">Search</button>
+        <button onclick="resetTree()">Reset</button>
+        <button onclick="autoPopulate()">Auto Populate</button>
+    </div>
+    <div class="legend">
+        <span style="background: #f0f8ff; border: 1px solid #0078d4;"></span>Internal Node (Page)
+        <span style="background: #f0fff4; border: 1px solid #28a745; margin-left: 15px;"></span>Leaf Node (Data Page)
+    </div>
+    <div id="canvas-container">
+        <svg id="lines"></svg>
+        <div id="nodes"></div>
+    </div>
+
+    <script>
+        const ORDER = 3; // Max keys per node = ORDER, Max children = ORDER + 1
+        // For simplicity in visualization, let's say Max Keys = 3. Split at 4.
+        const MAX_KEYS = 3;
+
+        class Node {
+            constructor(isLeaf = false) {
+                this.keys = [];
+                this.children = []; // For internal nodes: Node references. For leaf nodes: Data (simulated)
+                this.isLeaf = isLeaf;
+                this.next = null; // For leaf node linked list
+                this.id = Math.random().toString(36).substr(2, 9);
+                this.x = 0;
+                this.y = 0;
+            }
+        }
+
+        let root = new Node(true);
+
+        function insertValue() {
+            const val = parseInt(document.getElementById('inputValue').value);
+            if (isNaN(val)) return;
+            insert(root, val);
+            renderTree();
+        }
+
+        function insert(node, value) {
+            // Simple B+ Tree insertion logic for visualization
+            // 1. Find leaf
+            if (node.isLeaf) {
+                // Insert sorted
+                let inserted = false;
+                for (let i = 0; i < node.keys.length; i++) {
+                    if (value === node.keys[i]) return; // No duplicates
+                    if (value < node.keys[i]) {
+                        node.keys.splice(i, 0, value);
+                        inserted = true;
+                        break;
+                    }
+                }
+                if (!inserted) node.keys.push(value);
+
+                // Check split
+                if (node.keys.length > MAX_KEYS) {
+                    return splitLeaf(node);
+                }
+                return null;
+            } else {
+                // Internal node
+                let childIndex = node.keys.length;
+                for (let i = 0; i < node.keys.length; i++) {
+                    if (value < node.keys[i]) {
+                        childIndex = i;
+                        break;
+                    }
+                }
+                
+                const newChild = insert(node.children[childIndex], value);
+                
+                if (newChild) {
+                    // Child split, we need to insert key and new child
+                    const splitKey = newChild.keys[0]; // In B+ tree, key is promoted but stays in leaf? 
+                    // Actually for B+ Tree:
+                    // Leaf split: Middle key goes up, but ALSO stays in right leaf (usually).
+                    // Internal split: Middle key goes up, DOES NOT stay.
+                    
+                    // Simplified logic: The return object from splitLeaf has { key, rightNode }
+                    
+                    // Insert key and child into this internal node
+                    let inserted = false;
+                    for (let i = 0; i < node.keys.length; i++) {
+                        if (newChild.promotedKey < node.keys[i]) {
+                            node.keys.splice(i, 0, newChild.promotedKey);
+                            node.children.splice(i + 1, 0, newChild.rightNode);
+                            inserted = true;
+                            break;
+                        }
+                    }
+                    if (!inserted) {
+                        node.keys.push(newChild.promotedKey);
+                        node.children.push(newChild.rightNode);
+                    }
+
+                    if (node.keys.length > MAX_KEYS) {
+                        return splitInternal(node);
+                    }
+                }
+                return null;
+            }
+        }
+
+        function splitLeaf(node) {
+            const mid = Math.floor(node.keys.length / 2);
+            const rightNode = new Node(true);
+            
+            // Split keys
+            rightNode.keys = node.keys.splice(mid);
+            
+            // Link leaves
+            rightNode.next = node.next;
+            node.next = rightNode;
+
+            // Promoted key is the first key of the right node
+            return { promotedKey: rightNode.keys[0], rightNode: rightNode };
+        }
+
+        function splitInternal(node) {
+            const mid = Math.floor(node.keys.length / 2);
+            const rightNode = new Node(false);
+            
+            // Middle key moves UP, does not stay in internal node
+            const promotedKey = node.keys[mid];
+
+            // Right node gets keys AFTER mid
+            rightNode.keys = node.keys.splice(mid + 1);
+            // Right node gets children AFTER mid + 1
+            rightNode.children = node.children.splice(mid + 1);
+            
+            // Remove mid key from original node
+            node.keys.pop(); // This was the mid key
+
+            return { promotedKey: promotedKey, rightNode: rightNode };
+        }
+
+        // Handle root split wrapper
+        const originalInsert = insert;
+        insert = function(node, value) {
+            const result = originalInsert(node, value);
+            if (result) {
+                const newRoot = new Node(false);
+                newRoot.keys = [result.promotedKey];
+                newRoot.children = [root, result.rightNode];
+                root = newRoot;
+            }
+        }
+
+        function autoPopulate() {
+            [10, 20, 5, 15, 25, 30, 8, 12].forEach(v => insert(root, v));
+            renderTree();
+        }
+
+        function resetTree() {
+            root = new Node(true);
+            renderTree();
+        }
+
+        async function searchValue() {
+            const val = parseInt(document.getElementById('inputValue').value);
+            if (isNaN(val)) return;
+            
+            // Visualize search
+            let current = root;
+            while (current) {
+                highlightNode(current.id);
+                await new Promise(r => setTimeout(r, 500));
+                
+                if (current.isLeaf) {
+                    if (current.keys.includes(val)) {
+                        markFound(current.id, val);
+                    } else {
+                        alert("Value not found");
+                    }
+                    return;
+                }
+
+                let foundChild = false;
+                for (let i = 0; i < current.keys.length; i++) {
+                    if (val < current.keys[i]) {
+                        current = current.children[i];
+                        foundChild = true;
+                        break;
+                    }
+                }
+                if (!foundChild) {
+                    current = current.children[current.keys.length];
+                }
+            }
+        }
+
+        function highlightNode(id) {
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('highlight'));
+            const el = document.getElementById('node-' + id);
+            if (el) el.classList.add('highlight');
+        }
+
+        function markFound(id, val) {
+            const el = document.getElementById('node-' + id);
+            if (el) {
+                el.classList.add('found');
+                // Highlight specific key?
+            }
+        }
+
+        function renderTree() {
+            const container = document.getElementById('nodes');
+            const svg = document.getElementById('lines');
+            container.innerHTML = '';
+            svg.innerHTML = '';
+
+            // BFS to calculate positions? Or recursive?
+            // Simple level-based layout
+            const levels = [];
+            
+            function traverse(node, depth, offset, width) {
+                if (!levels[depth]) levels[depth] = [];
+                // We need a better layout algorithm. 
+                // Let's just collect nodes by level and center them.
+            }
+
+            // Re-implementing a simple layout:
+            // 1. Calculate width of each subtree
+            // 2. Position nodes
+            
+            const nodeWidth = 80;
+            const nodeHeight = 40;
+            const gapX = 20;
+            const gapY = 80;
+
+            // Assign x,y coordinates
+            // We need to know how many leaf nodes are in each subtree to allocate width
+            function getLeafCount(node) {
+                if (node.isLeaf) return 1;
+                return node.children.reduce((sum, child) => sum + getLeafCount(child), 0);
+            }
+
+            function layout(node, x, y, availableWidth) {
+                node.x = x + availableWidth / 2 - (node.keys.length * 25) / 2; // Center in available space
+                node.y = y;
+                
+                if (!node.isLeaf) {
+                    let startX = x;
+                    const totalLeaves = getLeafCount(node);
+                    const unitWidth = availableWidth / totalLeaves;
+                    
+                    node.children.forEach(child => {
+                        const childLeaves = getLeafCount(child);
+                        const childWidth = childLeaves * unitWidth;
+                        layout(child, startX, y + gapY, childWidth);
+                        startX += childWidth;
+                        
+                        // Draw line
+                        drawLine(
+                            node.x + (node.keys.length * 25) / 2, 
+                            node.y + 30, 
+                            child.x + (child.keys.length * 25) / 2, 
+                            child.y
+                        );
+                    });
+                }
+            }
+
+            const totalLeaves = getLeafCount(root);
+            const totalWidth = Math.max(1000, totalLeaves * (nodeWidth + gapX));
+            
+            layout(root, 0, 50, totalWidth);
+
+            // Draw nodes
+            function draw(node) {
+                const div = document.createElement('div');
+                div.className = `node ${node.isLeaf ? 'leaf' : 'internal'}`;
+                div.id = 'node-' + node.id;
+                div.style.left = node.x + 'px';
+                div.style.top = node.y + 'px';
+                
+                node.keys.forEach(k => {
+                    const span = document.createElement('div');
+                    span.className = 'key-box';
+                    span.innerText = k;
+                    div.appendChild(span);
+                });
+                
+                container.appendChild(div);
+                
+                if (!node.isLeaf) {
+                    node.children.forEach(c => draw(c));
+                }
+            }
+            
+            draw(root);
+        }
+
+        function drawLine(x1, y1, x2, y2) {
+            const svg = document.getElementById('lines');
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            svg.appendChild(line);
+        }
+
+        // Init
+        autoPopulate();
+
+    </script>
+</body>
+</html>

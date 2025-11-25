@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis Data Structures Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        h1 { color: #d82c20; } /* Redis Red */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; background: #ddd; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .tab.active { background: #d82c20; color: white; }
+        
+        .container { width: 100%; max-width: 1000px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); min-height: 400px; }
+        .controls { margin-bottom: 20px; padding: 10px; background: #f9f9f9; border-radius: 5px; }
+        button { background: #333; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-left: 5px; }
+        button:hover { background: #555; }
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 60px; }
+
+        /* SkipList Styles */
+        .skiplist-level { display: flex; align-items: center; margin-bottom: 10px; position: relative; height: 40px; }
+        .level-label { width: 60px; font-weight: bold; color: #666; }
+        .sl-node { 
+            width: 40px; height: 40px; border: 2px solid #333; background: white; 
+            display: flex; align-items: center; justify-content: center; 
+            margin-right: 40px; border-radius: 50%; font-weight: bold; z-index: 2;
+            position: absolute; transition: left 0.5s;
+        }
+        .sl-line { position: absolute; height: 2px; background: #ccc; top: 20px; left: 60px; width: 100%; z-index: 1; }
+        
+        /* LRU Styles */
+        .lru-container { display: flex; flex-direction: column; align-items: center; }
+        .cache-box { 
+            display: flex; gap: 10px; padding: 20px; border: 2px dashed #ccc; border-radius: 10px; min-height: 80px; width: 80%; 
+            align-items: center; overflow-x: auto;
+        }
+        .lru-item {
+            min-width: 60px; height: 60px; background: #e1f5fe; border: 2px solid #0288d1; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+            animation: fadeIn 0.5s;
+        }
+        .lru-head { border-color: #2e7d32; background: #e8f5e9; } /* MRU */
+        .lru-tail { border-color: #c62828; background: #ffebee; } /* LRU */
+        
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body>
+    <h1>Redis Data Structures</h1>
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('skiplist')">SkipList (ZSet)</div>
+        <div class="tab" onclick="switchTab('lru')">LRU Cache</div>
+    </div>
+
+    <div id="skiplist-view" class="container">
+        <h2>SkipList Visualization</h2>
+        <div class="controls">
+            <input type="number" id="slInput" placeholder="Val">
+            <button onclick="slInsert()">Insert</button>
+            <button onclick="slSearch()">Search</button>
+            <button onclick="slReset()">Reset</button>
+        </div>
+        <div id="sl-canvas" style="position: relative; height: 300px;"></div>
+    </div>
+
+    <div id="lru-view" class="container" style="display: none;">
+        <h2>LRU Cache Visualization</h2>
+        <div class="controls">
+            <input type="text" id="lruInput" placeholder="Key">
+            <button onclick="lruAccess()">Get/Put</button>
+            <span>Capacity: 5</span>
+        </div>
+        <div class="lru-container">
+            <div style="width: 80%; display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem; color: #666;">
+                <span>MRU (Most Recently Used)</span>
+                <span>LRU (Least Recently Used)</span>
+            </div>
+            <div class="cache-box" id="lru-box"></div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById('skiplist-view').style.display = tab === 'skiplist' ? 'block' : 'none';
+            document.getElementById('lru-view').style.display = tab === 'lru' ? 'block' : 'none';
+        }
+
+        // --- SkipList Logic ---
+        const MAX_LEVEL = 4;
+        class SLNode {
+            constructor(val, level) {
+                this.val = val;
+                this.forward = new Array(level + 1).fill(null);
+            }
+        }
+
+        let head = new SLNode(-Infinity, MAX_LEVEL);
+        let slNodes = []; // Keep track for rendering
+
+        function randomLevel() {
+            let lvl = 0;
+            while (Math.random() < 0.5 && lvl < MAX_LEVEL) lvl++;
+            return lvl;
+        }
+
+        function slInsert() {
+            const val = parseInt(document.getElementById('slInput').value);
+            if (isNaN(val)) return;
+            
+            // Check duplicate
+            if (slNodes.find(n => n.val === val)) return;
+
+            const update = new Array(MAX_LEVEL + 1).fill(null);
+            let current = head;
+
+            for (let i = MAX_LEVEL; i >= 0; i--) {
+                while (current.forward[i] && current.forward[i].val < val) {
+                    current = current.forward[i];
+                }
+                update[i] = current;
+            }
+
+            const lvl = randomLevel();
+            const newNode = new SLNode(val, lvl);
+            
+            for (let i = 0; i <= lvl; i++) {
+                newNode.forward[i] = update[i].forward[i];
+                update[i].forward[i] = newNode;
+            }
+            
+            slNodes.push(newNode);
+            slNodes.sort((a, b) => a.val - b.val);
+            renderSkipList();
+        }
+
+        function slReset() {
+            head = new SLNode(-Infinity, MAX_LEVEL);
+            slNodes = [];
+            renderSkipList();
+        }
+
+        function renderSkipList() {
+            const container = document.getElementById('sl-canvas');
+            container.innerHTML = '';
+
+            // Calculate X positions based on sorted index
+            // Head is at 0
+            const xStep = 60;
+            const startX = 80;
+
+            for (let i = MAX_LEVEL; i >= 0; i--) {
+                const levelDiv = document.createElement('div');
+                levelDiv.className = 'skiplist-level';
+                levelDiv.style.top = (MAX_LEVEL - i) * 50 + 'px';
+                
+                const label = document.createElement('div');
+                label.className = 'level-label';
+                label.innerText = `Lvl ${i}`;
+                levelDiv.appendChild(label);
+
+                const line = document.createElement('div');
+                line.className = 'sl-line';
+                levelDiv.appendChild(line);
+
+                // Draw Head
+                const headNode = document.createElement('div');
+                headNode.className = 'sl-node';
+                headNode.innerText = 'H';
+                headNode.style.left = '60px';
+                headNode.style.backgroundColor = '#eee';
+                levelDiv.appendChild(headNode);
+
+                // Draw nodes that exist at this level
+                let current = head.forward[i];
+                while(current) {
+                    // Find index in sorted list to determine X
+                    const idx = slNodes.indexOf(current);
+                    const x = startX + (idx + 1) * xStep;
+                    
+                    const nodeDiv = document.createElement('div');
+                    nodeDiv.className = 'sl-node';
+                    nodeDiv.innerText = current.val;
+                    nodeDiv.style.left = x + 'px';
+                    levelDiv.appendChild(nodeDiv);
+                    
+                    current = current.forward[i];
+                }
+
+                container.appendChild(levelDiv);
+            }
+        }
+
+        // --- LRU Logic ---
+        const lruCapacity = 5;
+        let lruCache = []; // Array of keys. Index 0 is MRU, last is LRU.
+
+        function lruAccess() {
+            const key = document.getElementById('lruInput').value;
+            if (!key) return;
+
+            // If exists, move to front
+            const idx = lruCache.indexOf(key);
+            if (idx > -1) {
+                lruCache.splice(idx, 1);
+                lruCache.unshift(key);
+            } else {
+                // Insert at front
+                lruCache.unshift(key);
+                if (lruCache.length > lruCapacity) {
+                    lruCache.pop();
+                }
+            }
+            renderLRU();
+        }
+
+        function renderLRU() {
+            const box = document.getElementById('lru-box');
+            box.innerHTML = '';
+            
+            lruCache.forEach((key, index) => {
+                const div = document.createElement('div');
+                div.className = 'lru-item';
+                if (index === 0) div.classList.add('lru-head');
+                if (index === lruCache.length - 1 && lruCache.length === lruCapacity) div.classList.add('lru-tail');
+                div.innerText = key;
+                box.appendChild(div);
+            });
+        }
+
+        // Init
+        slNodes = [new SLNode(10, 2), new SLNode(20, 0), new SLNode(30, 1)];
+        // Manually link for init demo
+        // ... skipping manual link for brevity, just use insert
+        slReset();
+        [5, 10, 25, 15, 30, 3, 12].forEach(v => {
+            document.getElementById('slInput').value = v;
+            slInsert();
+        });
+
+        lruCache = ['A', 'B', 'C'];
+        renderLRU();
+
+    </script>
+</body>
+</html>

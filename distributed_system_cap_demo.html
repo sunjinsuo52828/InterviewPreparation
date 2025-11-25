@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed System CAP Theorem Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        h1 { color: #333; }
+        .controls { margin-bottom: 20px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; }
+        button { background: #0078d4; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        button.active { background: #005a9e; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }
+        
+        .system-container { 
+            display: flex; justify-content: space-between; align-items: center; 
+            width: 600px; height: 300px; position: relative; 
+            background: white; border-radius: 10px; padding: 40px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        
+        .node {
+            width: 100px; height: 100px; border-radius: 50%; background: #e1f5fe; border: 3px solid #0288d1;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-weight: bold; z-index: 2; transition: all 0.3s;
+        }
+        .node-data { font-size: 1.2rem; color: #d82c20; }
+        .node-label { font-size: 0.8rem; color: #666; margin-top: 5px; }
+        
+        .network-line {
+            position: absolute; top: 50%; left: 140px; right: 140px; height: 4px; background: #4caf50;
+            z-index: 1; transition: all 0.3s;
+        }
+        .network-line.broken { background: repeating-linear-gradient(90deg, #f44336, #f44336 10px, transparent 10px, transparent 20px); }
+        
+        .packet {
+            position: absolute; width: 20px; height: 20px; background: #ff9800; border-radius: 50%;
+            top: calc(50% - 10px); left: 150px; display: none; z-index: 3;
+        }
+        
+        .status-log {
+            margin-top: 20px; width: 600px; height: 150px; background: #333; color: #0f0; 
+            font-family: monospace; padding: 10px; overflow-y: auto; border-radius: 5px;
+        }
+        
+        .mode-selector { margin-bottom: 15px; }
+        .mode-btn { background: #eee; color: #333; }
+        .mode-btn.selected { background: #0078d4; color: white; }
+
+    </style>
+</head>
+<body>
+    <h1>CAP Theorem Visualization</h1>
+    
+    <div class="controls">
+        <div class="mode-selector">
+            <strong>System Mode:</strong>
+            <button class="mode-btn selected" id="btn-ap" onclick="setMode('AP')">AP (Availability)</button>
+            <button class="mode-btn" id="btn-cp" onclick="setMode('CP')">CP (Consistency)</button>
+        </div>
+        <button onclick="togglePartition()" id="btn-partition">Partition Network</button>
+        <br>
+        <input type="text" id="dataInput" placeholder="Data" value="X" style="padding: 5px; width: 50px;">
+        <button onclick="writeToNode('A')">Write to Node A</button>
+        <button onclick="readNode('B')">Read from Node B</button>
+    </div>
+
+    <div class="system-container">
+        <div class="node" id="node-a">
+            <div class="node-data" id="data-a">0</div>
+            <div class="node-label">Node A</div>
+        </div>
+        
+        <div class="network-line" id="network"></div>
+        <div class="packet" id="packet"></div>
+        
+        <div class="node" id="node-b">
+            <div class="node-data" id="data-b">0</div>
+            <div class="node-label">Node B</div>
+        </div>
+    </div>
+
+    <div class="status-log" id="log"></div>
+
+    <script>
+        let mode = 'AP';
+        let isPartitioned = false;
+        let dataA = "0";
+        let dataB = "0";
+        let isSyncing = false;
+
+        function log(msg) {
+            const div = document.getElementById('log');
+            div.innerHTML += `> ${msg}<br>`;
+            div.scrollTop = div.scrollHeight;
+        }
+
+        function setMode(m) {
+            mode = m;
+            document.getElementById('btn-ap').classList.toggle('selected', m === 'AP');
+            document.getElementById('btn-cp').classList.toggle('selected', m === 'CP');
+            log(`Switched to ${mode} mode.`);
+        }
+
+        function togglePartition() {
+            isPartitioned = !isPartitioned;
+            const line = document.getElementById('network');
+            const btn = document.getElementById('btn-partition');
+            
+            if (isPartitioned) {
+                line.classList.add('broken');
+                btn.innerText = "Heal Network";
+                btn.style.background = "#d82c20";
+                log("Network Partitioned! Link broken.");
+            } else {
+                line.classList.remove('broken');
+                btn.innerText = "Partition Network";
+                btn.style.background = "#0078d4";
+                log("Network Healed.");
+                sync();
+            }
+        }
+
+        async function writeToNode(nodeId) {
+            const val = document.getElementById('dataInput').value;
+            log(`Client requesting Write('${val}') to Node ${nodeId}...`);
+
+            if (nodeId === 'A') {
+                if (mode === 'CP' && isPartitioned) {
+                    log("ERROR: Write failed. System in CP mode and partition detected. Cannot guarantee consistency.");
+                    flashNode('node-a', 'red');
+                    return;
+                }
+
+                // Write succeeds locally
+                dataA = val;
+                updateDisplay();
+                flashNode('node-a', 'green');
+                log("Write accepted by Node A.");
+
+                // Try to sync
+                if (!isPartitioned) {
+                    await sendPacket('A', 'B', val);
+                    dataB = val;
+                    updateDisplay();
+                    flashNode('node-b', 'green');
+                    log("Data replicated to Node B.");
+                } else {
+                    log("Replication failed (Partition). Node B is stale.");
+                }
+            }
+        }
+
+        function readNode(nodeId) {
+            log(`Client reading from Node ${nodeId}...`);
+            if (nodeId === 'B') {
+                if (mode === 'CP' && isPartitioned) {
+                    // In strict CP, if partition exists, we might deny read if we can't verify quorum or leader
+                    // But often CP means we deny Writes. 
+                    // However, if we want linearizability, we might deny read too if we are minority.
+                    // For this demo, let's say CP denies read if it thinks it might be stale? 
+                    // Or simpler: CP just denies Writes during partition.
+                    // Let's stick to: CP denies Write. AP allows Write.
+                    // But what about Read?
+                    // If AP, we read stale data.
+                    log(`Read from Node B: ${dataB}`);
+                    flashNode('node-b', 'yellow');
+                } else {
+                    log(`Read from Node B: ${dataB}`);
+                    flashNode('node-b', 'yellow');
+                }
+            }
+        }
+
+        async function sync() {
+            if (dataA !== dataB) {
+                log("Syncing data A -> B...");
+                await sendPacket('A', 'B', dataA);
+                dataB = dataA;
+                updateDisplay();
+                log("Sync complete.");
+            }
+        }
+
+        function sendPacket(from, to, val) {
+            return new Promise(resolve => {
+                const packet = document.getElementById('packet');
+                packet.style.display = 'block';
+                packet.style.left = '150px';
+                
+                // Animate
+                let pos = 150;
+                const end = 430; // approx
+                const id = setInterval(() => {
+                    if (pos >= end) {
+                        clearInterval(id);
+                        packet.style.display = 'none';
+                        resolve();
+                    } else {
+                        pos += 5;
+                        packet.style.left = pos + 'px';
+                    }
+                }, 10);
+            });
+        }
+
+        function updateDisplay() {
+            document.getElementById('data-a').innerText = dataA;
+            document.getElementById('data-b').innerText = dataB;
+        }
+
+        function flashNode(id, color) {
+            const el = document.getElementById(id);
+            const original = el.style.borderColor;
+            el.style.borderColor = color;
+            setTimeout(() => el.style.borderColor = '#0288d1', 500);
+        }
+
+        log("System initialized. Default: AP Mode.");
+    </script>
+</body>
+</html>
