@@ -167,8 +167,8 @@
             <div class="guide-step">
                 <h3>2. CP 模式 (一致性 > 可用性)</h3>
                 <p><strong>场景:</strong> 银行转账系统、分布式锁 (Zookeeper/Etcd)。</p>
-                <p><strong>行为:</strong> 如果发生网络分区（例如节点 A 无法联系 B/C），节点 A 会<strong>拒绝写入</strong>，以防止数据不一致。系统选择“不可用”来保证“数据正确”。</p>
-                <p><strong>试一试:</strong> 选择 CP 模式 -> 点击 A 和 B 之间的绿线断开连接 -> 尝试写入。</p>
+                <p><strong>行为:</strong> 如果发生网络分区（例如节点 A 无法联系 B/C），节点 A 会<strong>拒绝写入</strong>，以防止数据不一致。同时，为了防止读取到旧数据，<strong>读取操作也可能被拒绝</strong>（如果没有达到法定人数 Quorum）。</p>
+                <p><strong>试一试:</strong> 选择 CP 模式 -> 断开所有连接 -> 尝试读取。你会发现读取也会失败。</p>
             </div>
 
             <div class="guide-step">
@@ -220,6 +220,9 @@
                 label.innerText = "连接正常";
                 label.style.color = "green";
                 log(`网络链路 ${id} 已恢复。`);
+                
+                // FIX 1: Auto-Sync Data on Reconnect
+                syncData(id);
             } else {
                 line.setAttribute('stroke', '#f44336');
                 line.setAttribute('stroke-dasharray', '5,5');
@@ -230,6 +233,25 @@
             
             // Check partition status
             checkPartition();
+        }
+
+        function syncData(linkId) {
+            // Extract node IDs from linkId (e.g., "link1-2" -> "node1", "node2")
+            const parts = linkId.replace('link', '').split('-');
+            const n1 = 'node' + parts[0];
+            const n2 = 'node' + parts[1];
+            
+            const v1 = nodeData[n1];
+            const v2 = nodeData[n2];
+            
+            if (v1 !== v2) {
+                const maxV = Math.max(v1, v2);
+                log(`🔄 数据同步: ${n1}(v${v1}) 与 ${n2}(v${v2}) 连接恢复。同步至 v=${maxV}。`, 'info');
+                updateNode(n1, maxV);
+                updateNode(n2, maxV);
+                flashNode(n1, 'green');
+                flashNode(n2, 'green');
+            }
         }
 
         function checkPartition() {
@@ -294,16 +316,62 @@
             }
         }
 
-        function clientRead() {
+        async function clientRead() {
             // Randomly read from a node to show inconsistency
             const nodes = ['node1', 'node2', 'node3'];
             const target = nodes[Math.floor(Math.random() * nodes.length)];
             const val = nodeData[target];
             
-            log(`CMD: 客户端从 ${target} 读取... 值 = ${val}`);
-            narrate(`客户端从 <strong>${target}</strong> 读取: 值 = ${val}`);
+            log(`CMD: 客户端请求从 ${target} 读取...`);
+            await animatePacket('client', target);
+
+            // Check Quorum for CP Mode
+            let hasQuorum = false;
+            let neighbors = [];
+            
+            if (target === 'node1') {
+                if (links['link1-2']) neighbors.push('node2');
+                if (links['link1-3']) neighbors.push('node3');
+            } else if (target === 'node2') {
+                if (links['link1-2']) neighbors.push('node1');
+                if (links['link2-3']) neighbors.push('node3');
+            } else if (target === 'node3') {
+                if (links['link1-3']) neighbors.push('node1');
+                if (links['link2-3']) neighbors.push('node2');
+            }
+            
+            hasQuorum = neighbors.length >= 1; // Self + 1 neighbor = 2 (Majority of 3)
+
+            if (currentMode === 'CP') {
+                if (!hasQuorum) {
+                    narrate(`❌ <strong>读取失败 (CP 模式)</strong>。节点 ${target} 无法联系大多数节点 (Quorum)。为了保证一致性，拒绝读取。`);
+                    log(`读取错误: 节点 ${target} 处于分区中。CP 模式拒绝读取旧数据。`, 'error');
+                    flashNode(target, 'red');
+                    return;
+                }
+                
+                // FIX 2: Check for Stale Data (Read Repair)
+                // Even if we have quorum, if a neighbor has higher data, we must sync before returning.
+                let maxNeighborVal = val;
+                neighbors.forEach(n => {
+                    if (nodeData[n] > maxNeighborVal) maxNeighborVal = nodeData[n];
+                });
+                
+                if (maxNeighborVal > val) {
+                    log(`⚠️ 检测到陈旧数据: ${target}(v${val}) < 邻居(v${maxNeighborVal})。执行读修复...`, 'warn');
+                    await new Promise(r => setTimeout(r, 500)); // Simulate sync delay
+                    updateNode(target, maxNeighborVal);
+                    narrate(`客户端从 <strong>${target}</strong> 读取: 值 = ${maxNeighborVal} (读修复后)`);
+                    log(`读取成功: 同步后返回 v=${maxNeighborVal}`, 'info');
+                    flashNode(target, 'blue');
+                    return;
+                }
+            }
+
+            // AP Mode or CP with Quorum -> Success
+            narrate(`客户端从 <strong>${target}</strong> 读取成功: 值 = ${val}`);
+            log(`读取成功: 从 ${target} 获得 v=${val}`, 'info');
             flashNode(target, 'blue');
-            animatePacket('client', target);
         }
 
         function updateNode(id, val) {
