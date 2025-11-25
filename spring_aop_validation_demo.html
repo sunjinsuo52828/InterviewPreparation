@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring AOP Validation Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { color: #2c3e50; }
+        
+        .container { display: flex; gap: 20px; width: 100%; max-width: 1200px; height: 80vh; }
+        
+        /* Left: Code View */
+        .code-panel { flex: 1; background: #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .tabs { display: flex; background: #252526; }
+        .tab { padding: 10px 20px; color: #999; cursor: pointer; font-size: 0.9rem; border-right: 1px solid #333; }
+        .tab.active { background: #1e1e1e; color: #fff; border-top: 2px solid #007acc; }
+        .code-content { flex: 1; padding: 15px; overflow-y: auto; color: #d4d4d4; font-family: 'Consolas', monospace; font-size: 0.9rem; white-space: pre-wrap; }
+        
+        /* Syntax Highlighting Colors */
+        .kwd { color: #569cd6; } /* keyword */
+        .str { color: #ce9178; } /* string */
+        .cls { color: #4ec9b0; } /* class */
+        .mtd { color: #dcdcaa; } /* method */
+        .ann { color: #dcdcaa; } /* annotation */
+        .com { color: #6a9955; } /* comment */
+
+        /* Right: Simulation */
+        .sim-panel { flex: 1; background: white; border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        .form-group { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; }
+        .form-item label { display: block; font-size: 0.8rem; color: #666; margin-bottom: 5px; }
+        .form-item select, .form-item input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        .btn-run { padding: 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 1rem; transition: background 0.2s; }
+        .btn-run:hover { background: #218838; }
+
+        .flow-diagram { flex: 1; position: relative; background: #fff; border: 1px solid #eee; border-radius: 8px; overflow: hidden; }
+        
+        /* Flow Elements */
+        .node { position: absolute; padding: 10px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; text-align: center; transition: all 0.3s; opacity: 0.5; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .node.active { opacity: 1; transform: scale(1.05); box-shadow: 0 0 15px rgba(0,123,255,0.5); }
+        .node.error { background: #ffebee; border: 2px solid #d32f2f; color: #d32f2f; }
+        .node.success { background: #e8f5e9; border: 2px solid #2e7d32; color: #2e7d32; }
+
+        .client { top: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; width: 80px; }
+        
+        .proxy-box { 
+            position: absolute; top: 80px; left: 50%; transform: translateX(-50%); 
+            width: 300px; height: 280px; border: 2px dashed #673ab7; border-radius: 10px;
+            background: #f3e5f5;
+        }
+        .proxy-label { position: absolute; top: -12px; left: 10px; background: #673ab7; color: white; padding: 2px 8px; font-size: 0.7rem; border-radius: 4px; }
+
+        .check-step { width: 200px; background: white; border: 1px solid #999; left: 50%; margin-left: -100px; position: absolute; }
+        .check-1 { top: 30px; }
+        .check-2 { top: 80px; }
+        .check-3 { top: 130px; }
+        .check-4 { top: 180px; }
+
+        .target { bottom: 20px; left: 50%; transform: translateX(-50%); background: #0288d1; color: white; width: 120px; padding: 15px; z-index: 2; }
+
+        .log-console { height: 100px; background: #212121; color: #00e676; padding: 10px; font-family: monospace; font-size: 0.8rem; overflow-y: auto; border-radius: 4px; }
+        .log-line { margin-bottom: 4px; border-bottom: 1px solid #333; }
+        .log-err { color: #ff5252; }
+
+    </style>
+</head>
+<body>
+    <h1>Spring AOP Validation Demo</h1>
+    
+    <div class="container">
+        <!-- Left: Code -->
+        <div class="code-panel">
+            <div class="tabs">
+                <div class="tab active" onclick="showCode('aspect')">RiskCheckAspect.java</div>
+                <div class="tab" onclick="showCode('service')">PaymentService.java</div>
+                <div class="tab" onclick="showCode('model')">CreditCard.java</div>
+            </div>
+            <div class="code-content" id="code-display">
+                <!-- Code injected by JS -->
+            </div>
+        </div>
+
+        <!-- Right: Simulation -->
+        <div class="sim-panel">
+            <div class="form-group">
+                <div class="form-item">
+                    <label>Logo</label>
+                    <select id="logo">
+                        <option value="VISA">VISA</option>
+                        <option value="MASTERCARD">MASTERCARD</option>
+                        <option value="UNKNOWN">UNKNOWN</option>
+                    </select>
+                </div>
+                <div class="form-item">
+                    <label>Organization</label>
+                    <input type="text" id="org" value="BANK_A">
+                </div>
+                <div class="form-item">
+                    <label>Block Code</label>
+                    <select id="blockcode">
+                        <option value="">(None)</option>
+                        <option value="LOST">LOST</option>
+                        <option value="STOLEN">STOLEN</option>
+                        <option value="FROZEN">FROZEN</option>
+                    </select>
+                </div>
+                <div class="form-item">
+                    <label>Risk Level (0-10)</label>
+                    <input type="number" id="risk" value="0" min="0" max="10">
+                </div>
+            </div>
+
+            <button class="btn-run" onclick="runSimulation()">Invoke Payment API</button>
+
+            <div class="flow-diagram">
+                <div class="node client" id="node-client">Client</div>
+                
+                <div class="proxy-box">
+                    <div class="proxy-label">AOP Proxy (Around/Before)</div>
+                    <div class="node check-step check-1" id="step-1">1. Check Logo<br><small>(Must be VISA/MC)</small></div>
+                    <div class="node check-step check-2" id="step-2">2. Check Org<br><small>(Must be BANK_A)</small></div>
+                    <div class="node check-step check-3" id="step-3">3. Check BlockCode<br><small>(Must be Empty)</small></div>
+                    <div class="node check-step check-4" id="step-4">4. Check RiskLevel<br><small>(Must be < 5)</small></div>
+                </div>
+
+                <div class="node target" id="node-target">Target Service<br>processPayment()</div>
+            </div>
+
+            <div class="log-console" id="console">
+                <div class="log-line">> Ready.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const codes = {
+            aspect: `
+<span class="ann">@Aspect</span>
+<span class="ann">@Component</span>
+<span class="kwd">public class</span> <span class="cls">RiskCheckAspect</span> {
+
+    <span class="ann">@Before</span>(<span class="str">"@annotation(CheckCardRisk) && args(card,..)"</span>)
+    <span class="kwd">public void</span> <span class="mtd">validateCard</span>(<span class="cls">CreditCard</span> card) {
+        <span class="com">// 1. Check Logo</span>
+        <span class="kwd">if</span> (!<span class="str">"VISA"</span>.equals(card.getLogo()) && !<span class="str">"MASTERCARD"</span>.equals(card.getLogo())) {
+            <span class="kwd">throw new</span> <span class="cls">SecurityException</span>(<span class="str">"Invalid Card Logo"</span>);
+        }
+
+        <span class="com">// 2. Check Organization</span>
+        <span class="kwd">if</span> (!<span class="str">"BANK_A"</span>.equals(card.getOrg())) {
+            <span class="kwd">throw new</span> <span class="cls">SecurityException</span>(<span class="str">"Invalid Organization"</span>);
+        }
+
+        <span class="com">// 3. Check Block Code</span>
+        <span class="kwd">if</span> (card.getBlockCode() != <span class="kwd">null</span> && !card.getBlockCode().isEmpty()) {
+            <span class="kwd">throw new</span> <span class="cls">SecurityException</span>(<span class="str">"Card is Blocked: "</span> + card.getBlockCode());
+        }
+
+        <span class="com">// 4. Check Risk Level</span>
+        <span class="kwd">if</span> (card.getRiskLevel() >= 5) {
+            <span class="kwd">throw new</span> <span class="cls">SecurityException</span>(<span class="str">"Risk Level too high"</span>);
+        }
+    }
+}`,
+            service: `
+<span class="ann">@Service</span>
+<span class="kwd">public class</span> <span class="cls">PaymentService</span> {
+
+    <span class="ann">@CheckCardRisk</span> <span class="com">// Custom Annotation</span>
+    <span class="kwd">public void</span> <span class="mtd">processPayment</span>(<span class="cls">CreditCard</span> card, <span class="kwd">double</span> amount) {
+        <span class="cls">System</span>.out.println(<span class="str">"Processing payment for "</span> + card.getLogo());
+        <span class="com">// Business Logic...</span>
+    }
+}`,
+            model: `
+<span class="kwd">public class</span> <span class="cls">CreditCard</span> {
+    <span class="kwd">private</span> <span class="cls">String</span> logo;
+    <span class="kwd">private</span> <span class="cls">String</span> org;
+    <span class="kwd">private</span> <span class="cls">String</span> blockCode;
+    <span class="kwd">private</span> <span class="kwd">int</span> riskLevel;
+
+    <span class="com">// Getters and Setters...</span>
+}`
+        };
+
+        function showCode(type) {
+            document.getElementById('code-display').innerHTML = codes[type];
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Init
+        showCode('aspect');
+
+        function log(msg, isErr = false) {
+            const div = document.createElement('div');
+            div.className = 'log-line' + (isErr ? ' log-err' : '');
+            div.innerText = `> ${msg}`;
+            const c = document.getElementById('console');
+            c.appendChild(div);
+            c.scrollTop = c.scrollHeight;
+        }
+
+        async function runSimulation() {
+            // Reset UI
+            document.querySelectorAll('.node').forEach(n => {
+                n.classList.remove('active', 'error', 'success');
+            });
+            document.getElementById('console').innerHTML = '';
+            
+            const logo = document.getElementById('logo').value;
+            const org = document.getElementById('org').value;
+            const block = document.getElementById('blockcode').value;
+            const risk = parseInt(document.getElementById('risk').value);
+
+            log("Client: Calling paymentService.processPayment()...");
+            document.getElementById('node-client').classList.add('active');
+            await wait(500);
+
+            log("AOP Proxy: Intercepted call. Starting validation...");
+            
+            // Step 1: Logo
+            await highlightStep('step-1');
+            if (logo !== 'VISA' && logo !== 'MASTERCARD') {
+                failStep('step-1', `Invalid Logo: ${logo}`);
+                return;
+            }
+            passStep('step-1');
+
+            // Step 2: Org
+            await highlightStep('step-2');
+            if (org !== 'BANK_A') {
+                failStep('step-2', `Invalid Org: ${org}`);
+                return;
+            }
+            passStep('step-2');
+
+            // Step 3: Block
+            await highlightStep('step-3');
+            if (block !== '') {
+                failStep('step-3', `Card Blocked: ${block}`);
+                return;
+            }
+            passStep('step-3');
+
+            // Step 4: Risk
+            await highlightStep('step-4');
+            if (risk >= 5) {
+                failStep('step-4', `Risk Level High: ${risk}`);
+                return;
+            }
+            passStep('step-4');
+
+            // Target
+            log("AOP: Validation Passed. Proceeding to Target.");
+            await wait(500);
+            const target = document.getElementById('node-target');
+            target.classList.add('active', 'success');
+            log("Service: Payment Processed Successfully!", false);
+        }
+
+        async function highlightStep(id) {
+            const el = document.getElementById(id);
+            el.classList.add('active');
+            await wait(600);
+        }
+
+        function passStep(id) {
+            const el = document.getElementById(id);
+            el.classList.add('success');
+            log(`Check ${id.split('-')[1]} Passed.`);
+        }
+
+        function failStep(id, msg) {
+            const el = document.getElementById(id);
+            el.classList.add('error');
+            log(`Exception: ${msg}`, true);
+            log("AOP: Execution halted. Target NOT called.", true);
+        }
+
+        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    </script>
+</body>
+</html>
