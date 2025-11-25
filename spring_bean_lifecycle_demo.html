@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring Bean Lifecycle Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        
+        .container { width: 100%; max-width: 1100px; display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+
+        /* Code Panel */
+        .code-panel {
+            background: #2d2d2d; color: #ccc; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 13px;
+            height: fit-content; box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        .keyword { color: #cc7832; }
+        .anno { color: #bbb529; }
+        .method { color: #ffc66d; }
+        .string { color: #6a8759; }
+
+        /* Pipeline Area */
+        .pipeline-area {
+            background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; gap: 15px; position: relative;
+        }
+
+        .stage-box {
+            border: 2px solid #e0e0e0; border-radius: 6px; padding: 10px; background: #fafafa;
+            display: flex; align-items: center; justify-content: space-between; transition: all 0.3s;
+            opacity: 0.6;
+        }
+        .stage-box.active { border-color: #2196f3; background: #e3f2fd; opacity: 1; transform: scale(1.02); box-shadow: 0 2px 8px rgba(33,150,243,0.2); }
+        .stage-box.done { border-color: #4caf50; background: #e8f5e9; opacity: 1; }
+
+        .stage-name { font-weight: bold; color: #555; }
+        .stage-desc { font-size: 12px; color: #888; }
+        
+        /* The Bean Object */
+        .bean-obj {
+            width: 60px; height: 60px; background: #ff9800; border-radius: 50%; border: 3px solid #f57c00;
+            position: absolute; right: 20px; top: 20px; z-index: 10;
+            display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 12px;
+            transition: top 0.5s ease-in-out, transform 0.3s; opacity: 0;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .bean-obj.proxy { background: #9c27b0; border-color: #7b1fa2; } /* AOP Proxy color */
+
+        /* Controls */
+        .controls { grid-column: 1 / -1; display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
+        button { padding: 10px 20px; cursor: pointer; background: #0078d4; color: white; border: none; border-radius: 4px; font-weight: bold; }
+        button:disabled { background: #ccc; }
+        button.reset { background: #d83b01; }
+
+        /* Logs */
+        .log-panel {
+            grid-column: 1 / -1; background: #333; color: #0f0; font-family: monospace; padding: 10px;
+            height: 150px; overflow-y: auto; border-radius: 4px; font-size: 13px;
+        }
+
+        .demo-guide {
+            grid-column: 1 / -1;
+            background: #fff3cd; border: 1px solid #ffeeba; color: #856404;
+            padding: 15px; border-radius: 8px; margin-bottom: 10px;
+        }
+        .demo-guide h3 { margin-top: 0; font-size: 16px; }
+        .demo-guide ol { margin-bottom: 0; padding-left: 20px; }
+        .demo-guide li { margin-bottom: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Spring Bean Lifecycle Visualization</h1>
+
+    <div class="controls">
+        <button id="btnStart" onclick="startLifecycle()">▶ Start Container & Create Bean</button>
+        <button id="btnDestroy" onclick="destroyBean()" disabled>⏹ Close Container (Destroy)</button>
+        <button class="reset" onclick="location.reload()">Reset</button>
+    </div>
+
+    <div class="container">
+        
+        <div class="demo-guide">
+            <h3>💡 Demo Guide</h3>
+            <ol>
+                <li>Click <b>Start Container</b> to trigger the Spring Context refresh.</li>
+                <li>Watch the <b>Bean Object</b> (Orange Circle) move through the creation pipeline.</li>
+                <li>Observe <b>Dependency Injection</b> (Populate Properties).</li>
+                <li>Note the <b>BeanPostProcessor</b> steps: This is where AOP Proxies (Purple) are often created!</li>
+                <li>Click <b>Close Container</b> to trigger the destruction callbacks (`@PreDestroy`, `DisposableBean`).</li>
+            </ol>
+        </div>
+
+        <!-- Left: Code -->
+        <div class="code-panel">
+            <div style="margin-bottom:10px; border-bottom:1px solid #555; padding-bottom:5px;">MyBean.java</div>
+            <div>
+                <span class="anno">@Component</span><br>
+                <span class="keyword">public class</span> MyBean <span class="keyword">implements</span> BeanNameAware, InitializingBean {<br>
+                &nbsp;&nbsp;<span class="keyword">private</span> String name;<br><br>
+                &nbsp;&nbsp;<span class="keyword">public</span> MyBean() {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 1. Instantiation</span><br>
+                &nbsp;&nbsp;}<br><br>
+                &nbsp;&nbsp;<span class="anno">@Autowired</span><br>
+                &nbsp;&nbsp;<span class="keyword">public void</span> setName(...) {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 2. Populate Properties</span><br>
+                &nbsp;&nbsp;}<br><br>
+                &nbsp;&nbsp;<span class="keyword">public void</span> setBeanName(...) {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 3. Aware Interfaces</span><br>
+                &nbsp;&nbsp;}<br><br>
+                &nbsp;&nbsp;<span class="anno">@PostConstruct</span><br>
+                &nbsp;&nbsp;<span class="keyword">public void</span> init() {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 5. Initialization</span><br>
+                &nbsp;&nbsp;}<br>
+                }
+            </div>
+        </div>
+
+        <!-- Right: Pipeline -->
+        <div class="pipeline-area" id="pipeline">
+            <div class="bean-obj" id="bean">Bean</div>
+
+            <div class="stage-box" id="stage-1">
+                <div class="stage-name">1. Instantiation</div>
+                <div class="stage-desc">Constructor called. Memory allocated.</div>
+            </div>
+
+            <div class="stage-box" id="stage-2">
+                <div class="stage-name">2. Populate Properties</div>
+                <div class="stage-desc">Dependency Injection (@Autowired, setters).</div>
+            </div>
+
+            <div class="stage-box" id="stage-3">
+                <div class="stage-name">3. Aware Interfaces</div>
+                <div class="stage-desc">BeanNameAware, BeanFactoryAware, etc.</div>
+            </div>
+
+            <div class="stage-box" id="stage-4">
+                <div class="stage-name">4. BeanPostProcessor (Before)</div>
+                <div class="stage-desc">postProcessBeforeInitialization().</div>
+            </div>
+
+            <div class="stage-box" id="stage-5">
+                <div class="stage-name">5. Initialization</div>
+                <div class="stage-desc">@PostConstruct, InitializingBean, init-method.</div>
+            </div>
+
+            <div class="stage-box" id="stage-6">
+                <div class="stage-name">6. BeanPostProcessor (After)</div>
+                <div class="stage-desc"><b>AOP Proxy created here!</b> (postProcessAfterInitialization).</div>
+            </div>
+
+            <div class="stage-box" id="stage-7">
+                <div class="stage-name">7. Ready to Use</div>
+                <div class="stage-desc">Bean is in the Singleton Pool.</div>
+            </div>
+
+            <div class="stage-box" id="stage-8" style="border-color:#d32f2f; background:#ffebee;">
+                <div class="stage-name">8. Destruction</div>
+                <div class="stage-desc">@PreDestroy, DisposableBean.</div>
+            </div>
+        </div>
+
+        <div class="log-panel" id="console">
+            > Spring Container ready...
+        </div>
+    </div>
+
+    <script>
+        const log = (msg) => {
+            const consoleDiv = document.getElementById('console');
+            consoleDiv.innerHTML += `<div>> ${msg}</div>`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        };
+
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+        async function startLifecycle() {
+            document.getElementById('btnStart').disabled = true;
+            const bean = document.getElementById('bean');
+            
+            // 1. Instantiation
+            await runStage('stage-1', () => {
+                bean.style.opacity = 1;
+                bean.style.top = '20px'; // Align with stage 1
+                log("Constructor: new MyBean() called.");
+            });
+
+            // 2. Populate
+            await runStage('stage-2', () => {
+                bean.style.top = '90px';
+                log("DI: Properties injected (setName, @Autowired fields).");
+            });
+
+            // 3. Aware
+            await runStage('stage-3', () => {
+                bean.style.top = '160px';
+                log("Aware: setBeanName('myBean') called.");
+            });
+
+            // 4. BPP Before
+            await runStage('stage-4', () => {
+                bean.style.top = '230px';
+                log("BPP: postProcessBeforeInitialization() executed.");
+            });
+
+            // 5. Init
+            await runStage('stage-5', () => {
+                bean.style.top = '300px';
+                log("Init: @PostConstruct / afterPropertiesSet() called.");
+            });
+
+            // 6. BPP After (AOP)
+            await runStage('stage-6', () => {
+                bean.style.top = '370px';
+                bean.classList.add('proxy'); // Change color
+                bean.innerText = "Proxy";
+                log("BPP: postProcessAfterInitialization(). AOP Proxy created!");
+            });
+
+            // 7. Ready
+            await runStage('stage-7', () => {
+                bean.style.top = '440px';
+                log("Container: Bean added to SingletonObjects map.");
+            });
+
+            document.getElementById('btnDestroy').disabled = false;
+        }
+
+        async function destroyBean() {
+            document.getElementById('btnDestroy').disabled = true;
+            const bean = document.getElementById('bean');
+
+            // 8. Destruction
+            await runStage('stage-8', () => {
+                bean.style.top = '510px';
+                log("Destroy: @PreDestroy / destroy() called.");
+            });
+            
+            await sleep(500);
+            bean.style.opacity = 0;
+            log("Container: Bean removed from memory.");
+        }
+
+        async function runStage(id, action) {
+            // Highlight stage
+            document.querySelectorAll('.stage-box').forEach(el => el.classList.remove('active'));
+            const el = document.getElementById(id);
+            el.classList.add('active');
+            
+            // Run visual action
+            if(action) action();
+            
+            await sleep(1200); // Wait for animation/reading
+            
+            el.classList.remove('active');
+            el.classList.add('done');
+        }
+    </script>
+</body>
+</html>
