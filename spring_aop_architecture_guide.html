@@ -200,6 +200,37 @@
         <span class="class-name">System</span>.out.println(<span class="string">"URL : "</span> + request.getRequestURL().toString());
         <span class="class-name">System</span>.out.println(<span class="string">"IP : "</span> + request.getRemoteAddr());
     }
+}
+</pre>
+
+        <h3>Deep Dive: What can you get from JoinPoint?</h3>
+        <p>You asked specifically about what information is available in the <code>JoinPoint</code> object. It is the bridge between the Aspect and the running code.</p>
+        
+        <div class="highlight">
+            <strong>Key Methods of JoinPoint Interface:</strong>
+            <ul>
+                <li><code>Object[] getArgs()</code>: Returns the method arguments. Essential for validation or logging specific data.</li>
+                <li><code>Signature getSignature()</code>: Returns the method description (e.g., method name, return type).</li>
+                <li><code>Object getTarget()</code>: Returns the actual object being proxied (the "Real Subject").</li>
+                <li><code>Object getThis()</code>: Returns the AOP Proxy object itself.</li>
+            </ul>
+        </div>
+
+        <pre>
+<span class="comment">// Example: Accessing details in an Aspect</span>
+<span class="annotation">@Before</span>(<span class="string">"execution(* com.example..*.*(..))"</span>)
+<span class="keyword">public void</span> <span class="method">inspectJoinPoint</span>(<span class="class-name">JoinPoint</span> joinPoint) {
+    <span class="comment">// 1. Get Method Name</span>
+    <span class="class-name">String</span> methodName = joinPoint.getSignature().getName();
+    
+    <span class="comment">// 2. Get Arguments</span>
+    <span class="class-name">Object</span>[] args = joinPoint.getArgs();
+    <span class="keyword">if</span> (args.length > 0 && args[0] <span class="keyword">instanceof</span> <span class="class-name">String</span>) {
+        <span class="class-name">System</span>.out.println(<span class="string">"First arg is: "</span> + args[0]);
+    }
+
+    <span class="comment">// 3. Get Target Class</span>
+    <span class="class-name">System</span>.out.println(<span class="string">"Target class: "</span> + joinPoint.getTarget().getClass().getName());
 }</pre>
 
         <h2>5. Interactive Demo: AOP Validation</h2>
