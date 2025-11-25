@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySQL Index Invalidation Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        h1 { color: #0078d4; }
+        
+        .container { width: 100%; max-width: 900px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        .schema-box { 
+            background: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 20px; 
+            font-family: monospace; color: #333;
+        }
+        
+        .query-builder { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+        select, input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+        button { background: #0078d4; color: white; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 1rem; }
+        button:hover { background: #005a9e; }
+        
+        .result-box { 
+            min-height: 100px; padding: 20px; border-radius: 5px; text-align: center; font-weight: bold; font-size: 1.2rem;
+            transition: all 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .result-box.scan { background: #ffebee; color: #c62828; border: 2px solid #c62828; }
+        .result-box.index { background: #e8f5e9; color: #2e7d32; border: 2px solid #2e7d32; }
+        
+        .explain-text { font-size: 0.9rem; font-weight: normal; margin-top: 10px; color: #555; }
+
+    </style>
+</head>
+<body>
+    <h1>MySQL Index Invalidation</h1>
+    
+    <div class="container">
+        <h3>Table Schema</h3>
+        <div class="schema-box">
+            CREATE TABLE users (<br>
+            &nbsp;&nbsp;id INT PRIMARY KEY,<br>
+            &nbsp;&nbsp;name VARCHAR(50),<br>
+            &nbsp;&nbsp;age INT,<br>
+            &nbsp;&nbsp;phone VARCHAR(20),<br>
+            &nbsp;&nbsp;created_at DATETIME,<br>
+            &nbsp;&nbsp;INDEX idx_name_age (name, age),<br>
+            &nbsp;&nbsp;INDEX idx_phone (phone)<br>
+            );
+        </div>
+
+        <h3>Build Query</h3>
+        <div class="query-builder">
+            <span>SELECT * FROM users WHERE</span>
+            <select id="condition">
+                <option value="normal">name = 'John'</option>
+                <option value="left_like">name LIKE '%John'</option>
+                <option value="right_like">name LIKE 'John%'</option>
+                <option value="function">LENGTH(name) = 4</option>
+                <option value="or_no_index">name = 'John' OR created_at = '2023-01-01'</option>
+                <option value="implicit_cast">phone = 123456</option>
+                <option value="explicit_cast">phone = '123456'</option>
+                <option value="not_equal">name != 'John'</option>
+                <option value="is_null">name IS NULL</option>
+                <option value="math">age + 1 = 20</option>
+            </select>
+            <button onclick="analyze()">Explain</button>
+        </div>
+
+        <div id="result" class="result-box" style="display:none;">
+            <div id="res-title"></div>
+            <div id="res-desc" class="explain-text"></div>
+        </div>
+    </div>
+
+    <script>
+        function analyze() {
+            const val = document.getElementById('condition').value;
+            const res = document.getElementById('result');
+            const title = document.getElementById('res-title');
+            const desc = document.getElementById('res-desc');
+            
+            res.style.display = 'flex';
+            res.className = 'result-box'; // reset
+
+            let isIndex = false;
+            let text = "";
+            let explanation = "";
+
+            switch(val) {
+                case 'normal':
+                    isIndex = true;
+                    text = "Index Scan (ref)";
+                    explanation = "Standard equality check on the leftmost prefix of 'idx_name_age'. Efficient.";
+                    break;
+                case 'left_like':
+                    isIndex = false;
+                    text = "Full Table Scan (ALL)";
+                    explanation = "Wildcard at the START ('%John') prevents B+ Tree traversal. The engine must check every row.";
+                    break;
+                case 'right_like':
+                    isIndex = true;
+                    text = "Index Range Scan (range)";
+                    explanation = "Wildcard at the END ('John%') allows using the index to find the range starting with 'John'.";
+                    break;
+                case 'function':
+                    isIndex = false;
+                    text = "Full Table Scan (ALL)";
+                    explanation = "Wrapping an indexed column in a function (LENGTH(name)) hides the raw value from the B+ Tree.";
+                    break;
+                case 'or_no_index':
+                    isIndex = false;
+                    text = "Full Table Scan (ALL)";
+                    explanation = "OR condition requires BOTH sides to have an index. 'created_at' has no index, so the engine must scan the table.";
+                    break;
+                case 'implicit_cast':
+                    isIndex = false;
+                    text = "Full Table Scan (ALL)";
+                    explanation = "Implicit Type Conversion! 'phone' is VARCHAR, but query uses INT. MySQL converts column to int: CAST(phone AS SIGNED) = 123456, which is a function call.";
+                    break;
+                case 'explicit_cast':
+                    isIndex = true;
+                    text = "Index Scan (ref)";
+                    explanation = "Types match (String vs String). Index 'idx_phone' is used.";
+                    break;
+                case 'not_equal':
+                    isIndex = false;
+                    text = "Full Table Scan (ALL)";
+                    explanation = "Negative comparisons (!=, <>) usually prevent index usage because they represent a large portion of the dataset.";
+                    break;
+                case 'is_null':
+                    isIndex = true;
+                    text = "Index Scan (ref)";
+                    explanation = "IS NULL can use indexes in MySQL (unlike Oracle in some versions).";
+                    break;
+                case 'math':
+                    isIndex = false;
+                    text = "Full Table Scan (ALL)";
+                    explanation = "Arithmetic operation on the column (age + 1) acts like a function. Use 'age = 20 - 1' instead.";
+                    break;
+            }
+
+            if (isIndex) {
+                res.classList.add('index');
+                title.innerText = "✅ " + text;
+            } else {
+                res.classList.add('scan');
+                title.innerText = "❌ " + text;
+            }
+            desc.innerText = explanation;
+        }
+    </script>
+</body>
+</html>

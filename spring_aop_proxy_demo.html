@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring AOP Proxy Visualization</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        h1 { color: #6db33f; }
+        
+        .container { width: 100%; max-width: 1000px; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; min-height: 400px; }
+        
+        .box { 
+            border: 2px solid #333; border-radius: 8px; padding: 15px; text-align: center; font-weight: bold; 
+            position: absolute; transition: all 0.5s; background: white; z-index: 2; width: 120px;
+        }
+        
+        .client { top: 180px; left: 20px; background: #e1f5fe; border-color: #0288d1; }
+        .proxy { top: 150px; left: 300px; width: 200px; height: 150px; border-style: dashed; border-color: #6db33f; background: #f1f8e9; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .target { top: 180px; left: 700px; background: #fff3e0; border-color: #ef6c00; }
+        
+        .aspect { 
+            background: #fce4ec; border-color: #d81b60; font-size: 0.8rem; width: 100px; padding: 5px;
+            position: absolute; opacity: 0; transition: opacity 0.3s;
+        }
+        
+        .arrow { position: absolute; height: 2px; background: #333; transition: all 0.3s; transform-origin: left center; z-index: 0; }
+        .arrow::after { content: ''; position: absolute; right: 0; top: -4px; border: 5px solid transparent; border-left-color: #333; }
+        
+        .controls { margin-bottom: 20px; }
+        button { background: #0078d4; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 0 10px; }
+        button.active { background: #005a9e; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }
+        
+        .info-panel { margin-top: 20px; padding: 15px; background: #eee; border-radius: 5px; width: 100%; max-width: 1000px; box-sizing: border-box; }
+
+    </style>
+</head>
+<body>
+    <h1>Spring AOP: Proxy Pattern</h1>
+    
+    <div class="controls">
+        <button onclick="setMode('JDK')" id="btn-jdk" class="active">JDK Dynamic Proxy</button>
+        <button onclick="setMode('CGLIB')" id="btn-cglib">CGLIB Proxy</button>
+        <button onclick="runFlow()" style="background: #28a745;">Run Execution</button>
+    </div>
+
+    <div class="container">
+        <div class="box client">Client</div>
+        
+        <div class="box proxy">
+            <span id="proxy-title">Proxy Object</span>
+            <div style="font-size: 0.8rem; margin-top: 5px; color: #666;" id="proxy-desc">Implements Interface</div>
+        </div>
+        
+        <div class="box target">Target Object</div>
+        
+        <div class="box aspect" id="advice-before" style="top: 100px; left: 350px;">Before Advice</div>
+        <div class="box aspect" id="advice-after" style="top: 320px; left: 350px;">After Advice</div>
+
+        <!-- Arrows -->
+        <div class="arrow" id="arrow1" style="top: 200px; left: 160px; width: 140px;"></div>
+        <div class="arrow" id="arrow2" style="top: 200px; left: 520px; width: 180px; opacity: 0.3;"></div>
+    </div>
+
+    <div class="info-panel" id="info">
+        <strong>JDK Dynamic Proxy:</strong> Used when the target implements an Interface. The Proxy implements the same interface and delegates to the target.
+    </div>
+
+    <script>
+        let mode = 'JDK';
+
+        function setMode(m) {
+            mode = m;
+            document.getElementById('btn-jdk').classList.toggle('active', m === 'JDK');
+            document.getElementById('btn-cglib').classList.toggle('active', m === 'CGLIB');
+            
+            const title = document.getElementById('proxy-title');
+            const desc = document.getElementById('proxy-desc');
+            const info = document.getElementById('info');
+            
+            if (m === 'JDK') {
+                title.innerText = "JDK Proxy";
+                desc.innerText = "Implements Interface";
+                info.innerHTML = "<strong>JDK Dynamic Proxy:</strong> Standard Java API. Requires the target to implement an Interface. Lightweight.";
+            } else {
+                title.innerText = "CGLIB Proxy";
+                desc.innerText = "Subclass of Target";
+                info.innerHTML = "<strong>CGLIB (Code Generation Library):</strong> Used when target has NO interface. Creates a subclass of the Target. Cannot proxy <code>final</code> methods.";
+            }
+        }
+
+        async function runFlow() {
+            const arrow1 = document.getElementById('arrow1');
+            const arrow2 = document.getElementById('arrow2');
+            const before = document.getElementById('advice-before');
+            const after = document.getElementById('advice-after');
+            
+            // Reset
+            arrow1.style.background = '#333';
+            arrow2.style.background = '#333';
+            arrow2.style.opacity = 0.3;
+            before.style.opacity = 0;
+            after.style.opacity = 0;
+            
+            // 1. Client calls Proxy
+            arrow1.style.background = '#28a745';
+            await wait(500);
+            
+            // 2. Proxy calls Before Advice
+            before.style.opacity = 1;
+            before.style.transform = 'scale(1.1)';
+            await wait(800);
+            before.style.transform = 'scale(1)';
+            
+            // 3. Proxy calls Target
+            arrow2.style.opacity = 1;
+            arrow2.style.background = '#28a745';
+            await wait(800);
+            
+            // 4. Target returns, Proxy calls After Advice
+            after.style.opacity = 1;
+            after.style.transform = 'scale(1.1)';
+            await wait(800);
+            after.style.transform = 'scale(1)';
+            
+            // Done
+            arrow1.style.background = '#333';
+            arrow2.style.background = '#333';
+        }
+
+        function wait(ms) {
+            return new Promise(r => setTimeout(r, ms));
+        }
+    </script>
+</body>
+</html>
