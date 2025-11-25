@@ -55,6 +55,16 @@
             margin-top: 20px; padding: 15px; background: #fff3e0; border-left: 5px solid #ff9800; border-radius: 4px; color: #5d4037;
         }
 
+        .verdict-box {
+            margin: 20px 0; padding: 20px; border-radius: 8px; text-align: center; font-size: 1.5rem; font-weight: bold; display: none;
+        }
+        .verdict-yes { background: #e8f5e9; color: #2e7d32; border: 2px solid #2e7d32; }
+        .verdict-no { background: #ffebee; color: #c62828; border: 2px solid #c62828; }
+
+        .narrative {
+            background: #e1f5fe; color: #01579b; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 1.1rem; line-height: 1.6; min-height: 60px; display: flex; align-items: center;
+        }
+
         /* SVG Overlay for connecting lines */
         #svg-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;
@@ -81,6 +91,12 @@
                 <li><strong>Check:</strong> Run input through same hash functions. If <strong>ALL</strong> bits are 1, it's <em>Probably</em> there. If <strong>ANY</strong> bit is 0, it's <em>Definitely Not</em> there.</li>
             </ol>
         </div>
+
+        <div class="narrative" id="narrative">
+            Welcome! Enter a word below to see how Bloom Filters store data using just bits.
+        </div>
+
+        <div class="verdict-box" id="verdict"></div>
 
         <div class="controls">
             <input type="text" id="input-val" placeholder="Enter string (e.g. 'Apple')" onkeypress="if(event.key==='Enter') addVal()">
@@ -164,6 +180,8 @@
             if(!val) return;
 
             isAnimating = true;
+            clearVerdict();
+            narrate(`Adding "<strong>${val}</strong>"... We need to set 3 bits to 1.`);
             log(`--------------------------------`);
             log(`Adding "${val}"...`, 'info');
             
@@ -171,10 +189,16 @@
             const h2 = hash2(val);
             const h3 = hash3(val);
 
+            narrate(`Hash 1 maps "${val}" to index <strong>${h1}</strong>.`);
             await runHashAnimation(1, h1, 'set');
+            
+            narrate(`Hash 2 maps "${val}" to index <strong>${h2}</strong>.`);
             await runHashAnimation(2, h2, 'set');
+            
+            narrate(`Hash 3 maps "${val}" to index <strong>${h3}</strong>.`);
             await runHashAnimation(3, h3, 'set');
 
+            narrate(`Done! "${val}" is now stored (as bits ${h1}, ${h2}, ${h3}).`);
             log(`> SUCCESS: "${val}" added.`, 'info');
             input.value = '';
             isAnimating = false;
@@ -187,6 +211,8 @@
             if(!val) return;
 
             isAnimating = true;
+            clearVerdict();
+            narrate(`Checking "<strong>${val}</strong>"... We need to check if bits are 1.`);
             log(`--------------------------------`);
             log(`Checking "${val}"...`, 'info');
 
@@ -195,8 +221,11 @@
             const h3 = hash3(val);
 
             // Check 1
+            narrate(`Hash 1 points to index <strong>${h1}</strong>. Is it 1?`);
             await runHashAnimation(1, h1, 'check');
             if(bitArray[h1] === 0) {
+                showVerdict(false, val);
+                narrate(`Bit ${h1} is 0. So "${val}" CANNOT be here.`);
                 log(`> Bit ${h1} is 0. STOP.`, 'error');
                 log(`> Result: "${val}" is DEFINITELY NOT in set.`, 'error');
                 isAnimating = false;
@@ -204,8 +233,11 @@
             }
 
             // Check 2
+            narrate(`Bit ${h1} is 1 (Match). Checking Hash 2 (Index <strong>${h2}</strong>)...`);
             await runHashAnimation(2, h2, 'check');
             if(bitArray[h2] === 0) {
+                showVerdict(false, val);
+                narrate(`Bit ${h2} is 0. So "${val}" CANNOT be here.`);
                 log(`> Bit ${h2} is 0. STOP.`, 'error');
                 log(`> Result: "${val}" is DEFINITELY NOT in set.`, 'error');
                 isAnimating = false;
@@ -213,17 +245,42 @@
             }
 
             // Check 3
+            narrate(`Bit ${h2} is 1 (Match). Checking Hash 3 (Index <strong>${h3}</strong>)...`);
             await runHashAnimation(3, h3, 'check');
             if(bitArray[h3] === 0) {
+                showVerdict(false, val);
+                narrate(`Bit ${h3} is 0. So "${val}" CANNOT be here.`);
                 log(`> Bit ${h3} is 0. STOP.`, 'error');
                 log(`> Result: "${val}" is DEFINITELY NOT in set.`, 'error');
                 isAnimating = false;
                 return;
             }
 
+            showVerdict(true, val);
+            narrate(`All bits (${h1}, ${h2}, ${h3}) are 1. "${val}" is PROBABLY here.`);
             log(`> All bits [${h1}, ${h2}, ${h3}] are 1.`, 'warn');
             log(`> Result: "${val}" is POSSIBLY in set.`, 'warn');
             isAnimating = false;
+        }
+
+        function narrate(html) {
+            document.getElementById('narrative').innerHTML = html;
+        }
+
+        function showVerdict(isPositive, val) {
+            const el = document.getElementById('verdict');
+            el.style.display = 'block';
+            if(isPositive) {
+                el.className = 'verdict-box verdict-yes';
+                el.innerHTML = `POSSIBLY IN SET<br><span style="font-size:0.9rem; font-weight:normal">(All bits matched)</span>`;
+            } else {
+                el.className = 'verdict-box verdict-no';
+                el.innerHTML = `DEFINITELY NOT IN SET<br><span style="font-size:0.9rem; font-weight:normal">(Found a 0 bit)</span>`;
+            }
+        }
+
+        function clearVerdict() {
+            document.getElementById('verdict').style.display = 'none';
         }
 
         async function demoFalsePositive() {
@@ -243,6 +300,7 @@
             document.getElementById('input-val').value = "Cherry";
             await addVal();
 
+            narrate(`Now try checking a word you haven't added, like "Date". If it hits existing 1s, it's a False Positive!`);
             log(`> Now try checking a word you haven't added, like "Date" or "Elderberry".`, 'warn');
             log(`> If "Date" happens to map to bits that are already 1 (from Apple/Banana/Cherry), it's a False Positive!`, 'warn');
         }
