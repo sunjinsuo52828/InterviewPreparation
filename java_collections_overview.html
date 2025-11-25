@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Collections Framework Overview</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        
+        .container { width: 100%; max-width: 1100px; display: flex; flex-direction: column; gap: 20px; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 10px; margin-bottom: 10px; }
+        .tab {
+            padding: 10px 25px; background: #e0e0e0; border: none; border-radius: 4px; cursor: pointer;
+            font-weight: bold; color: #555; transition: 0.2s;
+        }
+        .tab.active { background: #0078d4; color: white; }
+        .tab:hover:not(.active) { background: #d0d0d0; }
+
+        /* Content Sections */
+        .section { display: none; animation: fadeIn 0.3s; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .card h2 { margin-top: 0; color: #005a9e; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        
+        /* Visualizations */
+        .visual-box {
+            height: 200px; background: #fafafa; border: 1px dashed #ccc; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+            margin: 15px 0;
+        }
+
+        /* ArrayList Visuals */
+        .array-block { display: flex; gap: 2px; }
+        .array-cell {
+            width: 40px; height: 40px; background: #bbdefb; border: 1px solid #1976d2;
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+            transition: all 0.3s;
+        }
+        .array-cell.empty { background: #eee; border-color: #ccc; color: #999; }
+        .array-cell.shifting { transform: translateX(42px); background: #ffcc80; }
+
+        /* LinkedList Visuals */
+        .ll-node {
+            width: 60px; height: 40px; background: #c8e6c9; border: 1px solid #388e3c;
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+            position: relative; margin-right: 30px;
+        }
+        .ll-arrow {
+            position: absolute; right: -30px; top: 50%; width: 30px; height: 2px; background: #333;
+        }
+        .ll-arrow::after {
+            content: ''; position: absolute; right: 0; top: -4px; border-left: 6px solid #333;
+            border-top: 4px solid transparent; border-bottom: 4px solid transparent;
+        }
+
+        /* Complexity Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #f8f9fa; color: #333; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .good { color: #2e7d32; font-weight: bold; background: #e8f5e9; }
+        .bad { color: #c62828; font-weight: bold; background: #ffebee; }
+        .avg { color: #f57f17; font-weight: bold; background: #fffde7; }
+
+        /* Interview Q&A */
+        .qa-box { border-left: 4px solid #ff9800; background: #fff3e0; padding: 15px; margin-bottom: 10px; }
+        .qa-q { font-weight: bold; color: #d84315; margin-bottom: 5px; cursor: pointer; display: flex; justify-content: space-between; }
+        .qa-a { display: none; color: #333; font-size: 14px; margin-top: 5px; line-height: 1.5; }
+        .qa-q.open + .qa-a { display: block; }
+        .qa-q::after { content: '+'; }
+        .qa-q.open::after { content: '-'; }
+
+        .controls { margin-top: 10px; }
+        button { padding: 5px 15px; cursor: pointer; background: #0078d4; color: white; border: none; border-radius: 3px; }
+        button:disabled { background: #ccc; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Java Collections Framework Overview</h1>
+
+    <div class="container">
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('list')">List (Ordered)</button>
+            <button class="tab" onclick="showTab('map')">Map (Key-Value)</button>
+            <button class="tab" onclick="showTab('set')">Set (Unique)</button>
+            <button class="tab" onclick="showTab('queue')">Queue (FIFO/Priority)</button>
+        </div>
+
+        <!-- LIST TAB -->
+        <div id="list" class="section active">
+            <div class="card">
+                <h2>ArrayList vs LinkedList</h2>
+                <p><b>ArrayList:</b> Backed by a dynamic array. Fast random access ($O(1)$), slow insertion/deletion in middle ($O(n)$).</p>
+                <p><b>LinkedList:</b> Doubly linked list. Fast insertion/deletion ($O(1)$ if node known), slow access ($O(n)$).</p>
+                
+                <div class="visual-box">
+                    <div id="array-viz" style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+                        <div style="font-weight:bold; margin-bottom:5px;">ArrayList (Insert at Index 1)</div>
+                        <div class="array-block" id="array-container">
+                            <div class="array-cell">A</div>
+                            <div class="array-cell" id="cell-1">B</div>
+                            <div class="array-cell" id="cell-2">C</div>
+                            <div class="array-cell empty"></div>
+                            <div class="array-cell empty"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="controls">
+                    <button onclick="animateArrayInsert()">Simulate Insert at Index 1</button>
+                    <button onclick="resetArray()" style="background:#757575">Reset</button>
+                </div>
+
+                <h3>Complexity Comparison</h3>
+                <table>
+                    <tr><th>Operation</th><th>ArrayList</th><th>LinkedList</th></tr>
+                    <tr><td>get(index)</td><td class="good">O(1)</td><td class="bad">O(n)</td></tr>
+                    <tr><td>add(end)</td><td class="good">O(1) (Amortized)</td><td class="good">O(1)</td></tr>
+                    <tr><td>add(middle)</td><td class="bad">O(n) (Shift)</td><td class="good">O(1) (Pointer)</td></tr>
+                    <tr><td>Memory</td><td class="good">Less (Contiguous)</td><td class="bad">More (Node overhead)</td></tr>
+                </table>
+
+                <h3>🔥 Interview Key Points</h3>
+                <div class="qa-box">
+                    <div class="qa-q" onclick="toggleQa(this)">Q: How does ArrayList grow?</div>
+                    <div class="qa-a">Default capacity is 10. When full, it creates a new array with <b>1.5x</b> capacity (`old + old >> 1`) and copies all elements. This copying is expensive, so set initial capacity if size is known.</div>
+                </div>
+                <div class="qa-box">
+                    <div class="qa-q" onclick="toggleQa(this)">Q: Vector vs ArrayList?</div>
+                    <div class="qa-a">Vector is synchronized (thread-safe) but slow. ArrayList is not synchronized. Use `Collections.synchronizedList` or `CopyOnWriteArrayList` for thread safety instead of Vector.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAP TAB -->
+        <div id="map" class="section">
+            <div class="card">
+                <h2>HashMap vs TreeMap vs LinkedHashMap</h2>
+                <p><b>HashMap:</b> Hash Table (Array + Chain/Tree). Unordered. $O(1)$ access.</p>
+                <p><b>TreeMap:</b> Red-Black Tree. Sorted by Key. $O(\log n)$ access.</p>
+                <p><b>LinkedHashMap:</b> HashMap + Doubly Linked List. Maintains insertion order.</p>
+
+                <div class="visual-box" style="flex-direction: column; justify-content: space-around;">
+                    <div style="display:flex; gap:20px; align-items:center;">
+                        <div style="text-align:center;">
+                            <div style="border:1px solid #333; padding:5px; background:#fff;">HashMap</div>
+                            <div style="font-size:12px; color:#666;">[K,V] -> Hash -> Index</div>
+                        </div>
+                        <div style="font-size:20px;">vs</div>
+                        <div style="text-align:center;">
+                            <div style="border:1px solid #333; padding:5px; background:#fff;">TreeMap</div>
+                            <div style="font-size:12px; color:#666;">Sorted (Red-Black Tree)</div>
+                        </div>
+                    </div>
+                    <a href="hashmap_simulation.html" target="_blank" style="color:#0078d4; font-weight:bold;">👉 View Detailed HashMap Visualization</a>
+                </div>
+
+                <h3>Complexity Comparison</h3>
+                <table>
+                    <tr><th>Operation</th><th>HashMap</th><th>TreeMap</th><th>LinkedHashMap</th></tr>
+                    <tr><td>get/put</td><td class="good">O(1)</td><td class="avg">O(log n)</td><td class="good">O(1)</td></tr>
+                    <tr><td>Order</td><td class="bad">None</td><td class="good">Sorted (Key)</td><td class="good">Insertion Order</td></tr>
+                    <tr><td>Null Keys</td><td class="good">Allowed (1)</td><td class="bad">Not Allowed</td><td class="good">Allowed (1)</td></tr>
+                </table>
+
+                <h3>🔥 Interview Key Points</h3>
+                <div class="qa-box">
+                    <div class="qa-q" onclick="toggleQa(this)">Q: How does HashMap handle collisions?</div>
+                    <div class="qa-a">It uses <b>Chaining</b>. Nodes map to the same bucket. In JDK 8+, if the chain length > 8, it converts to a <b>Red-Black Tree</b> to improve worst-case performance from $O(n)$ to $O(\log n)$.</div>
+                </div>
+                <div class="qa-box">
+                    <div class="qa-q" onclick="toggleQa(this)">Q: Why override equals() and hashCode()?</div>
+                    <div class="qa-a">`hashCode()` determines the bucket index. `equals()` checks if the key already exists in that bucket. If you don't override both correctly, you might lose data or have duplicates.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SET TAB -->
+        <div id="set" class="section">
+            <div class="card">
+                <h2>HashSet vs TreeSet</h2>
+                <p><b>HashSet:</b> Implemented using a HashMap where the Value is a dummy object (`PRESENT`).</p>
+                <p><b>TreeSet:</b> Implemented using a TreeMap.</p>
+
+                <div class="visual-box">
+                    <div style="text-align:center;">
+                        <div style="font-size:14px; margin-bottom:10px;">HashSet Internal Structure</div>
+                        <div style="display:flex; gap:5px; border:1px solid #ccc; padding:10px; background:white;">
+                            <div>Key: "Apple"</div>
+                            <div style="color:#999;">Val: PRESENT</div>
+                        </div>
+                        <div style="display:flex; gap:5px; border:1px solid #ccc; padding:10px; background:white; margin-top:5px;">
+                            <div>Key: "Banana"</div>
+                            <div style="color:#999;">Val: PRESENT</div>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>🔥 Interview Key Points</h3>
+                <div class="qa-box">
+                    <div class="qa-q" onclick="toggleQa(this)">Q: How does HashSet ensure uniqueness?</div>
+                    <div class="qa-a">It calls `map.put(key, PRESENT)`. The Map's `put` method returns the old value if the key existed, or null if it didn't. HashSet uses this return value to know if the element was added.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUEUE TAB -->
+        <div id="queue" class="section">
+            <div class="card">
+                <h2>PriorityQueue vs LinkedList (Deque)</h2>
+                <p><b>PriorityQueue:</b> Binary Heap (Min-Heap by default). Elements ordered by priority.</p>
+                <p><b>ArrayDeque:</b> Resizable array implementation of Deque. Faster than LinkedList for Stack/Queue.</p>
+
+                <div class="visual-box">
+                    <div style="display:flex; flex-direction:column; align-items:center;">
+                        <div>PriorityQueue (Min Heap)</div>
+                        <div style="display:flex; justify-content:center; margin-top:10px;">
+                            <div style="width:30px; height:30px; border:1px solid #333; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#e1f5fe;">1</div>
+                        </div>
+                        <div style="display:flex; gap:40px; margin-top:5px;">
+                            <div style="width:30px; height:30px; border:1px solid #333; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#fff;">3</div>
+                            <div style="width:30px; height:30px; border:1px solid #333; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#fff;">5</div>
+                        </div>
+                        <div style="font-size:12px; color:#666; margin-top:10px;">Backed by Array: [1, 3, 5, ...]</div>
+                    </div>
+                </div>
+
+                <h3>Complexity Comparison</h3>
+                <table>
+                    <tr><th>Operation</th><th>PriorityQueue</th><th>ArrayDeque</th></tr>
+                    <tr><td>offer (add)</td><td class="avg">O(log n)</td><td class="good">O(1)</td></tr>
+                    <tr><td>peek (head)</td><td class="good">O(1)</td><td class="good">O(1)</td></tr>
+                    <tr><td>poll (remove)</td><td class="avg">O(log n)</td><td class="good">O(1)</td></tr>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function showTab(tabId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            // Find button with onclick="showTab('tabId')" - simplified for demo
+            const buttons = document.querySelectorAll('.tab');
+            if(tabId === 'list') buttons[0].classList.add('active');
+            if(tabId === 'map') buttons[1].classList.add('active');
+            if(tabId === 'set') buttons[2].classList.add('active');
+            if(tabId === 'queue') buttons[3].classList.add('active');
+        }
+
+        function toggleQa(el) {
+            el.classList.toggle('open');
+        }
+
+        // Array Animation
+        function animateArrayInsert() {
+            const c1 = document.getElementById('cell-1');
+            const c2 = document.getElementById('cell-2');
+            
+            // Shift
+            c1.classList.add('shifting');
+            c2.classList.add('shifting');
+            
+            setTimeout(() => {
+                // Update text
+                c2.innerText = c1.innerText; // B moves to C's spot visually
+                c1.innerText = ''; // Gap
+                
+                // Reset shift class but keep text change
+                c1.classList.remove('shifting');
+                c2.classList.remove('shifting');
+                
+                // Insert New
+                setTimeout(() => {
+                    c1.innerText = 'X';
+                    c1.style.background = '#ffcc80';
+                    c2.innerText = 'B';
+                    // Fix visual for demo simplicity (C was lost in this simple anim, usually C moves to next)
+                    // Let's just redraw for clarity in a real app, but here:
+                    const container = document.getElementById('array-container');
+                    container.innerHTML = `
+                        <div class="array-cell">A</div>
+                        <div class="array-cell" style="background:#ffcc80">X</div>
+                        <div class="array-cell">B</div>
+                        <div class="array-cell">C</div>
+                        <div class="array-cell empty"></div>
+                    `;
+                }, 300);
+            }, 300);
+        }
+
+        function resetArray() {
+            const container = document.getElementById('array-container');
+            container.innerHTML = `
+                <div class="array-cell">A</div>
+                <div class="array-cell" id="cell-1">B</div>
+                <div class="array-cell" id="cell-2">C</div>
+                <div class="array-cell empty"></div>
+                <div class="array-cell empty"></div>
+            `;
+        }
+    </script>
+</body>
+</html>
