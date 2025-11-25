@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MySQL MVCC Visualization</title>
+    <title>MySQL MVCC 可视化演示</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         h1 { color: #00695c; }
         
         .container { display: flex; gap: 20px; width: 1100px; margin-top: 20px; }
@@ -48,44 +48,97 @@
         .log-hl { color: #ffeb3b; }
 
         .read-view-box { background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 0.9rem; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: white; width: 800px; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;
+        }
+        .close-btn {
+            position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #666;
+        }
     </style>
 </head>
 <body>
-    <h1>MySQL MVCC (Multi-Version Concurrency Control)</h1>
+    <h1>MySQL MVCC 多版本并发控制演示</h1>
     
-    <div style="width: 1100px; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <h3 style="margin-top:0; color:#333;">演示指南 (Demo Guide)</h3>
-        <ul style="margin:0; padding-left: 20px; color: #555;">
-            <li><strong>开启事务 (Start Trx):</strong> 创建一个新的活跃事务，分配唯一的事务 ID。</li>
-            <li><strong>更新数据 (Update):</strong> 修改行数据。这会在 <em>Undo Log Chain</em> (回滚日志链) 中创建一个新版本，指向旧版本。</li>
-            <li><strong>读取数据 (Read):</strong> 模拟 SELECT 查询。它会创建一个 <em>Read View</em> (快照)，并遍历 Undo Log 根据隔离规则找到第一个"可见"的版本。</li>
-            <li><strong>提交事务 (Commit):</strong> 结束事务，使其修改对未来的 Read View 可见。</li>
-        </ul>
+    <div style="width: 1100px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <strong>隔离级别 (Isolation Level):</strong>
+            <select id="isolation-level" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+                <option value="RR">Repeatable Read (可重复读 - 默认)</option>
+                <option value="RC">Read Committed (读已提交)</option>
+            </select>
+        </div>
+        <button onclick="openModal()" style="background: #00695c;">📖 深度解析: Read View 原理</button>
+    </div>
+
+    <!-- Modal -->
+    <div id="deep-dive-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('deep-dive-modal').style.display='none'">&times;</span>
+            <h2 style="color:#00695c; margin-top:0;">🤔 深度解析: MVCC 可见性算法</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <strong>1. 什么是 Read View?</strong>
+                    <p>Read View 是事务进行快照读时产生的读视图。包含四个核心字段：</p>
+                    <ul style="background:#f5f5f5; padding:10px 20px; border-radius:4px;">
+                        <li><code>m_ids</code>: 生成时刻所有<strong>活跃</strong>事务的 ID 列表。</li>
+                        <li><code>min_id</code>: 活跃事务中最小的 ID。</li>
+                        <li><code>max_id</code>: 下一个将被分配的事务 ID (当前最大ID + 1)。</li>
+                        <li><code>creator_id</code>: 创建该 Read View 的事务 ID。</li>
+                    </ul>
+                </div>
+                <div>
+                    <strong>2. 可见性判断规则 (Visibility Rules)</strong>
+                    <p>对于 Undo Log 中的每一个版本 (trx_id)，判断是否可见：</p>
+                    <ul style="font-size: 0.9rem;">
+                        <li>✅ <strong>可见:</strong> <code>trx_id == creator_id</code> (自己改的)</li>
+                        <li>✅ <strong>可见:</strong> <code>trx_id < min_id</code> (生成 View 前已提交)</li>
+                        <li>❌ <strong>不可见:</strong> <code>trx_id >= max_id</code> (生成 View 后才开启)</li>
+                        <li>❌ <strong>不可见:</strong> <code>trx_id in m_ids</code> (生成 View 时还未提交)</li>
+                        <li>✅ <strong>可见:</strong> <code>trx_id</code> 在 <code>min</code> 和 <code>max</code> 之间，且不在 <code>m_ids</code> 中 (生成 View 前已提交)</li>
+                    </ul>
+                </div>
+                <div style="grid-column: span 2; border-top: 1px solid #eee; padding-top: 10px;">
+                    <strong>3. RC vs RR 的区别</strong>
+                    <ul>
+                        <li><strong>Read Committed (RC):</strong> 每次 <code>SELECT</code> 都会生成一个新的 Read View。能读到别的事务刚提交的数据。</li>
+                        <li><strong>Repeatable Read (RR):</strong> 只有第一次 <code>SELECT</code> 生成 Read View，后续复用。保证同一个事务内读取一致。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="container">
         <!-- Left: Transactions -->
         <div class="col col-left">
             <div class="card">
-                <h3>Active Transactions</h3>
+                <h3>活跃事务列表 (Active Trx)</h3>
                 <div id="trx-list" class="trx-panel">
                     <!-- Trx items injected here -->
                 </div>
                 <div style="margin-top: 15px; text-align: center;">
-                    <button class="btn-start" onclick="startTrx()">Start New Transaction</button>
+                    <button class="btn-start" onclick="startTrx()">开启新事务 (Start)</button>
                 </div>
             </div>
             
             <div class="card">
-                <h3>Read View Rules</h3>
+                <h3>当前 Read View 规则</h3>
                 <div style="font-size: 0.85rem; color: #555;">
-                    <p><strong>m_ids:</strong> Active Trx List</p>
-                    <p><strong>min_id:</strong> Smallest Active ID</p>
-                    <p><strong>max_id:</strong> Next ID to assign</p>
+                    <p><strong>m_ids:</strong> 活跃事务 ID 列表</p>
+                    <p><strong>min_id:</strong> 最小活跃 ID</p>
+                    <p><strong>max_id:</strong> 下一个分配 ID</p>
                     <hr>
-                    <p>1. trx_id < min_id: <span style="color:green">Visible</span> (Committed before)</p>
-                    <p>2. trx_id >= max_id: <span style="color:red">Invisible</span> (Future)</p>
-                    <p>3. trx_id in m_ids: <span style="color:red">Invisible</span> (Active)</p>
+                    <p>1. trx_id < min_id: <span style="color:green">可见</span> (已提交)</p>
+                    <p>2. trx_id >= max_id: <span style="color:red">不可见</span> (未来事务)</p>
+                    <p>3. trx_id in m_ids: <span style="color:red">不可见</span> (活跃中)</p>
                 </div>
             </div>
         </div>
@@ -93,7 +146,7 @@
         <!-- Center: Undo Log Chain -->
         <div class="col col-center">
             <div class="card">
-                <h3>Undo Log Chain (Row History)</h3>
+                <h3>Undo Log 版本链 (Row History)</h3>
                 <div id="undo-log" class="undo-log-chain">
                     <!-- Versions injected here -->
                 </div>
@@ -103,9 +156,9 @@
         <!-- Right: Log & Read -->
         <div class="col col-right">
             <div class="card">
-                <h3>Operation Log</h3>
+                <h3>操作日志 (Operation Log)</h3>
                 <div class="log-console" id="log">
-                    <div class="log-entry">> System Init. Row: id=1, name="Alice" (trx_id=0)</div>
+                    <div class="log-entry">> 系统初始化完成。初始行: id=1, name="Alice" (trx_id=0)</div>
                 </div>
             </div>
         </div>
@@ -119,6 +172,9 @@
         let rowVersions = [
             { trx_id: 0, value: "Alice", roll_ptr: null }
         ];
+
+        function openModal() { document.getElementById('deep-dive-modal').style.display = 'flex'; }
+        function closeModal(e) { if(e.target.className==='modal-overlay') document.getElementById('deep-dive-modal').style.display='none'; }
 
         function log(msg, highlight=false) {
             const div = document.createElement('div');
@@ -134,7 +190,7 @@
             const id = globalTrxId++;
             transactions.push({ id, status: 'ACTIVE', snapshot: null });
             renderTrx();
-            log(`Transaction <span style="color:#4caf50">TRX_${id}</span> Started.`);
+            log(`事务 <span style="color:#4caf50">TRX_${id}</span> 已开启。`);
         }
 
         function commitTrx(id) {
@@ -142,7 +198,7 @@
             if(trx && trx.status === 'ACTIVE') {
                 trx.status = 'COMMITTED';
                 renderTrx();
-                log(`Transaction <span style="color:#ff9800">TRX_${id}</span> Committed.`);
+                log(`事务 <span style="color:#ff9800">TRX_${id}</span> 已提交 (Committed)。`);
             }
         }
 
@@ -150,7 +206,7 @@
             const trx = transactions.find(t => t.id === id);
             if(!trx || trx.status !== 'ACTIVE') return;
 
-            const newValue = prompt(`TRX_${id}: Update name to?`, "Bob");
+            const newValue = prompt(`TRX_${id}: 将 name 修改为?`, "Bob");
             if(!newValue) return;
 
             // Create new version
@@ -163,19 +219,18 @@
             
             rowVersions.unshift(newVersion); // Add to top
             renderUndoLog();
-            log(`TRX_${id} updated row. New Value: "${newValue}". Added to Undo Log.`);
+            log(`TRX_${id} 更新了行。新值: "${newValue}"。已添加到 Undo Log。`);
         }
 
         function readRow(id) {
             const trx = transactions.find(t => t.id === id);
             if(!trx) return;
 
-            // Generate Read View if RC/RR (Simplified: Assume RR - create once)
-            // For demo purposes, let's generate a fresh Read View every read to simulate RC, 
-            // or reuse if we want RR. Let's do "Snapshot Read" (create if null).
+            const isolation = document.getElementById('isolation-level').value;
             let readView = trx.snapshot;
-            if(!readView) {
-                // Create Read View
+
+            // RC: Always create new. RR: Create only if null.
+            if (isolation === 'RC' || !readView) {
                 const activeIds = transactions.filter(t => t.status === 'ACTIVE').map(t => t.id);
                 readView = {
                     m_ids: activeIds,
@@ -183,10 +238,15 @@
                     max_id: globalTrxId,
                     creator_id: id
                 };
-                trx.snapshot = readView; // Save for RR
-                log(`TRX_${id} created Read View: [min=${readView.min_id}, max=${readView.max_id}, active=${JSON.stringify(readView.m_ids)}]`);
+                
+                if (isolation === 'RR') {
+                    trx.snapshot = readView; // Save for RR
+                    log(`TRX_${id} (RR) 生成 Read View: [min=${readView.min_id}, max=${readView.max_id}, active=${JSON.stringify(readView.m_ids)}]`);
+                } else {
+                    log(`TRX_${id} (RC) 生成新 Read View: [min=${readView.min_id}, max=${readView.max_id}, active=${JSON.stringify(readView.m_ids)}]`);
+                }
             } else {
-                log(`TRX_${id} reusing Read View.`);
+                log(`TRX_${id} (RR) 复用旧 Read View。`);
             }
 
             // Traverse Undo Log
@@ -199,10 +259,10 @@
             }
 
             if(visibleVersion) {
-                alert(`TRX_${id} sees: "${visibleVersion.value}" (from TRX_${visibleVersion.trx_id})`);
-                log(`TRX_${id} READ result: <span style="color:#00e676">"${visibleVersion.value}"</span> (Found version TRX_${visibleVersion.trx_id})`, true);
+                alert(`TRX_${id} 读取结果: "${visibleVersion.value}" (来自 TRX_${visibleVersion.trx_id})`);
+                log(`TRX_${id} 读取结果: <span style="color:#00e676">"${visibleVersion.value}"</span> (版本 TRX_${visibleVersion.trx_id})`, true);
             } else {
-                alert("No visible version found!");
+                alert("未找到可见版本!");
             }
         }
 
@@ -236,9 +296,9 @@
                     </div>
                     <div style="display:flex; gap:5px;">
                         ${t.status === 'ACTIVE' ? `
-                            <button class="btn-update" onclick="updateRow(${t.id})">Upd</button>
-                            <button class="btn-read" onclick="readRow(${t.id})">Read</button>
-                            <button class="btn-commit" onclick="commitTrx(${t.id})">Com</button>
+                            <button class="btn-update" onclick="updateRow(${t.id})">改</button>
+                            <button class="btn-read" onclick="readRow(${t.id})">读</button>
+                            <button class="btn-commit" onclick="commitTrx(${t.id})">交</button>
                         ` : ''}
                     </div>
                 `;
@@ -257,7 +317,7 @@
                 div.innerHTML = `
                     <div class="version-meta">
                         <span>TRX_ID: ${v.trx_id}</span>
-                        <span>${idx === 0 ? '(Latest)' : ''}</span>
+                        <span>${idx === 0 ? '(最新)' : ''}</span>
                     </div>
                     <div class="version-data">name = "${v.value}"</div>
                 `;

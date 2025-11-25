@@ -1,200 +1,295 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TCP Handshake & State Machine Demo</title>
+    <title>TCP 三次握手与四次挥手可视化</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        h1 { color: #0078d4; }
-        .container { display: flex; justify-content: space-between; width: 800px; margin-top: 50px; position: relative; }
+        body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        h1 { color: #1565c0; }
+
+        .controls { margin-bottom: 20px; display: flex; gap: 10px; }
+        button { padding: 10px 20px; font-size: 1rem; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; transition: background 0.3s; }
+        .btn-connect { background: #4caf50; }
+        .btn-connect:hover { background: #43a047; }
+        .btn-disconnect { background: #f44336; }
+        .btn-disconnect:hover { background: #e53935; }
+        .btn-reset { background: #607d8b; }
+        .btn-guide { background: #1565c0; }
+
+        .diagram-container {
+            display: flex; justify-content: space-between; width: 800px; height: 500px; background: white; 
+            padding: 40px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative;
+        }
+
+        .host {
+            width: 120px; display: flex; flex-direction: column; align-items: center; z-index: 2;
+        }
+        .host-icon { font-size: 3rem; margin-bottom: 10px; }
+        .host-name { font-weight: bold; font-size: 1.2rem; margin-bottom: 5px; }
+        .state-box {
+            padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; color: white;
+            transition: all 0.5s; text-align: center; min-width: 100px;
+        }
         
-        .host { width: 200px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-align: center; z-index: 2; }
-        .host-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 10px; }
-        .state-box { background: #e1f5fe; padding: 10px; border-radius: 5px; font-weight: bold; color: #0277bd; transition: all 0.3s; }
-        
-        .network-space { flex-grow: 1; position: relative; min-height: 300px; }
+        /* States */
+        .state-closed { background: #9e9e9e; }
+        .state-listen { background: #ff9800; }
+        .state-syn-sent { background: #2196f3; }
+        .state-syn-rcvd { background: #03a9f4; }
+        .state-established { background: #4caf50; box-shadow: 0 0 10px #4caf50; }
+        .state-fin-wait-1 { background: #e91e63; }
+        .state-fin-wait-2 { background: #ec407a; }
+        .state-close-wait { background: #ab47bc; }
+        .state-last-ack { background: #8e24aa; }
+        .state-time-wait { background: #ffc107; color: #333; }
+
+        /* Timeline */
+        .timeline {
+            flex-grow: 1; position: relative; margin: 0 20px; border-left: 2px dashed #ddd; border-right: 2px dashed #ddd;
+        }
         
         .packet {
-            position: absolute; padding: 8px 15px; background: #ff9800; color: white; border-radius: 20px; font-weight: bold;
-            font-size: 0.9rem; box-shadow: 0 2px 5px rgba(0,0,0,0.2); opacity: 0; transition: all 0.5s; z-index: 5;
+            position: absolute; padding: 5px 10px; background: #fff; border: 2px solid #333; border-radius: 4px;
+            font-family: 'Consolas', monospace; font-size: 0.85rem; font-weight: bold;
+            transform: translate(-50%, -50%); opacity: 0; transition: all 1.5s linear; z-index: 1;
+            display: flex; align-items: center; gap: 5px;
         }
+        .packet.active { opacity: 1; }
+        .flag { padding: 2px 4px; border-radius: 2px; color: white; font-size: 0.7rem; }
+        .flag-syn { background: #2196f3; }
+        .flag-ack { background: #4caf50; }
+        .flag-fin { background: #f44336; }
 
-        .controls { margin-top: 30px; display: flex; gap: 10px; }
-        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; background: #333; color: white; }
-        button:hover { background: #555; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-
-        .log-console {
-            width: 800px; background: #212121; color: #00e676; padding: 15px; border-radius: 8px; 
-            font-family: 'Consolas', monospace; height: 200px; overflow-y: auto; margin-top: 30px;
+        .log-panel {
+            width: 800px; height: 150px; background: #212121; color: #00e676; margin-top: 20px;
+            padding: 15px; border-radius: 8px; font-family: 'Consolas', monospace; overflow-y: auto; font-size: 0.9rem;
         }
-        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #333; }
-        .log-time { color: #888; margin-right: 10px; }
+        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 2px; }
 
-        /* Connection Line */
-        .conn-line {
-            position: absolute; top: 50px; left: 220px; right: 220px; height: 2px; background: #ccc; z-index: 1;
+        /* Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
         }
+        .modal-content {
+            background: white; width: 700px; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;
+        }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #666; }
+        
+        .concept-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+        .concept-item { background: #f9f9f9; padding: 10px; border-radius: 4px; border-left: 4px solid #1565c0; }
+        .concept-title { font-weight: bold; color: #1565c0; margin-bottom: 5px; }
     </style>
 </head>
 <body>
-    <h1>TCP 3-Way Handshake & 4-Way Wave</h1>
-    
-    <div style="width: 800px; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <h3 style="margin-top:0; color:#333;">演示指南 (Demo Guide)</h3>
-        <ul style="margin:0; padding-left: 20px; color: #555;">
-            <li><strong>建立连接 (Handshake):</strong> 点击 "Start Connection" 开始三次握手 (SYN -> SYN-ACK -> ACK)。观察状态变为 ESTABLISHED。</li>
-            <li><strong>断开连接 (Teardown):</strong> 点击 "Close Connection" 开始四次挥手 (FIN -> ACK -> FIN -> ACK)。注意主动关闭方的 TIME_WAIT 状态。</li>
-            <li><strong>日志 (Logs):</strong> 在下方控制台观察序列号 (Seq) 和确认号 (Ack) 的变化。</li>
-        </ul>
+    <h1>TCP 协议状态机演示</h1>
+
+    <div class="controls">
+        <button class="btn-connect" onclick="startHandshake()">建立连接 (三次握手)</button>
+        <button class="btn-disconnect" onclick="startTeardown()">断开连接 (四次挥手)</button>
+        <button class="btn-reset" onclick="resetState()">重置 (Reset)</button>
+        <button class="btn-guide" onclick="openModal()">📖 深度解析: 为什么是3次/4次?</button>
     </div>
 
-    <div class="container">
-        <div class="host" id="client">
-            <div class="host-title">Client</div>
-            <div class="state-box" id="client-state">CLOSED</div>
+    <!-- Modal -->
+    <div id="deep-dive-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('deep-dive-modal').style.display='none'">&times;</span>
+            <h2 style="color:#1565c0; margin-top:0;">TCP 核心机制解析</h2>
+            
+            <div class="concept-grid">
+                <div class="concept-item">
+                    <div class="concept-title">为什么握手是 3 次?</div>
+                    <p>为了防止<strong>已失效的连接请求报文段</strong>突然又传送到了服务端，产生错误。三次握手可以确认双方的接收能力和发送能力都正常。</p>
+                </div>
+                <div class="concept-item">
+                    <div class="concept-title">为什么挥手是 4 次?</div>
+                    <p>TCP 是全双工的。Client 发送 FIN 只是表示"我没数据发了"，但 Server 可能还有数据要发。所以 Server 先回 ACK，等发完数据后再发 FIN。</p>
+                </div>
+                <div class="concept-item">
+                    <div class="concept-title">TIME_WAIT 状态</div>
+                    <p>Client 收到 Server 的 FIN 后，必须等待 2MSL 时间。确保 Server 收到最后的 ACK。如果 ACK 丢了，Server 会重传 FIN。</p>
+                </div>
+                <div class="concept-item">
+                    <div class="concept-title">ISN (初始序列号)</div>
+                    <p>ISN 是随机生成的，防止被伪造，也防止旧连接的报文干扰新连接。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="diagram-container">
+        <!-- Client -->
+        <div class="host">
+            <div class="host-icon">💻</div>
+            <div class="host-name">Client</div>
+            <div id="client-state" class="state-box state-closed">CLOSED</div>
         </div>
 
-        <div class="network-space" id="network">
+        <!-- Animation Area -->
+        <div class="timeline" id="timeline">
             <!-- Packets will fly here -->
         </div>
 
-        <div class="host" id="server">
-            <div class="host-title">Server</div>
-            <div class="state-box" id="server-state">LISTEN</div>
+        <!-- Server -->
+        <div class="host">
+            <div class="host-icon">🖥️</div>
+            <div class="host-name">Server</div>
+            <div id="server-state" class="state-box state-listen">LISTEN</div>
         </div>
     </div>
 
-    <div class="controls">
-        <button onclick="startHandshake()" id="btn-connect">Connect (3-Way)</button>
-        <button onclick="startTeardown()" id="btn-disconnect" disabled>Disconnect (4-Way)</button>
-        <button onclick="reset()" style="background: #d32f2f;">Reset</button>
-    </div>
-
-    <div class="log-console" id="log">
-        <div class="log-entry">> Ready. Server is in LISTEN state.</div>
+    <div class="log-panel" id="log">
+        <div class="log-entry">> 系统就绪。Server 处于 LISTEN 状态。</div>
     </div>
 
     <script>
-        const clientState = document.getElementById('client-state');
-        const serverState = document.getElementById('server-state');
-        let isConnected = false;
+        const clientStateEl = document.getElementById('client-state');
+        const serverStateEl = document.getElementById('server-state');
+        const timeline = document.getElementById('timeline');
+        const logEl = document.getElementById('log');
 
-        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+        let isAnimating = false;
+        let currentState = 'CLOSED'; // Overall logical state
+
+        function openModal() { document.getElementById('deep-dive-modal').style.display = 'flex'; }
+        function closeModal(e) { if(e.target.className==='modal-overlay') document.getElementById('deep-dive-modal').style.display='none'; }
 
         function log(msg) {
             const div = document.createElement('div');
             div.className = 'log-entry';
-            div.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
-            const console = document.getElementById('log');
-            console.appendChild(div);
-            console.scrollTop = console.scrollHeight;
+            div.innerText = `> ${msg}`;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
         }
 
-        function setState(side, state) {
-            const el = document.getElementById(`${side}-state`);
-            el.innerText = state;
-            el.style.transform = "scale(1.2)";
-            setTimeout(() => el.style.transform = "scale(1)", 300);
-            log(`${side.toUpperCase()} State Changed -> <strong>${state}</strong>`);
+        function setClientState(state, className) {
+            clientStateEl.innerText = state;
+            clientStateEl.className = `state-box ${className}`;
+            log(`Client 状态变更为: ${state}`);
         }
 
-        async function sendPacket(from, type, seq, ack) {
-            const packet = document.createElement('div');
-            packet.className = 'packet';
-            let text = `${type}`;
-            if(seq) text += ` Seq=${seq}`;
-            if(ack) text += ` Ack=${ack}`;
-            packet.innerText = text;
+        function setServerState(state, className) {
+            serverStateEl.innerText = state;
+            serverStateEl.className = `state-box ${className}`;
+            log(`Server 状态变更为: ${state}`);
+        }
+
+        function resetState() {
+            if(isAnimating) return;
+            setClientState('CLOSED', 'state-closed');
+            setServerState('LISTEN', 'state-listen');
+            timeline.innerHTML = '';
+            logEl.innerHTML = '<div class="log-entry">> 系统已重置。</div>';
+            currentState = 'CLOSED';
+        }
+
+        function createPacket(text, flags, fromLeft) {
+            const pkt = document.createElement('div');
+            pkt.className = 'packet';
             
-            const network = document.getElementById('network');
-            network.appendChild(packet);
-
-            // Animation positions
-            const startX = from === 'client' ? '0%' : '90%';
-            const endX = from === 'client' ? '90%' : '0%';
+            let flagHtml = '';
+            if(flags.includes('SYN')) flagHtml += '<span class="flag flag-syn">SYN</span>';
+            if(flags.includes('ACK')) flagHtml += '<span class="flag flag-ack">ACK</span>';
+            if(flags.includes('FIN')) flagHtml += '<span class="flag flag-fin">FIN</span>';
             
-            packet.style.left = startX;
-            packet.style.top = '50%';
-            packet.style.opacity = 1;
+            pkt.innerHTML = `${flagHtml} <span>${text}</span>`;
+            
+            // Initial Position
+            pkt.style.top = '50px'; // Will be dynamic in real app, fixed for simple demo
+            pkt.style.left = fromLeft ? '0%' : '100%';
+            
+            timeline.appendChild(pkt);
+            return pkt;
+        }
 
-            log(`${from.toUpperCase()} sends <strong>${text}</strong>`);
+        async function animatePacket(pkt, fromLeft) {
+            return new Promise(resolve => {
+                // Trigger reflow
+                pkt.offsetHeight; 
+                pkt.classList.add('active');
+                
+                // Move
+                pkt.style.left = fromLeft ? '100%' : '0%';
+                pkt.style.top = '100px'; // Slight arc effect simplified
 
-            // Trigger reflow
-            packet.offsetHeight; 
-
-            packet.style.transition = "left 1.5s ease-in-out";
-            packet.style.left = endX;
-
-            await wait(1500);
-            packet.remove();
+                setTimeout(() => {
+                    pkt.remove();
+                    resolve();
+                }, 1500);
+            });
         }
 
         async function startHandshake() {
-            if(isConnected) return;
-            document.getElementById('btn-connect').disabled = true;
-            
+            if(isAnimating || currentState === 'ESTABLISHED') return;
+            isAnimating = true;
+            log("--- 开始三次握手 ---");
+
             // Step 1: Client sends SYN
-            setState('client', 'SYN_SENT');
-            await sendPacket('client', 'SYN', 100, null);
+            setClientState('SYN_SENT', 'state-syn-sent');
+            const p1 = createPacket('seq=x', ['SYN'], true);
+            await animatePacket(p1, true);
 
-            // Step 2: Server receives SYN, sends SYN-ACK
-            setState('server', 'SYN_RCVD');
-            await sendPacket('server', 'SYN-ACK', 300, 101);
+            // Step 2: Server receives SYN, sends SYN+ACK
+            setServerState('SYN_RCVD', 'state-syn-rcvd');
+            const p2 = createPacket('seq=y, ack=x+1', ['SYN', 'ACK'], false);
+            await animatePacket(p2, false);
 
-            // Step 3: Client receives SYN-ACK, sends ACK
-            setState('client', 'ESTABLISHED');
-            await sendPacket('client', 'ACK', 101, 301);
+            // Step 3: Client receives SYN+ACK, sends ACK
+            setClientState('ESTABLISHED', 'state-established');
+            const p3 = createPacket('seq=x+1, ack=y+1', ['ACK'], true);
+            await animatePacket(p3, true);
 
-            setState('server', 'ESTABLISHED');
-            isConnected = true;
-            document.getElementById('btn-disconnect').disabled = false;
-            log("✅ Connection ESTABLISHED!");
+            setServerState('ESTABLISHED', 'state-established');
+            log("--- 连接已建立 (ESTABLISHED) ---");
+            currentState = 'ESTABLISHED';
+            isAnimating = false;
         }
 
         async function startTeardown() {
-            if(!isConnected) return;
-            document.getElementById('btn-disconnect').disabled = true;
+            if(isAnimating || currentState !== 'ESTABLISHED') {
+                if(currentState !== 'ESTABLISHED') alert("请先建立连接!");
+                return;
+            }
+            isAnimating = true;
+            log("--- 开始四次挥手 ---");
 
             // Step 1: Client sends FIN
-            setState('client', 'FIN_WAIT_1');
-            await sendPacket('client', 'FIN', 500, null);
+            setClientState('FIN_WAIT_1', 'state-fin-wait-1');
+            const p1 = createPacket('seq=u', ['FIN'], true);
+            await animatePacket(p1, true);
 
             // Step 2: Server receives FIN, sends ACK
-            setState('server', 'CLOSE_WAIT');
-            await sendPacket('server', 'ACK', null, 501);
+            setServerState('CLOSE_WAIT', 'state-close-wait');
+            const p2 = createPacket('ack=u+1', ['ACK'], false);
+            await animatePacket(p2, false);
 
-            setState('client', 'FIN_WAIT_2');
-            log("Server is processing remaining data (CLOSE_WAIT)...");
-            await wait(1000); // Simulate server doing work
+            // Client receives ACK -> FIN_WAIT_2
+            setClientState('FIN_WAIT_2', 'state-fin-wait-2');
+            log("Server 正在处理剩余数据...");
+            await new Promise(r => setTimeout(r, 1000)); // Simulate data processing
 
             // Step 3: Server sends FIN
-            setState('server', 'LAST_ACK');
-            await sendPacket('server', 'FIN', 700, null);
+            setServerState('LAST_ACK', 'state-last-ack');
+            const p3 = createPacket('seq=w', ['FIN'], false);
+            await animatePacket(p3, false);
 
-            // Step 4: Client receives FIN, sends ACK
-            setState('client', 'TIME_WAIT');
-            await sendPacket('client', 'ACK', 501, 701);
+            // Step 4: Client receives FIN, sends ACK -> TIME_WAIT
+            setClientState('TIME_WAIT', 'state-time-wait');
+            const p4 = createPacket('ack=w+1', ['ACK'], true);
+            await animatePacket(p4, true);
 
-            setState('server', 'CLOSED');
-            log("Client entering TIME_WAIT (2MSL) to ensure Server received ACK...");
+            setServerState('CLOSED', 'state-closed');
+            log("Client 进入 TIME_WAIT (等待 2MSL)...");
             
-            await wait(2000);
-            setState('client', 'CLOSED');
-            isConnected = false;
-            document.getElementById('btn-connect').disabled = false;
-            log("❌ Connection CLOSED.");
-        }
-
-        function reset() {
-            setState('client', 'CLOSED');
-            setState('server', 'LISTEN');
-            isConnected = false;
-            document.getElementById('btn-connect').disabled = false;
-            document.getElementById('btn-disconnect').disabled = true;
-            document.getElementById('log').innerHTML = '';
-            log("Reset complete.");
+            await new Promise(r => setTimeout(r, 2000)); // Simulate 2MSL
+            setClientState('CLOSED', 'state-closed');
+            
+            log("--- 连接已断开 (CLOSED) ---");
+            currentState = 'CLOSED';
+            isAnimating = false;
         }
     </script>
 </body>
