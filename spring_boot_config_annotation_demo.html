@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring Boot Config & Annotations</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        h1 { color: #6db33f; }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; background: #ddd; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .tab.active { background: #6db33f; color: white; }
+        
+        .container { width: 100%; max-width: 1000px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); min-height: 500px; }
+        
+        /* Config Styles */
+        .config-list { list-style: none; padding: 0; }
+        .config-item { 
+            padding: 10px; border-bottom: 1px solid #eee; display: flex; align-items: center; 
+            transition: background 0.2s; cursor: default;
+        }
+        .config-item:hover { background: #f9f9f9; }
+        .priority-badge { 
+            background: #0078d4; color: white; width: 30px; height: 30px; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: bold;
+        }
+        .config-desc { color: #666; font-size: 0.9rem; margin-left: auto; }
+
+        /* Annotation Styles */
+        .anno-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .anno-card { 
+            border: 1px solid #ddd; border-radius: 5px; padding: 15px; cursor: pointer; transition: all 0.2s;
+            background: #fafafa;
+        }
+        .anno-card:hover { border-color: #6db33f; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .anno-name { font-family: monospace; font-weight: bold; color: #d63384; margin-bottom: 5px; }
+        .anno-cat { font-size: 0.75rem; text-transform: uppercase; color: #999; letter-spacing: 1px; }
+        
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-content {
+            background: white; padding: 30px; border-radius: 8px; width: 500px; max-width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;
+        }
+        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 1.5rem; cursor: pointer; color: #999; }
+        .modal-code { background: #2d2d2d; color: #ccc; padding: 15px; border-radius: 4px; font-family: monospace; margin-top: 15px; overflow-x: auto; }
+
+    </style>
+</head>
+<body>
+    <h1>Spring Boot Essentials</h1>
+    
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('config')">Configuration Priority</div>
+        <div class="tab" onclick="switchTab('anno')">Common Annotations</div>
+    </div>
+
+    <div id="config-view" class="container">
+        <h2>Externalized Configuration Order</h2>
+        <p>Spring Boot properties are overridden in the following order (Highest Priority first):</p>
+        <ul class="config-list">
+            <li class="config-item">
+                <div class="priority-badge">1</div>
+                <div><strong>Devtools global settings</strong></div>
+                <div class="config-desc">~/.spring-boot-devtools.properties</div>
+            </li>
+            <li class="config-item">
+                <div class="priority-badge">2</div>
+                <div><strong>@TestPropertySource</strong></div>
+                <div class="config-desc">On test classes</div>
+            </li>
+            <li class="config-item">
+                <div class="priority-badge">3</div>
+                <div><strong>Command line arguments</strong></div>
+                <div class="config-desc">--server.port=9000</div>
+            </li>
+            <li class="config-item">
+                <div class="priority-badge">4</div>
+                <div><strong>SPRING_APPLICATION_JSON</strong></div>
+                <div class="config-desc">Inline JSON in env var</div>
+            </li>
+            <li class="config-item">
+                <div class="priority-badge">5</div>
+                <div><strong>Java System properties</strong></div>
+                <div class="config-desc">System.getProperties()</div>
+            </li>
+            <li class="config-item">
+                <div class="priority-badge">6</div>
+                <div><strong>OS environment variables</strong></div>
+                <div class="config-desc">System.getenv()</div>
+            </li>
+            <li class="config-item">
+                <div class="priority-badge">7</div>
+                <div><strong>Profile-specific Config</strong></div>
+                <div class="config-desc">application-{profile}.properties/yaml</div>
+            </li>
+            <li class="config-item">
+                <div class="priority-badge">8</div>
+                <div><strong>Application Config</strong></div>
+                <div class="config-desc">application.properties/yaml</div>
+            </li>
+            <li class="config-item">
+                <div class="priority-badge">9</div>
+                <div><strong>@PropertySource</strong></div>
+                <div class="config-desc">On @Configuration classes</div>
+            </li>
+            <li class="config-item">
+                <div class="priority-badge">10</div>
+                <div><strong>Default properties</strong></div>
+                <div class="config-desc">SpringApplication.setDefaultProperties</div>
+            </li>
+        </ul>
+    </div>
+
+    <div id="anno-view" class="container" style="display: none;">
+        <h2>Annotation Cheat Sheet</h2>
+        <p>Click on an annotation to see usage details.</p>
+        <div class="anno-grid" id="anno-grid">
+            <!-- Generated by JS -->
+        </div>
+    </div>
+
+    <div id="modal" class="modal" onclick="closeModal(event)">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal(event)">&times;</span>
+            <h2 id="m-title" style="color: #d63384; font-family: monospace;">@Annotation</h2>
+            <p id="m-desc">Description goes here.</p>
+            <div class="modal-code" id="m-code">Code example</div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById('config-view').style.display = tab === 'config' ? 'block' : 'none';
+            document.getElementById('anno-view').style.display = tab === 'anno' ? 'block' : 'none';
+        }
+
+        const annotations = [
+            { name: '@SpringBootApplication', cat: 'Boot', desc: 'Combines @Configuration, @EnableAutoConfiguration, and @ComponentScan.', code: '@SpringBootApplication\npublic class MyApp {\n  public static void main(String[] args) {\n    SpringApplication.run(MyApp.class, args);\n  }\n}' },
+            { name: '@Component', cat: 'Stereotype', desc: 'Generic stereotype for any Spring-managed component.', code: '@Component\npublic class MyUtil {\n  // ...\n}' },
+            { name: '@Service', cat: 'Stereotype', desc: 'Specialization of @Component for Service layer (Business Logic).', code: '@Service\npublic class UserService {\n  // ...\n}' },
+            { name: '@Repository', cat: 'Stereotype', desc: 'Specialization of @Component for DAO layer. Translates DB exceptions.', code: '@Repository\npublic class UserRepository {\n  // ...\n}' },
+            { name: '@Controller', cat: 'Web', desc: 'Marks a class as a Spring MVC Controller.', code: '@Controller\npublic class MyController {\n  // ...\n}' },
+            { name: '@RestController', cat: 'Web', desc: 'Combines @Controller and @ResponseBody.', code: '@RestController\npublic class ApiController {\n  @GetMapping("/api")\n  public String hello() { return "Hello"; }\n}' },
+            { name: '@Autowired', cat: 'DI', desc: 'Marks a constructor, field, or setter to be autowired by Spring\'s dependency injection.', code: '@Autowired\nprivate UserService userService;' },
+            { name: '@Qualifier', cat: 'DI', desc: 'Used along with @Autowired to specify which bean to inject when multiple exist.', code: '@Autowired\n@Qualifier("mainService")\nprivate Service service;' },
+            { name: '@Configuration', cat: 'Config', desc: 'Indicates that a class declares one or more @Bean methods.', code: '@Configuration\npublic class AppConfig {\n  @Bean\n  public MyBean myBean() { return new MyBean(); }\n}' },
+            { name: '@Bean', cat: 'Config', desc: 'Indicates that a method produces a bean to be managed by the Spring container.', code: '@Bean\npublic DataSource dataSource() { ... }' },
+            { name: '@Value', cat: 'Config', desc: 'Injects values from properties files.', code: '@Value("${server.port}")\nprivate int port;' },
+            { name: '@ConfigurationProperties', cat: 'Config', desc: 'Binds external configuration properties to a Java Bean.', code: '@ConfigurationProperties(prefix = "app")\npublic class AppProps {\n  private String name;\n}' },
+            { name: '@Transactional', cat: 'Data', desc: 'Defines the scope of a single database transaction.', code: '@Transactional(propagation = Propagation.REQUIRED)\npublic void saveData() { ... }' },
+            { name: '@PathVariable', cat: 'Web', desc: 'Extracts values from the URI path.', code: '@GetMapping("/users/{id}")\npublic User getUser(@PathVariable("id") Long id) { ... }' },
+            { name: '@RequestBody', cat: 'Web', desc: 'Maps the HTTP request body to a Java object.', code: '@PostMapping("/users")\npublic void save(@RequestBody User user) { ... }' }
+        ];
+
+        function initAnno() {
+            const grid = document.getElementById('anno-grid');
+            annotations.forEach(a => {
+                const card = document.createElement('div');
+                card.className = 'anno-card';
+                card.innerHTML = `
+                    <div class="anno-name">${a.name}</div>
+                    <div class="anno-cat">${a.cat}</div>
+                `;
+                card.onclick = () => showModal(a);
+                grid.appendChild(card);
+            });
+        }
+
+        function showModal(a) {
+            document.getElementById('m-title').innerText = a.name;
+            document.getElementById('m-desc').innerText = a.desc;
+            document.getElementById('m-code').innerText = a.code;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function closeModal(e) {
+            if (e.target === document.getElementById('modal') || e.target.classList.contains('close-btn')) {
+                document.getElementById('modal').style.display = 'none';
+            }
+        }
+
+        initAnno();
+
+    </script>
+</body>
+</html>

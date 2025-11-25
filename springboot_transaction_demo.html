@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring Transaction Propagation Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        h1 { color: #6db33f; }
+        
+        .container { display: flex; gap: 20px; width: 100%; max-width: 1000px; margin-top: 20px; }
+        
+        .control-panel { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .visual-panel { flex: 2; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); min-height: 400px; position: relative; }
+        
+        .method-box { 
+            border: 2px solid #ccc; padding: 15px; margin-bottom: 15px; border-radius: 5px; position: relative; 
+            transition: all 0.3s;
+        }
+        .method-box.active { border-color: #0078d4; background: #f0f8ff; box-shadow: 0 0 10px rgba(0,120,212,0.2); }
+        .method-title { font-weight: bold; margin-bottom: 5px; }
+        .tx-badge { 
+            display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: white; background: #999;
+            margin-left: 10px;
+        }
+        .tx-badge.active { background: #28a745; }
+        .tx-badge.new { background: #d82c20; }
+        
+        .db-log { 
+            margin-top: 20px; background: #333; color: #eee; padding: 10px; font-family: monospace; height: 150px; overflow-y: auto; border-radius: 4px; 
+        }
+        
+        select, button { padding: 8px; margin-bottom: 10px; width: 100%; }
+        button { background: #0078d4; color: white; border: none; cursor: pointer; }
+        button:hover { background: #005a9e; }
+        
+        .arrow-down { text-align: center; font-size: 1.5rem; color: #ccc; margin: -10px 0 5px 0; }
+
+    </style>
+</head>
+<body>
+    <h1>Spring Transaction Propagation</h1>
+    
+    <div class="container">
+        <div class="control-panel">
+            <h3>Configuration</h3>
+            
+            <label><strong>Outer Method (Service A)</strong></label>
+            <div style="margin-bottom: 10px; font-size: 0.9rem; color: #666;">Always @Transactional(REQUIRED)</div>
+            
+            <label><strong>Inner Method (Service B) Propagation</strong></label>
+            <select id="propagation">
+                <option value="REQUIRED">REQUIRED (Default)</option>
+                <option value="REQUIRES_NEW">REQUIRES_NEW</option>
+                <option value="NESTED">NESTED</option>
+                <option value="NOT_SUPPORTED">NOT_SUPPORTED</option>
+            </select>
+            
+            <label><strong>Exception Scenario</strong></label>
+            <select id="exception-loc">
+                <option value="NONE">No Exception</option>
+                <option value="INNER">Exception in Inner Method</option>
+                <option value="OUTER">Exception in Outer Method (after Inner)</option>
+            </select>
+            
+            <button onclick="runSimulation()">Run Simulation</button>
+            
+            <div style="margin-top: 20px; font-size: 0.85rem; color: #555; line-height: 1.4;">
+                <strong>REQUIRED</strong>: Join existing transaction.<br>
+                <strong>REQUIRES_NEW</strong>: Suspend existing, start new.<br>
+                <strong>NESTED</strong>: Savepoint within existing.<br>
+            </div>
+        </div>
+
+        <div class="visual-panel">
+            <div id="simulation-area">
+                <!-- Dynamic Content -->
+                <div style="text-align: center; color: #999; margin-top: 100px;">Click "Run Simulation" to start</div>
+            </div>
+            <div class="db-log" id="db-log">Database Log...</div>
+        </div>
+    </div>
+
+    <script>
+        function log(msg) {
+            const el = document.getElementById('db-log');
+            el.innerHTML += `> ${msg}<br>`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        async function runSimulation() {
+            const area = document.getElementById('simulation-area');
+            const prop = document.getElementById('propagation').value;
+            const exLoc = document.getElementById('exception-loc').value;
+            const dbLog = document.getElementById('db-log');
+            
+            area.innerHTML = '';
+            dbLog.innerHTML = '';
+            
+            // Step 1: Outer Method Start
+            log("ServiceA.methodA() started.");
+            log("TxManager: Creating Transaction TX-1 (REQUIRED).");
+            
+            const outerBox = document.createElement('div');
+            outerBox.className = 'method-box active';
+            outerBox.innerHTML = `
+                <div class="method-title">ServiceA.methodA() <span class="tx-badge active">TX-1</span></div>
+                <div>Doing work... INSERT A...</div>
+            `;
+            area.appendChild(outerBox);
+            await wait(800);
+            
+            // Step 2: Call Inner
+            const arrow = document.createElement('div');
+            arrow.className = 'arrow-down';
+            arrow.innerHTML = '⬇';
+            area.appendChild(arrow);
+            
+            let innerTxName = "TX-1";
+            let innerBadgeClass = "active";
+            
+            if (prop === 'REQUIRES_NEW') {
+                log("TxManager: Suspending TX-1.");
+                log("TxManager: Creating Transaction TX-2 (REQUIRES_NEW).");
+                innerTxName = "TX-2";
+                innerBadgeClass = "new";
+            } else if (prop === 'NESTED') {
+                log("TxManager: Creating Savepoint in TX-1.");
+                innerTxName = "TX-1 (Savepoint)";
+            } else if (prop === 'NOT_SUPPORTED') {
+                log("TxManager: Suspending TX-1. Running non-transactionally.");
+                innerTxName = "None";
+                innerBadgeClass = "";
+            } else {
+                log("TxManager: Joining TX-1.");
+            }
+
+            const innerBox = document.createElement('div');
+            innerBox.className = 'method-box active';
+            innerBox.innerHTML = `
+                <div class="method-title">ServiceB.methodB() <span class="tx-badge ${innerBadgeClass}">${innerTxName}</span></div>
+                <div>Doing work... INSERT B...</div>
+            `;
+            area.appendChild(innerBox);
+            await wait(800);
+
+            // Step 3: Inner Exception?
+            if (exLoc === 'INNER') {
+                innerBox.style.borderColor = 'red';
+                innerBox.innerHTML += `<div style="color:red; font-weight:bold;">❌ Exception Thrown!</div>`;
+                log("Exception in ServiceB!");
+                
+                if (prop === 'REQUIRES_NEW') {
+                    log("TxManager: Rolling back TX-2.");
+                    log("TxManager: Resuming TX-1.");
+                    log("ServiceA catches exception (simulated).");
+                    // Usually exception propagates unless caught. Let's assume caught for demo of partial commit?
+                    // Or if not caught, TX-1 also rolls back.
+                    // Let's assume ServiceA does NOT catch it for simplicity, or catches it.
+                    // Standard behavior: Exception propagates up.
+                    log("Exception propagates to ServiceA.");
+                    outerBox.style.borderColor = 'red';
+                    log("TxManager: Rolling back TX-1.");
+                    log("RESULT: TX-1 Rolled Back, TX-2 Rolled Back.");
+                } else if (prop === 'NESTED') {
+                    log("TxManager: Rolling back to Savepoint.");
+                    log("Exception propagates to ServiceA.");
+                    outerBox.style.borderColor = 'red';
+                    log("TxManager: Rolling back TX-1.");
+                    log("RESULT: All Rolled Back.");
+                } else {
+                    log("TxManager: Marking TX-1 for Rollback-Only.");
+                    log("Exception propagates to ServiceA.");
+                    outerBox.style.borderColor = 'red';
+                    log("TxManager: Rolling back TX-1.");
+                    log("RESULT: All Rolled Back.");
+                }
+                return;
+            }
+
+            // Step 4: Inner Success
+            innerBox.style.borderColor = 'green';
+            innerBox.innerHTML += `<div style="color:green; font-weight:bold;">✔ Success</div>`;
+            
+            if (prop === 'REQUIRES_NEW') {
+                log("TxManager: Committing TX-2.");
+                log("TxManager: Resuming TX-1.");
+            } else if (prop === 'NESTED') {
+                log("TxManager: Releasing Savepoint.");
+            }
+            
+            await wait(800);
+
+            // Step 5: Outer Exception?
+            if (exLoc === 'OUTER') {
+                outerBox.style.borderColor = 'red';
+                outerBox.innerHTML += `<div style="color:red; font-weight:bold;">❌ Exception Thrown!</div>`;
+                log("Exception in ServiceA!");
+                log("TxManager: Rolling back TX-1.");
+                
+                if (prop === 'REQUIRES_NEW') {
+                    log("RESULT: TX-1 Rolled Back. TX-2 COMMITTED (Isolated).");
+                } else {
+                    log("RESULT: All Rolled Back.");
+                }
+                return;
+            }
+
+            // Step 6: All Success
+            outerBox.style.borderColor = 'green';
+            outerBox.innerHTML += `<div style="color:green; font-weight:bold;">✔ Success</div>`;
+            log("TxManager: Committing TX-1.");
+            log("RESULT: All Committed.");
+        }
+
+        function wait(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>
