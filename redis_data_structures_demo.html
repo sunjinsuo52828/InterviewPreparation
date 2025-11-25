@@ -143,6 +143,48 @@
                 <button onclick="slSearch()" id="btn-search" style="background: #0078d4;">Search</button>
                 <button onclick="slReset()" style="background: #757575;">Reset</button>
             </div>
+            
+            <!-- Deep Dive Info Panel -->
+            <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #ff9800;">
+                <h3 style="margin-top:0; color:#e65100;">🤔 Deep Dive: Why SkipList?</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <strong>1. Why SkipList instead of Red-Black Tree?</strong>
+                        <ul style="margin-top:5px; padding-left:20px; font-size:0.9rem; color:#333;">
+                            <li><strong>Simplicity:</strong> Much easier to implement and debug than balanced trees.</li>
+                            <li><strong>Range Queries:</strong> Finding a range (e.g., `ZRANGE`) is faster. Just find the start node and traverse Level 0 forward. Trees require complex traversal.</li>
+                            <li><strong>Memory:</strong> SkipList nodes average 1.33 pointers per node, while Trees always need 2 (Left/Right) + Color bit.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>2. How is Level Calculated? (Probabilistic)</strong>
+                        <ul style="margin-top:5px; padding-left:20px; font-size:0.9rem; color:#333;">
+                            <li>It uses a "Coin Flip" strategy (Geometric Distribution).</li>
+                            <li>Level 1: 100%</li>
+                            <li>Level 2: 50% (1/2 chance)</li>
+                            <li>Level 3: 25% (1/4 chance)</li>
+                            <li>Redis uses `p=0.25` (1/4) for better memory efficiency. Max Level is 32.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>3. How Search Works?</strong>
+                        <ul style="margin-top:5px; padding-left:20px; font-size:0.9rem; color:#333;">
+                            <li>Start at the <strong>Top Level</strong> Head.</li>
+                            <li>Move <strong>Right</strong> if `next.val < target`.</li>
+                            <li>Move <strong>Down</strong> if `next.val >= target` (or next is null).</li>
+                            <li>Repeat until Level 0. Complexity: $O(\log N)$.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>4. Expiration & Updates?</strong>
+                        <ul style="margin-top:5px; padding-left:20px; font-size:0.9rem; color:#333;">
+                            <li><strong>Expiration:</strong> ZSet elements <em>do not</em> expire individually. Only the entire Key (ZSet) has a TTL.</li>
+                            <li><strong>Updates:</strong> If you update a Score (`ZADD`), Redis deletes the old node and re-inserts it with the new score (and potentially a new random level).</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <div id="sl-canvas" class="skiplist-container" style="height: 350px;"></div>
         </div>
 
@@ -226,7 +268,14 @@
 
         function randomLevel() {
             let lvl = 0;
-            while (Math.random() < 0.5 && lvl < MAX_LEVEL) lvl++;
+            // Redis uses p=0.25, but for this small demo we use p=0.5 to show more levels
+            let logStr = "Dice Rolls: ";
+            while (Math.random() < 0.5 && lvl < MAX_LEVEL) {
+                lvl++;
+                logStr += "Heads (Up) -> ";
+            }
+            logStr += "Tails (Stop). Final Level: " + lvl;
+            log(logStr, 'info');
             return lvl;
         }
 
