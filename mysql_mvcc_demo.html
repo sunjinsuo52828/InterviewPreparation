@@ -53,6 +53,16 @@
 <body>
     <h1>MySQL MVCC (Multi-Version Concurrency Control)</h1>
     
+    <div style="width: 1100px; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <h3 style="margin-top:0; color:#333;">Demo Guide</h3>
+        <ul style="margin:0; padding-left: 20px; color: #555;">
+            <li><strong>Start Trx:</strong> Creates a new active transaction with a unique ID.</li>
+            <li><strong>Update:</strong> Modifies the row. This creates a new version in the <em>Undo Log Chain</em>, pointing to the previous version.</li>
+            <li><strong>Read:</strong> Simulates a SELECT. It creates a <em>Read View</em> (Snapshot) and traverses the Undo Log to find the first "visible" version based on Isolation rules.</li>
+            <li><strong>Commit:</strong> Ends the transaction, making its changes potentially visible to future Read Views.</li>
+        </ul>
+    </div>
+
     <div class="container">
         <!-- Left: Transactions -->
         <div class="col col-left">

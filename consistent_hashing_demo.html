@@ -49,6 +49,16 @@
 <body>
     <h1>Consistent Hashing Ring</h1>
     
+    <div style="width: 1000px; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <h3 style="margin-top:0; color:#333;">Demo Guide</h3>
+        <ul style="margin:0; padding-left: 20px; color: #555;">
+            <li><strong>Add Node:</strong> Adds a new server to the Hash Ring (0° - 360°). Existing keys will automatically rebalance.</li>
+            <li><strong>Add Key:</strong> Simulates a data item. It routes to the first Node found clockwise.</li>
+            <li><strong>Virtual Nodes:</strong> Enable this to create multiple copies (vNodes) of each real node, reducing data skew and improving balance.</li>
+            <li><strong>Remove Node:</strong> Simulates a server crash. Its keys are re-routed to the next available node.</li>
+        </ul>
+    </div>
+
     <div class="container">
         <div class="canvas-area" id="ring">
             <svg id="lines"></svg>

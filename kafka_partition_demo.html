@@ -51,6 +51,15 @@
 <body>
     <h1>Kafka Partitions & Consumer Groups</h1>
     
+    <div style="width: 1100px; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <h3 style="margin-top:0; color:#333;">Demo Guide</h3>
+        <ul style="margin:0; padding-left: 20px; color: #555;">
+            <li><strong>Consumers:</strong> Add/Remove consumers to the group. Watch the partitions <em>Rebalance</em> (re-assign) among available consumers.</li>
+            <li><strong>Produce (Round Robin):</strong> Sends messages sequentially to P0, P1, P2, P3. Good for load balancing.</li>
+            <li><strong>Produce (Keyed):</strong> Enter a key (e.g., "order-123"). Messages with the same key always go to the same partition (Hash Routing), ensuring ordering.</li>
+        </ul>
+    </div>
+
     <div class="container">
         <!-- Left: Topic & Partitions -->
         <div class="col col-left">

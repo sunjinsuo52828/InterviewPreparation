@@ -41,6 +41,15 @@
 <body>
     <h1>TCP 3-Way Handshake & 4-Way Wave</h1>
     
+    <div style="width: 800px; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <h3 style="margin-top:0; color:#333;">Demo Guide</h3>
+        <ul style="margin:0; padding-left: 20px; color: #555;">
+            <li><strong>Handshake:</strong> Click "Start Connection" to initiate the 3-Way Handshake (SYN -> SYN-ACK -> ACK). Watch the states change to ESTABLISHED.</li>
+            <li><strong>Teardown:</strong> Click "Close Connection" to start the 4-Way Wave (FIN -> ACK -> FIN -> ACK). Note the TIME_WAIT state on the active closer.</li>
+            <li><strong>Logs:</strong> Observe the Sequence (Seq) and Acknowledgment (Ack) numbers in the console below.</li>
+        </ul>
+    </div>
+
     <div class="container">
         <div class="host" id="client">
             <div class="host-title">Client</div>
