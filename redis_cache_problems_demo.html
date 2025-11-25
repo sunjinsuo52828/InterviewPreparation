@@ -6,65 +6,88 @@
     <title>Redis Cache Problems Visualized</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
-        h1 { color: #d82c20; }
+        h1 { color: #d82c20; margin-bottom: 10px; }
         
-        .layout { display: flex; gap: 20px; width: 100%; max-width: 1100px; margin-top: 20px; }
+        .layout { display: flex; gap: 20px; width: 100%; max-width: 1200px; margin-top: 20px; }
         
-        .sidebar { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 10px; }
-        .canvas { flex: 2; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; min-height: 500px; overflow: hidden; }
+        .sidebar { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 15px; }
+        .canvas { flex: 2.5; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; min-height: 600px; overflow: hidden; }
         
-        button { padding: 10px; border: 1px solid #ccc; background: #f9f9f9; cursor: pointer; border-radius: 4px; text-align: left; transition: all 0.2s; }
-        button:hover { background: #eee; }
-        button.active { background: #d82c20; color: white; border-color: #b71c1c; }
-        button.run-btn { background: #28a745; color: white; text-align: center; font-weight: bold; margin-top: auto; }
-        button.run-btn:hover { background: #218838; }
+        button { padding: 12px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 6px; text-align: left; transition: all 0.2s; font-size: 1rem; display: flex; align-items: center; justify-content: space-between; }
+        button:hover { background: #eee; transform: translateX(5px); }
+        button.active { background: #d82c20; color: white; border-color: #b71c1c; transform: translateX(5px); box-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
+        button.run-btn { background: #2e7d32; color: white; text-align: center; font-weight: bold; margin-top: auto; justify-content: center; font-size: 1.1rem; }
+        button.run-btn:hover { background: #1b5e20; transform: scale(1.02); }
 
-        .desc-box { background: #fff3e0; padding: 10px; border-radius: 4px; font-size: 0.9rem; color: #555; border-left: 4px solid #ff9800; min-height: 80px; }
-        .solution-box { background: #e8f5e9; padding: 10px; border-radius: 4px; font-size: 0.9rem; color: #2e7d32; border-left: 4px solid #2e7d32; display: none; }
+        .desc-box { background: #fff3e0; padding: 15px; border-radius: 6px; font-size: 0.95rem; color: #555; border-left: 5px solid #ff9800; min-height: 80px; line-height: 1.5; }
+        .solution-box { background: #e8f5e9; padding: 15px; border-radius: 6px; font-size: 0.95rem; color: #2e7d32; border-left: 5px solid #2e7d32; display: none; margin-top: 10px; }
         
         /* Visual Elements */
-        .component { position: absolute; border-radius: 8px; display: flex; flex-direction: column; align-items: center; padding: 10px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: all 0.3s; }
+        .component { position: absolute; border-radius: 12px; display: flex; flex-direction: column; align-items: center; padding: 15px; font-weight: bold; box-shadow: 0 4px 8px rgba(0,0,0,0.1); transition: all 0.3s; background: white; border: 2px solid #ccc; }
         
-        .client { top: 20px; left: 20px; width: 100px; background: #333; color: white; z-index: 2; }
+        .client { top: 30px; left: 30px; width: 100px; background: #333; color: white; z-index: 2; border: none; }
         
         .bloom-filter { 
-            top: 100px; left: 150px; width: 120px; height: 40px; 
-            background: #673ab7; color: white; border-radius: 20px;
+            top: 120px; left: 180px; width: 140px; height: 50px; 
+            background: #673ab7; color: white; border-radius: 25px;
             display: flex; align-items: center; justify-content: center;
             opacity: 0; transform: scale(0.8); transition: all 0.3s; z-index: 2;
+            box-shadow: 0 4px 10px rgba(103, 58, 183, 0.3);
         }
         .bloom-filter.visible { opacity: 1; transform: scale(1); }
 
-        .redis { top: 180px; left: 150px; width: 200px; height: 150px; background: #ffebee; border: 2px solid #d82c20; z-index: 1; }
-        .redis-title { color: #d82c20; margin-bottom: 10px; }
-        .key-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; width: 100%; }
-        .key-item { background: white; border: 1px solid #ffcdd2; padding: 5px; font-size: 0.7rem; text-align: center; border-radius: 3px; }
-        .key-item.expired { background: #eee; color: #999; text-decoration: line-through; }
-        .key-item.missing { border-style: dashed; color: #999; }
+        .redis { top: 220px; left: 180px; width: 240px; height: 180px; background: #ffebee; border: 2px solid #d82c20; z-index: 1; }
+        .redis-title { color: #d82c20; margin-bottom: 10px; display: flex; align-items: center; gap: 5px; }
+        .key-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+        .key-item { background: white; border: 1px solid #ffcdd2; padding: 8px; font-size: 0.8rem; text-align: center; border-radius: 4px; transition: all 0.3s; }
+        .key-item.expired { background: #eee; color: #999; text-decoration: line-through; border-color: #ddd; }
+        .key-item.missing { border-style: dashed; color: #999; background: transparent; }
         .key-item.ok { background: #e8f5e9; border-color: #c8e6c9; color: #2e7d32; }
 
-        .db { top: 380px; left: 350px; width: 150px; height: 100px; background: #e3f2fd; border: 2px solid #0288d1; z-index: 1; }
-        .db-title { color: #0288d1; }
-        .db-load { width: 100%; height: 10px; background: #ddd; margin-top: 10px; border-radius: 5px; overflow: hidden; }
-        .db-load-fill { height: 100%; width: 0%; background: #d82c20; transition: width 0.2s; }
+        .db { top: 450px; left: 450px; width: 180px; height: 120px; background: #e3f2fd; border: 2px solid #0288d1; z-index: 1; }
+        .db-title { color: #0288d1; margin-bottom: 10px; }
+        .db-load { width: 100%; height: 15px; background: #ddd; margin-top: 10px; border-radius: 10px; overflow: hidden; border: 1px solid #ccc; }
+        .db-load-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #4caf50, #f44336); transition: width 0.2s; }
 
         .mutex {
-            position: absolute; top: 200px; left: 370px; background: #ff9800; color: white; 
-            padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; opacity: 0; z-index: 3;
+            position: absolute; top: 250px; left: 450px; background: #ff9800; color: white; 
+            padding: 8px 15px; border-radius: 20px; font-size: 0.9rem; opacity: 0; z-index: 3;
+            box-shadow: 0 4px 10px rgba(255, 152, 0, 0.4); font-weight: bold;
         }
         .mutex.visible { opacity: 1; animation: pulse 1s infinite; }
 
         /* Request Ball */
         .req { 
-            position: absolute; width: 20px; height: 20px; background: #333; border-radius: 50%; 
-            display: flex; align-items: center; justify-content: center; color: white; font-size: 0.6rem;
-            z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            position: absolute; width: 24px; height: 24px; background: #333; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem;
+            z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3); font-weight: bold;
         }
-        .req.hit { background: #28a745; }
-        .req.miss { background: #d82c20; }
-        .req.blocked { background: #673ab7; } /* Bloom Filter Block */
+        .req.hit { background: #2e7d32; border: 2px solid white; }
+        .req.miss { background: #d32f2f; border: 2px solid white; }
+        .req.blocked { background: #512da8; border: 2px solid white; } /* Bloom Filter Block */
+        .req.wait { background: #f57c00; border: 2px solid white; }
 
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: white; width: 900px; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;
+        }
+        .close-btn {
+            position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #666;
+        }
+        .close-btn:hover { color: #d82c20; }
+        
+        .theory-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px; }
+        .theory-card { background: #f9f9f9; padding: 15px; border-radius: 8px; border-top: 4px solid #ccc; }
+        .theory-card h3 { margin-top: 0; font-size: 1.1rem; }
+        .theory-card ul { padding-left: 20px; font-size: 0.9rem; color: #444; }
+        .theory-card li { margin-bottom: 5px; }
 
     </style>
 </head>
@@ -73,20 +96,32 @@
     
     <div class="layout">
         <div class="sidebar">
-            <h3>1. Select Scenario</h3>
-            <button onclick="setScenario('NORMAL')" id="btn-normal" class="active">Normal Flow</button>
-            <button onclick="setScenario('PENETRATION')" id="btn-penetration">Cache Penetration (穿透)</button>
-            <button onclick="setScenario('AVALANCHE')" id="btn-avalanche">Cache Avalanche (雪崩)</button>
-            <button onclick="setScenario('BREAKDOWN')" id="btn-breakdown">Cache Breakdown (击穿)</button>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>1. Select Scenario</h3>
+                <button onclick="openModal()" style="padding:5px 10px; font-size:0.8rem; background:#e65100; color:white; border:none;">🤔 Deep Dive</button>
+            </div>
+            
+            <button onclick="setScenario('NORMAL')" id="btn-normal" class="active">
+                <span>✅ Normal Flow</span>
+            </button>
+            <button onclick="setScenario('PENETRATION')" id="btn-penetration">
+                <span>🕳️ Cache Penetration</span>
+            </button>
+            <button onclick="setScenario('AVALANCHE')" id="btn-avalanche">
+                <span>❄️ Cache Avalanche</span>
+            </button>
+            <button onclick="setScenario('BREAKDOWN')" id="btn-breakdown">
+                <span>🔨 Cache Breakdown</span>
+            </button>
             
             <div class="desc-box" id="desc-box">
-                Normal operation. Keys exist in Redis. Requests hit Redis and return fast. DB is safe.
+                Normal operation. Data is in Redis (Hot Data). Requests hit cache and return fast. DB load is low.
             </div>
 
             <h3>2. Apply Solution</h3>
-            <label style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
-                <input type="checkbox" id="chk-solution" onchange="toggleSolution()"> 
-                <strong>Enable Protection</strong>
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: bold; color: #333;">
+                <input type="checkbox" id="chk-solution" onchange="toggleSolution()" style="width: 20px; height: 20px;"> 
+                Enable Protection
             </label>
             <div class="solution-box" id="solution-box"></div>
 
@@ -99,7 +134,10 @@
             <div class="bloom-filter" id="bloom-filter">Bloom Filter</div>
 
             <div class="component redis">
-                <div class="redis-title">Redis Cache</div>
+                <div class="redis-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#d82c20"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                    Redis Cache
+                </div>
                 <div class="key-grid" id="key-grid">
                     <!-- Keys injected by JS -->
                 </div>
@@ -108,9 +146,59 @@
             <div class="mutex" id="mutex-lock">🔒 Mutex Lock</div>
 
             <div class="component db">
-                <div class="db-title">Database</div>
-                <div style="font-size: 0.8rem;">Load: <span id="load-text">0%</span></div>
+                <div class="db-title">Database (DB)</div>
+                <div style="font-size: 0.8rem; display:flex; justify-content:space-between;">
+                    <span>Load:</span>
+                    <span id="load-text" style="font-weight:bold;">0%</span>
+                </div>
                 <div class="db-load"><div class="db-load-fill" id="db-load-fill"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div id="deep-dive-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('deep-dive-modal').style.display='none'">&times;</span>
+            <h2 style="color:#d82c20; margin-top:0;">📚 Deep Dive: Redis Cache Problems</h2>
+            
+            <div class="theory-grid">
+                <div class="theory-card" style="border-top-color: #d32f2f;">
+                    <h3 style="color:#d32f2f;">1. Cache Penetration</h3>
+                    <p style="font-size:0.9rem;"><strong>Phenomenon:</strong> Querying data that <strong>does not exist</strong> in Redis OR DB. Requests penetrate directly to DB.</p>
+                    <p style="font-size:0.9rem;"><strong>Cause:</strong> Malicious attacks (e.g., ID=-1) or bugs.</p>
+                    <hr style="border:0; border-top:1px solid #eee;">
+                    <h4 style="margin:5px 0; font-size:0.95rem;">✅ Solution:</h4>
+                    <ul>
+                        <li><strong>Bloom Filter:</strong> Check if Key *might* exist before hitting Redis. If BF says "No", it's definitely No.</li>
+                        <li><strong>Cache Null:</strong> Store `null` in Redis for missing keys (with short TTL).</li>
+                    </ul>
+                </div>
+
+                <div class="theory-card" style="border-top-color: #1976d2;">
+                    <h3 style="color:#1976d2;">2. Cache Avalanche</h3>
+                    <p style="font-size:0.9rem;"><strong>Phenomenon:</strong> Many keys expire <strong>at the same time</strong>, or Redis crashes. Massive traffic hits DB instantly.</p>
+                    <p style="font-size:0.9rem;"><strong>Cause:</strong> Same TTL set for many keys.</p>
+                    <hr style="border:0; border-top:1px solid #eee;">
+                    <h4 style="margin:5px 0; font-size:0.95rem;">✅ Solution:</h4>
+                    <ul>
+                        <li><strong>Random TTL:</strong> Add random jitter (e.g., 1-5 mins) to expiration times.</li>
+                        <li><strong>High Availability:</strong> Use Redis Sentinel or Cluster.</li>
+                        <li><strong>Rate Limiting:</strong> Return default values if load is too high.</li>
+                    </ul>
+                </div>
+
+                <div class="theory-card" style="border-top-color: #f57c00;">
+                    <h3 style="color:#f57c00;">3. Cache Breakdown</h3>
+                    <p style="font-size:0.9rem;"><strong>Phenomenon:</strong> A <strong>Hot Key</strong> expires, and concurrent requests for this key hit DB simultaneously.</p>
+                    <p style="font-size:0.9rem;"><strong>Cause:</strong> Hot news, flash sale items expiring.</p>
+                    <hr style="border:0; border-top:1px solid #eee;">
+                    <h4 style="margin:5px 0; font-size:0.95rem;">✅ Solution:</h4>
+                    <ul>
+                        <li><strong>Mutex Lock:</strong> Only one thread can query DB and rebuild cache. Others wait.</li>
+                        <li><strong>Logical Expiration:</strong> Don't set TTL. Store expiry in value. Background thread updates cache.</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
@@ -122,7 +210,7 @@
         const scenarios = {
             NORMAL: {
                 title: "Normal Flow",
-                desc: "Data is present in Redis (Hot Data). Requests hit Redis (Cache Hit) and return immediately. Database load is low.",
+                desc: "Normal operation. Data is in Redis (Hot Data). Requests hit cache (Cache Hit) and return fast. DB load is low.",
                 keys: [
                     { id: 1, val: 'Data A', status: 'ok' },
                     { id: 2, val: 'Data B', status: 'ok' },
@@ -131,9 +219,9 @@
                 ]
             },
             PENETRATION: {
-                title: "Cache Penetration (穿透)",
-                desc: "Malicious user requests data that DOES NOT EXIST in Redis OR Database (e.g., id=-1). Every request goes to DB.",
-                solution: "<strong>Bloom Filter:</strong> Checks if key *might* exist before hitting Redis/DB. Blocks invalid keys.",
+                title: "Cache Penetration",
+                desc: "Malicious user requests data that <strong>DOES NOT EXIST</strong> in Redis OR DB (e.g., id=-1). All requests penetrate to DB.",
+                solution: "<strong>Bloom Filter:</strong> Checks if Key *might* exist before hitting Redis. If BF says 'No', block request immediately.",
                 keys: [
                     { id: 1, val: 'Data A', status: 'ok' },
                     { id: 2, val: 'Data B', status: 'ok' },
@@ -142,8 +230,8 @@
                 ]
             },
             AVALANCHE: {
-                title: "Cache Avalanche (雪崩)",
-                desc: "Many keys expire AT THE SAME TIME. A massive wave of requests hits the DB simultaneously.",
+                title: "Cache Avalanche",
+                desc: "Many keys expire <strong>AT THE SAME TIME</strong>. Massive traffic hits DB instantly, potentially crashing it.",
                 solution: "<strong>Random TTL:</strong> Add random time to expiration so keys don't expire together.",
                 keys: [
                     { id: 1, val: 'Data A', status: 'expired' },
@@ -153,17 +241,27 @@
                 ]
             },
             BREAKDOWN: {
-                title: "Cache Breakdown (击穿)",
-                desc: "A single HOT key expires. Thousands of concurrent requests for this ONE key hit the DB.",
+                title: "Cache Breakdown",
+                desc: "A single <strong>HOT KEY</strong> expires. Thousands of concurrent requests for this ONE key hit the DB.",
                 solution: "<strong>Mutex Lock:</strong> Only the first thread hits DB to rebuild cache. Others wait.",
                 keys: [
-                    { id: 1, val: 'HOT KEY', status: 'expired' },
+                    { id: 1, val: '🔥 HOT KEY', status: 'expired' },
                     { id: 2, val: 'Data B', status: 'ok' },
                     { id: 3, val: 'Data C', status: 'ok' },
                     { id: 4, val: 'Data D', status: 'ok' }
                 ]
             }
         };
+
+        function openModal() {
+            document.getElementById('deep-dive-modal').style.display = 'flex';
+        }
+
+        function closeModal(e) {
+            if (e.target.className === 'modal-overlay') {
+                document.getElementById('deep-dive-modal').style.display = 'none';
+            }
+        }
 
         function setScenario(s) {
             currentScenario = s;
@@ -205,10 +303,12 @@
             // If solution enabled for Avalanche, randomize keys
             const solution = document.getElementById('chk-solution').checked;
             if (currentScenario === 'AVALANCHE' && solution) {
-                // Show some expired, some ok
+                // Show some expired, some ok (Simulating Random TTL)
                 keys.forEach((k, i) => {
                     const div = document.createElement('div');
-                    div.className = `key-item ${i % 2 === 0 ? 'ok' : 'expired'}`;
+                    // Randomly decide if expired or not for visualization
+                    const isExpired = Math.random() > 0.5;
+                    div.className = `key-item ${isExpired ? 'expired' : 'ok'}`;
                     div.innerText = k.val;
                     grid.appendChild(div);
                 });
@@ -222,12 +322,33 @@
             }
         }
 
+        function updateDbLoad() {
+            const fill = document.getElementById('db-load-fill');
+            const text = document.getElementById('load-text');
+            fill.style.width = `${dbLoad}%`;
+            text.innerText = `${dbLoad}%`;
+            
+            if (dbLoad > 80) fill.style.background = '#d32f2f';
+            else if (dbLoad > 50) fill.style.background = '#f57c00';
+            else fill.style.background = '#4caf50';
+        }
+
+        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        function animate(element, top, left) {
+            return new Promise(resolve => {
+                element.style.top = top + 'px';
+                element.style.left = left + 'px';
+                setTimeout(resolve, 300);
+            });
+        }
+
         async function runSimulation() {
             dbLoad = 0;
             updateDbLoad();
             
-            const count = (currentScenario === 'AVALANCHE' || currentScenario === 'BREAKDOWN') ? 15 : 5;
-            const interval = (currentScenario === 'AVALANCHE') ? 100 : 400;
+            const count = (currentScenario === 'AVALANCHE' || currentScenario === 'BREAKDOWN') ? 20 : 5;
+            const interval = (currentScenario === 'AVALANCHE') ? 80 : 400;
 
             for (let i = 0; i < count; i++) {
                 spawnRequest(i);
@@ -244,12 +365,15 @@
             document.querySelector('.canvas').appendChild(ball);
 
             // 1. Move to Bloom Filter (if visible) or Redis
-            let targetY = 180; // Redis
-            let targetX = 200;
+            // Coordinates based on CSS
+            // Client: 30, 30
+            // Bloom: 120, 180
+            // Redis: 220, 180
+            // DB: 450, 450
             
             if (currentScenario === 'PENETRATION' && solution) {
                 // Hit Bloom Filter
-                await animate(ball, 100, 150); // Bloom Filter pos
+                await animate(ball, 135, 200); // Bloom Filter center
                 ball.classList.add('blocked');
                 ball.innerText = 'Blk';
                 await wait(300);
@@ -258,7 +382,7 @@
             }
 
             // 2. Move to Redis
-            await animate(ball, 180, 200); // Redis pos
+            await animate(ball, 250, 250); // Redis center
             
             // Check Hit/Miss logic
             let hit = false;
@@ -267,8 +391,12 @@
             if (currentScenario === 'NORMAL') hit = true;
             else if (currentScenario === 'PENETRATION') hit = false; // Always miss
             else if (currentScenario === 'AVALANCHE') {
-                if (solution) hit = Math.random() > 0.5; // Random TTL saved some
-                else hit = false; // All expired
+                if (solution) {
+                    // Random TTL saved some, so 50% hit rate
+                    hit = Math.random() > 0.5; 
+                } else {
+                    hit = false; // All expired
+                }
             }
             else if (currentScenario === 'BREAKDOWN') {
                 // Hot key expired
@@ -292,61 +420,33 @@
 
             if (hit) {
                 if (waitMutex) {
+                    ball.classList.add('wait');
                     ball.innerText = 'Wait';
-                    await wait(500); // Simulate waiting for lock
+                    await wait(600); // Simulate waiting for lock
                 }
                 ball.classList.add('hit');
                 ball.innerText = 'Hit';
                 await wait(300);
                 ball.remove();
             } else {
+                // Miss -> Go to DB
                 ball.classList.add('miss');
                 ball.innerText = 'Miss';
+                await wait(200);
                 
-                // 3. Move to DB
-                await animate(ball, 380, 400);
+                await animate(ball, 480, 480); // DB center
                 
                 // Increase Load
-                dbLoad += 10;
+                dbLoad = Math.min(100, dbLoad + 10);
                 updateDbLoad();
                 
                 await wait(300);
                 ball.remove();
-                
-                // Decrease Load slowly
-                setTimeout(() => {
-                    dbLoad = Math.max(0, dbLoad - 10);
-                    updateDbLoad();
-                }, 1000);
             }
         }
 
-        function updateDbLoad() {
-            const fill = document.getElementById('db-load-fill');
-            const text = document.getElementById('load-text');
-            fill.style.width = Math.min(100, dbLoad) + '%';
-            text.innerText = Math.min(100, dbLoad) + '%';
-            
-            if (dbLoad > 80) fill.style.background = '#b71c1c'; // Critical
-            else if (dbLoad > 50) fill.style.background = '#f57f17'; // Warning
-            else fill.style.background = '#28a745'; // OK
-        }
-
-        function animate(el, top, left) {
-            return new Promise(resolve => {
-                el.style.transition = 'all 0.5s linear';
-                // Force reflow
-                el.offsetHeight; 
-                el.style.top = top + 'px';
-                el.style.left = left + 'px';
-                setTimeout(resolve, 500);
-            });
-        }
-
-        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
-
         // Init
-        setScenario('NORMAL');
+        renderKeys();
 
     </script>
 </body>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redis Data Structures Visualization</title>
+    <title>Redis Data Structures & Architecture Visualization</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
         h1 { color: #d82c20; margin-bottom: 10px; }
@@ -106,10 +106,10 @@
     </style>
 </head>
 <body>
-    <h1>Redis Data Structures & Architecture</h1>
+    <h1>Redis Data Structures & Architecture Visualization</h1>
     <div class="tabs">
         <div class="tab active" onclick="switchTab('skiplist')">SkipList (ZSet)</div>
-        <div class="tab" onclick="switchTab('lru')">LRU Cache</div>
+        <div class="tab" onclick="switchTab('lru')">LRU Eviction</div>
         <div class="tab" onclick="switchTab('theory')">Why Redis is Fast?</div>
     </div>
 
@@ -121,38 +121,38 @@
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
-                    <strong>1. Why SkipList instead of Red-Black Tree?</strong>
+                    <strong>1. Why not Red-Black Tree?</strong>
                     <ul style="margin-top:5px; padding-left:20px; font-size:0.9rem; color:#333;">
-                        <li><strong>Simplicity:</strong> Much easier to implement and debug than balanced trees.</li>
-                        <li><strong>Range Queries:</strong> Finding a range (e.g., `ZRANGE`) is faster. Just find the start node and traverse Level 0 forward. Trees require complex traversal.</li>
-                        <li><strong>Memory:</strong> SkipList nodes average 1.33 pointers per node, while Trees always need 2 (Left/Right) + Color bit.</li>
+                        <li><strong>Simplicity:</strong> SkipLists are easier to implement and debug than balanced trees.</li>
+                        <li><strong>Range Queries:</strong> ZSet often needs range scans (`ZRANGE`). SkipList just finds the start node and traverses the Level 0 list. Trees require complex traversal.</li>
+                        <li><strong>Memory:</strong> SkipList nodes average 1.33 pointers, while tree nodes usually need 2 (left/right) + color bit.</li>
                     </ul>
                 </div>
                 <div>
-                    <strong>2. How is Level Calculated? (Probabilistic)</strong>
+                    <strong>2. How are levels decided? (Probabilistic)</strong>
                     <ul style="margin-top:5px; padding-left:20px; font-size:0.9rem; color:#333;">
-                        <li>It uses a "Coin Flip" strategy (Geometric Distribution).</li>
-                        <li><strong>Algorithm:</strong> Start at Level 1. Flip a coin (p=0.25). If Heads, Level++. Repeat until Tails or Max Level (32).</li>
-                        <li>Level 1: 100% (Always)</li>
-                        <li>Level 2: 25% (1/4 chance)</li>
-                        <li>Level 3: 6.25% (1/16 chance)</li>
-                        <li>This ensures a pyramid structure where higher levels have fewer nodes.</li>
+                        <li>Uses a "Coin Flip" strategy (Geometric Distribution).</li>
+                        <li><strong>Algorithm:</strong> Start at Level 1. Flip coin (p=0.25). If heads, Level++. Repeat until tails or max level (32).</li>
+                        <li>Level 1: 100% (All nodes)</li>
+                        <li>Level 2: 25% (1/4 probability)</li>
+                        <li>Level 3: 6.25% (1/16 probability)</li>
+                        <li>This creates a pyramid structure where higher levels are sparse.</li>
                     </ul>
                 </div>
                 <div>
-                    <strong>3. How Search Works?</strong>
+                    <strong>3. Search Process</strong>
                     <ul style="margin-top:5px; padding-left:20px; font-size:0.9rem; color:#333;">
-                        <li>Start at the <strong>Top Level</strong> Head.</li>
-                        <li>Move <strong>Right</strong> if `next.val < target`.</li>
-                        <li>Move <strong>Down</strong> if `next.val >= target` (or next is null).</li>
-                        <li>Repeat until Level 0. Complexity: $O(\log N)$.</li>
+                        <li>Start at Head of <strong>Highest Level</strong>.</li>
+                        <li>If `next.val < target`, move <strong>RIGHT</strong>.</li>
+                        <li>If `next.val >= target` (or next is null), move <strong>DOWN</strong>.</li>
+                        <li>Repeat until Level 0. Time Complexity: $O(\log N)$.</li>
                     </ul>
                 </div>
                 <div>
-                    <strong>4. Expiration & Updates?</strong>
+                    <strong>4. Expiration & Updates</strong>
                     <ul style="margin-top:5px; padding-left:20px; font-size:0.9rem; color:#333;">
-                        <li><strong>Expiration:</strong> ZSet elements <em>do not</em> expire individually. Only the entire Key (ZSet) has a TTL.</li>
-                        <li><strong>Updates:</strong> If you update a Score (`ZADD`), Redis deletes the old node and re-inserts it with the new score (and potentially a new random level).</li>
+                        <li><strong>Expiration:</strong> Elements in ZSet do <em>not</em> expire individually. Only the whole Key (ZSet) has a TTL.</li>
+                        <li><strong>Update:</strong> If Score is updated (`ZADD`), Redis deletes the old node and re-inserts with new Score (potentially new random level).</li>
                     </ul>
                 </div>
             </div>
@@ -161,7 +161,7 @@
 
     <div class="container">
         <div class="narrative" id="narrative">
-            Select a tab to begin. SkipList is used for Sorted Sets (ZSet). LRU is used for memory eviction.
+            Select a tab to begin. SkipList is used for Sorted Sets (ZSet), LRU for memory eviction.
         </div>
 
         <!-- Theory View -->
@@ -169,17 +169,17 @@
             <div class="theory-card">
                 <h3>🚀 Why is Redis so Fast? (100k+ QPS)</h3>
                 <ul>
-                    <li><strong>In-Memory Storage:</strong> Accessing RAM (ns) is 100,000x faster than Disk (ms).</li>
-                    <li><strong>Single-Threaded Model:</strong> Avoids Context Switching and Lock Contention (Race Conditions).</li>
-                    <li><strong>IO Multiplexing (epoll):</strong> Handles thousands of connections using a single thread efficiently.</li>
-                    <li><strong>Efficient Data Structures:</strong> SDS (Simple Dynamic String), SkipList, ZipList are optimized for speed.</li>
+                    <li><strong>In-Memory:</strong> Accessing RAM (nanoseconds) is 100,000x faster than Disk (milliseconds).</li>
+                    <li><strong>Single-Threaded Model:</strong> Avoids Context Switching and Lock Contention overhead.</li>
+                    <li><strong>IO Multiplexing (epoll):</strong> Efficiently handles thousands of concurrent connections using a single thread.</li>
+                    <li><strong>Efficient Data Structures:</strong> SDS (Simple Dynamic String), SkipList, ZipList are highly optimized.</li>
                 </ul>
             </div>
 
             <div class="theory-card" style="border-left-color: #0288d1;">
                 <h3>🛡️ High Availability (Sentinel)</h3>
                 <ul>
-                    <li><strong>Monitoring:</strong> Sentinel nodes check if Master is alive.</li>
+                    <li><strong>Monitoring:</strong> Sentinels constantly check if Master is alive.</li>
                     <li><strong>Automatic Failover:</strong> If Master dies, Sentinel promotes a Slave to be the new Master.</li>
                     <li><strong>Notification:</strong> Clients are notified of the new Master address.</li>
                 </ul>
@@ -189,8 +189,8 @@
                 <h3>🌐 Scalability (Cluster)</h3>
                 <ul>
                     <li><strong>Sharding:</strong> Data is split into 16,384 Hash Slots.</li>
-                    <li><strong>Distribution:</strong> Different nodes hold different slots (e.g., Node A: 0-5000, Node B: 5001-10000).</li>
-                    <li><strong>Decentralized:</strong> No central proxy; clients can connect to any node to find the right slot.</li>
+                    <li><strong>Distribution:</strong> Different nodes hold different slot ranges (e.g., Node A: 0-5000).</li>
+                    <li><strong>Decentralized:</strong> No central proxy. Clients can connect to any node, which redirects (MOVED) to the correct one.</li>
                 </ul>
             </div>
         </div>
@@ -217,8 +217,8 @@
             </div>
             <div class="lru-wrapper">
                 <div style="width: 90%; display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; color: #555;">
-                    <span>MRU (Most Recently Used) <br><small style="font-weight:normal; color:#888">Front of Queue</small></span>
-                    <span style="text-align: right;">LRU (Least Recently Used) <br><small style="font-weight:normal; color:#888">Back of Queue</small></span>
+                    <span>MRU (Most Recently Used) <br><small style="font-weight:normal; color:#888">Head of Queue</small></span>
+                    <span style="text-align: right;">LRU (Least Recently Used) <br><small style="font-weight:normal; color:#888">Tail of Queue</small></span>
                 </div>
                 <div class="cache-box" id="lru-box"></div>
             </div>
@@ -244,13 +244,13 @@
             document.getElementById('theory-view').style.display = tab === 'theory' ? 'block' : 'none';
             
             if(tab === 'skiplist') {
-                narrate("<strong>SkipList (ZSet)</strong>: A multi-level linked list. Higher levels allow 'skipping' over many nodes to find values faster ($O(\\log N)$).");
+                narrate("<strong>SkipList</strong>: A multi-level linked list. Upper levels allow 'skipping' many nodes for fast search ($O(\\log N)$).");
                 log("Switched to SkipList view.");
             } else if(tab === 'lru') {
-                narrate("<strong>LRU Cache</strong>: Keeps recently used items at the front. When full, the item at the back (Least Recently Used) is removed.");
+                narrate("<strong>LRU Cache</strong>: Moves recently used items to the front. Removes the last item (Least Recently Used) when full.");
                 log("Switched to LRU Cache view.");
             } else {
-                narrate("<strong>Theory</strong>: Understanding Redis Architecture (Speed, HA, Scalability).");
+                narrate("<strong>Architecture Theory</strong>: Understanding Redis High Performance, HA, and Scalability.");
                 log("Viewing Redis Architecture Theory.");
             }
         }
@@ -298,268 +298,210 @@
 
         function randomLevel() {
             let lvl = 0;
-            let flips = [];
-            // Redis uses p=0.25, but for this small demo we use p=0.5 to show more levels
-            // We simulate a coin flip: Heads = Level Up, Tails = Stop.
-            while (Math.random() < 0.5 && lvl < MAX_LEVEL) {
+            while (Math.random() < 0.25 && lvl < MAX_LEVEL - 1) {
                 lvl++;
-                flips.push("HEADS (Promote)");
             }
-            flips.push("TAILS (Stop)");
-            
-            // Log the process explicitly for the user
-            log(`🎲 Level Calculation (Coin Flips):`, 'warn');
-            flips.forEach((f, i) => log(`   Roll ${i+1}: ${f}`));
-            log(`   => Final Level: ${lvl}`, 'warn');
-            
             return lvl;
-        }
-
-        function slInsert() {
-            if(isAnimating) return;
-            const val = parseInt(document.getElementById('slInput').value);
-            if (isNaN(val)) return;
-            
-            if (slNodes.find(n => n.val === val)) {
-                narrate(`Value <strong>${val}</strong> already exists.`);
-                log(`Insert failed: Value ${val} already exists.`, 'warn');
-                return;
-            }
-
-            log(`CMD: ZADD myzset ${val}`);
-            narrate(`Inserting <strong>${val}</strong>... Calculating random level.`);
-
-            const update = new Array(MAX_LEVEL + 1).fill(null);
-            let current = head;
-
-            for (let i = MAX_LEVEL; i >= 0; i--) {
-                while (current.forward[i] && current.forward[i].val < val) {
-                    current = current.forward[i];
-                }
-                update[i] = current;
-            }
-
-            const lvl = randomLevel();
-            // Level calculation is logged inside randomLevel()
-            const newNode = new SLNode(val, lvl);
-            
-            for (let i = 0; i <= lvl; i++) {
-                newNode.forward[i] = update[i].forward[i];
-                update[i].forward[i] = newNode;
-            }
-            
-            slNodes.push(newNode);
-            slNodes.sort((a, b) => a.val - b.val);
-            renderSkipList();
-            narrate(`Inserted <strong>${val}</strong> at Level ${lvl}. Notice how it appears on multiple levels.`);
-            log(`Successfully inserted ${val} at Level ${lvl}.`, 'info');
-        }
-
-        async function slSearch() {
-            if(isAnimating) return;
-            const val = parseInt(document.getElementById('slInput').value);
-            if (isNaN(val)) return;
-
-            isAnimating = true;
-            renderSkipList(); // Clear previous highlights
-            log(`CMD: ZSCORE myzset ${val}`);
-            narrate(`Searching for <strong>${val}</strong>. Starting from Top Level (L${MAX_LEVEL})...`);
-            
-            let current = head;
-            let found = false;
-
-            // Highlight Head
-            highlightNode(current, 'visited');
-            await wait(500);
-
-            for (let i = MAX_LEVEL; i >= 0; i--) {
-                narrate(`Checking <strong>Level ${i}</strong>...`);
-                log(`Scanning Level ${i}...`);
-                
-                // Move right
-                while (current.forward[i] && current.forward[i].val <= val) {
-                    let nextNode = current.forward[i];
-                    
-                    // Visualize "Looking at next"
-                    highlightNode(nextNode, 'highlight');
-                    log(`  -> Comparing with node [${nextNode.val}]`);
-                    await wait(600);
-
-                    if (nextNode.val === val) {
-                        narrate(`Found <strong>${val}</strong> at Level ${i}!`);
-                        log(`  -> MATCH! Found ${val} at Level ${i}.`, 'info');
-                        highlightNode(nextNode, 'target');
-                        found = true;
-                        isAnimating = false;
-                        return;
-                    }
-
-                    if (nextNode.val < val) {
-                        narrate(`<strong>${nextNode.val}</strong> < ${val}. Moving Right.`);
-                        log(`  -> ${nextNode.val} < ${val}. Moving RIGHT.`);
-                        current = nextNode;
-                        highlightNode(current, 'visited');
-                    }
-                }
-
-                if (i > 0) {
-                    narrate(`Next value is too big (or null). Dropping down to <strong>Level ${i-1}</strong>.`);
-                    log(`  -> Next node is too large. Dropping DOWN to Level ${i-1}.`);
-                    await wait(600);
-                }
-            }
-
-            narrate(`Reached bottom level. Value <strong>${val}</strong> not found.`);
-            log(`Search complete. Value ${val} NOT FOUND.`, 'error');
-            isAnimating = false;
-        }
-
-        function highlightNode(node, className) {
-            // A node exists visually at multiple levels. Highlight all of them or just the specific one?
-            // For simplicity, let's highlight all visual instances of this node value.
-            const val = node.val === -Infinity ? 'H' : node.val;
-            document.querySelectorAll(`.sl-node[data-val="${val}"]`).forEach(el => {
-                el.classList.add(className);
-            });
         }
 
         function slReset() {
             head = new SLNode(-Infinity, MAX_LEVEL);
             slNodes = [];
             renderSkipList();
-            narrate("SkipList reset.");
-            log("SkipList cleared.");
+            log("SkipList Reset.");
+        }
+
+        function slInsert() {
+            const val = parseInt(document.getElementById('slInput').value);
+            if (isNaN(val)) return;
+            
+            // Check duplicate
+            if (slNodes.find(n => n.val === val)) {
+                log(`Value ${val} already exists!`, 'warn');
+                return;
+            }
+
+            const level = randomLevel();
+            const newNode = new SLNode(val, level);
+            slNodes.push(newNode);
+            slNodes.sort((a, b) => a.val - b.val); // Keep sorted for rendering simplicity
+
+            // Rebuild links (Simplified for visualization)
+            log(`Inserted ${val} (Level: ${level + 1})`);
+            renderSkipList();
+        }
+
+        async function slSearch() {
+            if (isAnimating) return;
+            const target = parseInt(document.getElementById('slInput').value);
+            if (isNaN(target)) return;
+
+            isAnimating = true;
+            log(`Searching for: ${target}...`);
+            
+            // We need to simulate the path
+            // Find the node in our simplified array
+            const targetNode = slNodes.find(n => n.val === target);
+            
+            // Visualize path
+            // Start at Head, Max Level
+            let currentVal = -Infinity;
+            let currentLevel = MAX_LEVEL - 1;
+            
+            // Clear highlights
+            document.querySelectorAll('.sl-node').forEach(n => n.classList.remove('highlight', 'visited'));
+
+            // Animation Loop
+            // This is a "fake" traversal for visual effect based on the sorted array
+            // Real traversal logic:
+            let curr = head;
+            
+            // Let's just highlight the nodes we "visit"
+            // 1. Highlight Head
+            highlightNode(-Infinity, MAX_LEVEL - 1);
+            await wait(500);
+
+            for (let i = MAX_LEVEL - 1; i >= 0; i--) {
+                // Move right in current level
+                while (true) {
+                    // Find next node in this level
+                    // In our simplified array 'slNodes', find first node > curr.val
+                    let nextNode = null;
+                    for(let n of slNodes) {
+                        if(n.val > (curr.val === -Infinity ? -999999 : curr.val)) {
+                            // Check if this node has this level
+                            if(n.level >= i) {
+                                nextNode = n;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (nextNode && nextNode.val <= target) {
+                        // Move Right
+                        highlightNode(nextNode.val, i);
+                        curr = nextNode;
+                        await wait(500);
+                        if (curr.val === target) {
+                            log(`Found target ${target}!`, 'info');
+                            document.querySelector(`.sl-node[data-val="${target}"]`).classList.add('target');
+                            isAnimating = false;
+                            return;
+                        }
+                    } else {
+                        // Drop Down
+                        break; 
+                    }
+                }
+                // Drop down to i-1
+            }
+
+            log(`Target ${target} not found.`, 'warn');
+            isAnimating = false;
+        }
+
+        function highlightNode(val, level) {
+            const el = document.querySelector(`.sl-node[data-val="${val}"][data-level="${level}"]`);
+            if (el) {
+                el.classList.add('visited');
+                el.classList.add('highlight');
+                setTimeout(() => el.classList.remove('highlight'), 500);
+            }
         }
 
         function renderSkipList() {
             const container = document.getElementById('sl-canvas');
             container.innerHTML = '';
 
-            const xStep = 70;
-            const startX = 100;
-
-            for (let i = MAX_LEVEL; i >= 0; i--) {
-                const levelDiv = document.createElement('div');
-                levelDiv.className = 'skiplist-level';
-                levelDiv.style.top = (MAX_LEVEL - i) * 10 + 'px'; // Slight overlap or spacing
+            // Create rows for levels
+            for (let i = MAX_LEVEL - 1; i >= 0; i--) {
+                const row = document.createElement('div');
+                row.className = 'skiplist-level';
                 
                 const label = document.createElement('div');
                 label.className = 'level-label';
                 label.innerText = `Level ${i}`;
-                levelDiv.appendChild(label);
+                row.appendChild(label);
 
+                // Line
                 const line = document.createElement('div');
                 line.className = 'sl-line';
-                levelDiv.appendChild(line);
+                row.appendChild(line);
 
-                // Draw Head
-                const headNode = createVisualNode('H', 80, i);
-                levelDiv.appendChild(headNode);
+                // Head Node
+                const headNode = document.createElement('div');
+                headNode.className = 'sl-node head';
+                headNode.innerText = 'H';
+                headNode.style.left = '80px';
+                headNode.dataset.val = -Infinity;
+                headNode.dataset.level = i;
+                row.appendChild(headNode);
 
-                // Draw nodes
-                let current = head.forward[i];
-                while(current) {
-                    const idx = slNodes.indexOf(current);
-                    const x = startX + (idx + 1) * xStep;
-                    const nodeDiv = createVisualNode(current.val, x, i);
-                    levelDiv.appendChild(nodeDiv);
-                    current = current.forward[i];
-                }
+                // Data Nodes
+                let leftPos = 140;
+                slNodes.forEach(node => {
+                    if (node.level >= i) {
+                        const n = document.createElement('div');
+                        n.className = 'sl-node';
+                        n.innerText = node.val;
+                        n.style.left = `${leftPos}px`;
+                        n.dataset.val = node.val;
+                        n.dataset.level = i;
+                        row.appendChild(n);
+                    }
+                    leftPos += 60; // Fixed spacing for simplicity
+                });
 
-                container.appendChild(levelDiv);
+                container.appendChild(row);
             }
-        }
-
-        function createVisualNode(val, left, level) {
-            const div = document.createElement('div');
-            div.className = 'sl-node';
-            if(val === 'H') div.classList.add('head');
-            div.innerText = val;
-            div.style.left = left + 'px';
-            div.dataset.val = val;
-            div.dataset.level = level;
-            return div;
         }
 
         // --- LRU Logic ---
-        const lruCapacity = 5;
-        let lruCache = []; 
+        let lruCache = []; // Array of keys
+        const CAPACITY = 5;
 
-        async function lruAccess() {
-            if(isAnimating) return;
-            const input = document.getElementById('lruInput');
-            const key = input.value.trim().toUpperCase();
+        function lruAccess() {
+            const key = document.getElementById('lruInput').value.toUpperCase();
             if (!key) return;
-            input.value = '';
 
-            isAnimating = true;
             const idx = lruCache.indexOf(key);
-            log(`CMD: GET ${key}`);
-
-            if (idx > -1) {
-                // HIT
-                narrate(`<strong>HIT!</strong> Key "${key}" found. Moving to MRU (Front).`);
-                log(`Cache HIT for key "${key}". Moving to Head (MRU).`, 'info');
-                
-                // Visual: Highlight existing
-                const items = document.querySelectorAll('.lru-item');
-                items[idx].classList.add('hit');
-                await wait(800);
-
+            if (idx !== -1) {
+                // Hit
                 lruCache.splice(idx, 1);
                 lruCache.unshift(key);
+                log(`LRU: Hit Key ${key}. Moved to Head.`);
             } else {
-                // MISS
-                if (lruCache.length >= lruCapacity) {
-                    const evicted = lruCache[lruCache.length - 1];
-                    narrate(`<strong>MISS!</strong> Cache full. Evicting LRU "${evicted}" and adding "${key}".`);
-                    log(`Cache MISS. Capacity Full. Evicting "${evicted}" (LRU).`, 'warn');
-                    
-                    // Visual: Evict animation
-                    const items = document.querySelectorAll('.lru-item');
-                    items[items.length - 1].classList.add('evict');
-                    await wait(600);
-                    
-                    lruCache.pop();
-                } else {
-                    narrate(`<strong>MISS!</strong> Adding "${key}" to cache.`);
-                    log(`Cache MISS. Adding "${key}" to Head.`, 'info');
+                // Miss
+                if (lruCache.length >= CAPACITY) {
+                    const evicted = lruCache.pop();
+                    log(`LRU: Cache Full. Evicted Key ${evicted}.`, 'warn');
                 }
                 lruCache.unshift(key);
+                log(`LRU: Inserted Key ${key}.`);
             }
-            
             renderLRU();
-            // Add 'new' class to first element for animation
-            setTimeout(() => {
-                const first = document.querySelector('.lru-item');
-                if(first) first.classList.add('new');
-            }, 50);
-            
-            isAnimating = false;
         }
 
         function renderLRU() {
-            const box = document.getElementById('lru-box');
-            box.innerHTML = '';
+            const container = document.getElementById('lru-box');
+            container.innerHTML = '';
             
             lruCache.forEach((key, index) => {
-                const div = document.createElement('div');
-                div.className = 'lru-item';
-                div.innerHTML = `<span>${key}</span><span class="tag">${index===0 ? 'MRU' : (index===lruCache.length-1 ? 'LRU' : '')}</span>`;
-                box.appendChild(div);
+                const item = document.createElement('div');
+                item.className = 'lru-item';
+                if (index === 0) item.classList.add('new');
+                
+                item.innerHTML = `
+                    <span>${key}</span>
+                    <span class="tag">${index === 0 ? 'MRU' : (index === lruCache.length - 1 ? 'LRU' : '')}</span>
+                `;
+                container.appendChild(item);
             });
         }
 
         // Init
-        slReset();
-        [3, 7, 12, 19, 25].forEach(v => {
-            document.getElementById('slInput').value = v;
-            slInsert();
-        });
-        document.getElementById('slInput').value = "";
-        narrate("<strong>SkipList (ZSet)</strong>: Initialized with some data. Try searching for 19.");
-
-        lruCache = ['C', 'B', 'A'];
+        slInsert(); slInsert(); slInsert(); // Add some initial data
+        renderSkipList();
         renderLRU();
 
     </script>

@@ -14,10 +14,10 @@
         input { padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 1rem; width: 200px; }
         button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: transform 0.1s; }
         button:active { transform: scale(0.95); }
-        .btn-add { background: #28a745; color: white; }
-        .btn-check { background: #007bff; color: white; }
-        .btn-reset { background: #6c757d; color: white; }
-        .btn-demo { background: #ff9800; color: white; }
+        .btn-add { background: #2e7d32; color: white; }
+        .btn-check { background: #1565c0; color: white; }
+        .btn-reset { background: #616161; color: white; }
+        .btn-theory { background: #e65100; color: white; }
 
         .bit-array-container { margin: 60px 0 40px 0; overflow-x: auto; padding-bottom: 10px; position: relative; }
         .bit-array { display: flex; gap: 4px; justify-content: center; min-width: max-content; }
@@ -44,16 +44,12 @@
 
         .log-area { 
             background: #212121; color: #00e676; padding: 15px; border-radius: 8px; 
-            font-family: monospace; height: 150px; overflow-y: auto; margin-top: 20px; 
+            font-family: 'Consolas', monospace; height: 150px; overflow-y: auto; margin-top: 20px; 
         }
         .log-entry { margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 2px; }
         .log-entry.error { color: #ff5252; }
         .log-entry.warn { color: #ffab40; }
         .log-entry.info { color: #40c4ff; }
-
-        .explanation {
-            margin-top: 20px; padding: 15px; background: #fff3e0; border-left: 5px solid #ff9800; border-radius: 4px; color: #5d4037;
-        }
 
         .verdict-box {
             margin: 20px 0; padding: 20px; border-radius: 8px; text-align: center; font-size: 1.5rem; font-weight: bold; display: none;
@@ -62,8 +58,22 @@
         .verdict-no { background: #ffebee; color: #c62828; border: 2px solid #c62828; }
 
         .narrative {
-            background: #e1f5fe; color: #01579b; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 1.1rem; line-height: 1.6; min-height: 60px; display: flex; align-items: center;
+            background: #e1f5fe; color: #01579b; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 1.1rem; line-height: 1.6; min-height: 60px; display: flex; align-items: center; border-left: 5px solid #0288d1;
         }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: white; width: 800px; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;
+        }
+        .close-btn {
+            position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #666;
+        }
+        .close-btn:hover { color: #d82c20; }
 
         /* SVG Overlay for connecting lines */
         #svg-overlay {
@@ -84,26 +94,18 @@
     <div class="container">
         <svg id="svg-overlay"></svg>
 
-        <div class="explanation">
-            <strong>How it works:</strong>
-            <ol style="margin: 5px 0; padding-left: 20px;">
-                <li><strong>Add:</strong> Run input through 3 hash functions. Each gives an index. Set those bits to 1.</li>
-                <li><strong>Check:</strong> Run input through same hash functions. If <strong>ALL</strong> bits are 1, it's <em>Probably</em> there. If <strong>ANY</strong> bit is 0, it's <em>Definitely Not</em> there.</li>
-            </ol>
-        </div>
-
         <div class="narrative" id="narrative">
-            Welcome! Enter a word below to see how Bloom Filters store data using just bits.
+            Welcome! Enter a string to see how a Bloom Filter uses a Bit Array to store it.
         </div>
 
         <div class="verdict-box" id="verdict"></div>
 
         <div class="controls">
             <input type="text" id="input-val" placeholder="Enter string (e.g. 'Apple')" onkeypress="if(event.key==='Enter') addVal()">
-            <button class="btn-add" onclick="addVal()">Add to Set</button>
-            <button class="btn-check" onclick="checkVal()">Check Existence</button>
-            <button class="btn-demo" onclick="demoFalsePositive()">Demo False Positive</button>
+            <button class="btn-add" onclick="addVal()">Add</button>
+            <button class="btn-check" onclick="checkVal()">Check</button>
             <button class="btn-reset" onclick="resetFilter()">Reset</button>
+            <button class="btn-theory" onclick="openModal()">🤔 Deep Dive</button>
         </div>
 
         <div class="hash-functions">
@@ -128,7 +130,49 @@
         </div>
 
         <div class="log-area" id="log">
-            <div class="log-entry">> Ready. Array Size: 30 bits. 3 Hash Functions.</div>
+            <div class="log-entry">> System Ready. Array Size: 30 bits. 3 Hash Functions.</div>
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div id="deep-dive-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('deep-dive-modal').style.display='none'">&times;</span>
+            <h2 style="color:#673ab7; margin-top:0;">📚 Deep Dive: Bloom Filter</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div>
+                    <h3 style="color:#333;">1. Core Principle</h3>
+                    <ul style="padding-left:20px; color:#555;">
+                        <li><strong>Space Efficiency:</strong> Does not store data itself, only "fingerprints" (bits).</li>
+                        <li><strong>Hash Functions:</strong> Uses $k$ hash functions to map data to $k$ positions in the bit array, setting them to 1.</li>
+                        <li><strong>Query Logic:</strong> Check these $k$ positions. If <strong>ALL are 1</strong>, data <em>might</em> exist. If <strong>ANY is 0</strong>, data <em>definitely does not</em> exist.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="color:#d32f2f;">2. False Positive</h3>
+                    <ul style="padding-left:20px; color:#555;">
+                        <li><strong>Why?</strong> Different data might hash to the same positions (Hash Collision).</li>
+                        <li><strong>Conclusion:</strong> If it says "Exists", it might be wrong. If it says "Not Exists", it is always right.</li>
+                        <li><strong>Mitigation:</strong> Increase bit array size ($m$) or adjust number of hash functions ($k$).</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="color:#1976d2;">3. Limitations</h3>
+                    <ul style="padding-left:20px; color:#555;">
+                        <li><strong>No Deletion:</strong> Resetting a bit to 0 might affect other data (since bits are shared).</li>
+                        <li><strong>Solution:</strong> Counting Bloom Filter (stores counters instead of bits), but uses more space.</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="color:#f57c00;">4. Use Cases</h3>
+                    <ul style="padding-left:20px; color:#555;">
+                        <li><strong>Redis Cache Penetration:</strong> Block invalid keys before hitting DB.</li>
+                        <li><strong>Web Crawler:</strong> Check if URL has already been crawled.</li>
+                        <li><strong>Spam Filter:</strong> Check against blacklist.</li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -145,6 +189,16 @@
             div.id = `bit-${i}`;
             div.innerHTML = `<span class="bit-val">0</span><span class="bit-index">${i}</span>`;
             bitContainer.appendChild(div);
+        }
+
+        function openModal() {
+            document.getElementById('deep-dive-modal').style.display = 'flex';
+        }
+
+        function closeModal(e) {
+            if (e.target.className === 'modal-overlay') {
+                document.getElementById('deep-dive-modal').style.display = 'none';
+            }
         }
 
         // Hash Functions
@@ -173,6 +227,56 @@
             return Math.abs(hash) % ARRAY_SIZE;
         }
 
+        function log(msg, type='info') {
+            const consoleDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerText = `> ${msg}`;
+            consoleDiv.appendChild(entry);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function narrate(html) {
+            document.getElementById('narrative').innerHTML = html;
+        }
+
+        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        async function runHashAnimation(hNum, idx, type) {
+            const box = document.getElementById(`h${hNum}-box`);
+            const valBox = document.getElementById(`h${hNum}-val`);
+            const bit = document.getElementById(`bit-${idx}`);
+
+            box.classList.add('active');
+            valBox.innerText = idx;
+            await wait(300);
+
+            // Draw line (Simplified: just highlight bit)
+            bit.classList.add('highlight');
+            await wait(400);
+
+            if (type === 'set') {
+                bitArray[idx] = 1;
+                bit.querySelector('.bit-val').innerText = '1';
+                bit.classList.add('active');
+            } else if (type === 'check') {
+                if (bitArray[idx] === 1) {
+                    bit.classList.add('check-pass');
+                } else {
+                    bit.classList.add('check-fail');
+                }
+            }
+
+            await wait(300);
+            box.classList.remove('active');
+            bit.classList.remove('highlight');
+            if(type === 'check') {
+                setTimeout(() => {
+                    bit.classList.remove('check-pass', 'check-fail');
+                }, 1000);
+            }
+        }
+
         async function addVal() {
             if(isAnimating) return;
             const input = document.getElementById('input-val');
@@ -198,8 +302,8 @@
             narrate(`Hash 3 maps "${val}" to index <strong>${h3}</strong>.`);
             await runHashAnimation(3, h3, 'set');
 
-            narrate(`Done! "${val}" is now stored (as bits ${h1}, ${h2}, ${h3}).`);
-            log(`> SUCCESS: "${val}" added.`, 'info');
+            narrate(`Done! "${val}" is stored (bits ${h1}, ${h2}, ${h3}).`);
+            log(`> Success: "${val}" added.`, 'info');
             input.value = '';
             isAnimating = false;
         }
@@ -212,7 +316,7 @@
 
             isAnimating = true;
             clearVerdict();
-            narrate(`Checking "<strong>${val}</strong>"... We need to check if bits are 1.`);
+            narrate(`Checking "<strong>${val}</strong>"... We need to check if corresponding bits are 1.`);
             log(`--------------------------------`);
             log(`Checking "${val}"...`, 'info');
 
@@ -225,7 +329,7 @@
             await runHashAnimation(1, h1, 'check');
             if(bitArray[h1] === 0) {
                 showVerdict(false, val);
-                narrate(`Bit ${h1} is 0. So "${val}" CANNOT be here.`);
+                narrate(`Bit ${h1} is 0. So "${val}" <strong>definitely does not</strong> exist.`);
                 log(`> Bit ${h1} is 0. STOP.`, 'error');
                 log(`> Result: "${val}" is DEFINITELY NOT in set.`, 'error');
                 isAnimating = false;
@@ -237,7 +341,7 @@
             await runHashAnimation(2, h2, 'check');
             if(bitArray[h2] === 0) {
                 showVerdict(false, val);
-                narrate(`Bit ${h2} is 0. So "${val}" CANNOT be here.`);
+                narrate(`Bit ${h2} is 0. So "${val}" <strong>definitely does not</strong> exist.`);
                 log(`> Bit ${h2} is 0. STOP.`, 'error');
                 log(`> Result: "${val}" is DEFINITELY NOT in set.`, 'error');
                 isAnimating = false;
@@ -249,7 +353,7 @@
             await runHashAnimation(3, h3, 'check');
             if(bitArray[h3] === 0) {
                 showVerdict(false, val);
-                narrate(`Bit ${h3} is 0. So "${val}" CANNOT be here.`);
+                narrate(`Bit ${h3} is 0. So "${val}" <strong>definitely does not</strong> exist.`);
                 log(`> Bit ${h3} is 0. STOP.`, 'error');
                 log(`> Result: "${val}" is DEFINITELY NOT in set.`, 'error');
                 isAnimating = false;
@@ -257,14 +361,10 @@
             }
 
             showVerdict(true, val);
-            narrate(`All bits (${h1}, ${h2}, ${h3}) are 1. "${val}" is PROBABLY here.`);
+            narrate(`All bits (${h1}, ${h2}, ${h3}) are 1. "${val}" <strong>might</strong> exist.`);
             log(`> All bits [${h1}, ${h2}, ${h3}] are 1.`, 'warn');
-            log(`> Result: "${val}" is POSSIBLY in set.`, 'warn');
+            log(`> Result: "${val}" is POSSIBLY in set (False Positive risk).`, 'warn');
             isAnimating = false;
-        }
-
-        function narrate(html) {
-            document.getElementById('narrative').innerHTML = html;
         }
 
         function showVerdict(isPositive, val) {
@@ -272,10 +372,10 @@
             el.style.display = 'block';
             if(isPositive) {
                 el.className = 'verdict-box verdict-yes';
-                el.innerHTML = `POSSIBLY IN SET<br><span style="font-size:0.9rem; font-weight:normal">(All bits matched)</span>`;
+                el.innerHTML = `POSSIBLY YES<br><span style="font-size:0.9rem; font-weight:normal">(All bits match)</span>`;
             } else {
                 el.className = 'verdict-box verdict-no';
-                el.innerHTML = `DEFINITELY NOT IN SET<br><span style="font-size:0.9rem; font-weight:normal">(Found a 0 bit)</span>`;
+                el.innerHTML = `DEFINITELY NO<br><span style="font-size:0.9rem; font-weight:normal">(Found 0 bit)</span>`;
             }
         }
 
@@ -283,114 +383,20 @@
             document.getElementById('verdict').style.display = 'none';
         }
 
-        async function demoFalsePositive() {
-            if(isAnimating) return;
-            resetFilter();
-            
-            // These values are chosen because they might collide on small array sizes or just to show the concept
-            // Actually, finding a real collision on 3 hashes mod 30 is hard on the fly.
-            // So we will simulate a scenario where bits are filled up.
-            
-            document.getElementById('input-val').value = "Apple";
-            await addVal();
-            
-            document.getElementById('input-val').value = "Banana";
-            await addVal();
-
-            document.getElementById('input-val').value = "Cherry";
-            await addVal();
-
-            narrate(`Now try checking a word you haven't added, like "Date". If it hits existing 1s, it's a False Positive!`);
-            log(`> Now try checking a word you haven't added, like "Date" or "Elderberry".`, 'warn');
-            log(`> If "Date" happens to map to bits that are already 1 (from Apple/Banana/Cherry), it's a False Positive!`, 'warn');
-        }
-
-        async function runHashAnimation(funcNum, index, mode) {
-            const hashBox = document.getElementById(`h${funcNum}-box`);
-            const hashVal = document.getElementById(`h${funcNum}-val`);
-            const targetBit = document.getElementById(`bit-${index}`);
-
-            // 1. Activate Hash Box
-            hashBox.classList.add('active');
-            hashVal.innerText = index;
-            log(`> Hash ${funcNum} calculated index: ${index}`);
-            await wait(500);
-
-            // 2. Draw Line
-            const line = drawLine(hashBox, targetBit);
-            line.classList.add('visible');
-            await wait(500);
-
-            // 3. Interact with Bit
-            if (mode === 'set') {
-                bitArray[index] = 1;
-                targetBit.classList.add('active');
-                targetBit.querySelector('.bit-val').innerText = '1';
-                targetBit.classList.add('highlight');
-            } else {
-                // Check mode
-                if (bitArray[index] === 1) {
-                    targetBit.classList.add('check-pass');
-                    log(`  - Bit ${index} is 1 (Match)`);
-                } else {
-                    targetBit.classList.add('check-fail');
-                    log(`  - Bit ${index} is 0 (Miss)`);
-                }
-            }
-            
-            await wait(600);
-
-            // Cleanup
-            hashBox.classList.remove('active');
-            line.remove();
-            targetBit.classList.remove('highlight', 'check-pass', 'check-fail');
-        }
-
-        function drawLine(startEl, endEl) {
-            const svg = document.getElementById('svg-overlay');
-            const startRect = startEl.getBoundingClientRect();
-            const endRect = endEl.getBoundingClientRect();
-            const containerRect = document.querySelector('.container').getBoundingClientRect();
-
-            // Calculate relative coordinates
-            const x1 = startRect.left + startRect.width / 2 - containerRect.left;
-            const y1 = startRect.bottom - containerRect.top;
-            const x2 = endRect.left + endRect.width / 2 - containerRect.left;
-            const y2 = endRect.top - containerRect.top;
-
-            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            // Bezier curve
-            const d = `M ${x1} ${y1} C ${x1} ${y1+50}, ${x2} ${y2-50}, ${x2} ${y2}`;
-            path.setAttribute("d", d);
-            svg.appendChild(path);
-            return path;
-        }
-
-        function wait(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
-
-        function log(msg, type='') {
-            const div = document.createElement('div');
-            div.className = `log-entry ${type}`;
-            div.innerText = msg;
-            const container = document.getElementById('log');
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
-        }
-
         function resetFilter() {
             bitArray.fill(0);
             document.querySelectorAll('.bit').forEach(b => {
-                b.classList.remove('active');
+                b.classList.remove('active', 'check-pass', 'check-fail');
                 b.querySelector('.bit-val').innerText = '0';
             });
             document.getElementById('h1-val').innerText = '-';
             document.getElementById('h2-val').innerText = '-';
             document.getElementById('h3-val').innerText = '-';
-            document.getElementById('log').innerHTML = '<div class="log-entry">> Reset complete.</div>';
-            isAnimating = false;
+            clearVerdict();
+            log('Filter Reset.', 'info');
+            narrate('Filter cleared.');
         }
+
     </script>
 </body>
 </html>

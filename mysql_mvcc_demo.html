@@ -1,340 +1,356 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MySQL MVCC 可视化演示</title>
+    <title>MySQL MVCC Visualization</title>
     <style>
-        body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        h1 { color: #00695c; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { color: #00695c; margin-bottom: 10px; }
         
-        .container { display: flex; gap: 20px; width: 1100px; margin-top: 20px; }
+        .container { display: flex; gap: 20px; width: 100%; max-width: 1200px; flex-wrap: wrap; justify-content: center; }
         
-        .col { display: flex; flex-direction: column; gap: 15px; }
-        .col-left { width: 300px; }
-        .col-center { width: 400px; }
-        .col-right { width: 350px; }
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); flex: 1; min-width: 300px; }
+        .panel h2 { margin-top: 0; color: #455a64; border-bottom: 2px solid #eee; padding-bottom: 10px; font-size: 1.2rem; }
 
-        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .card h3 { margin-top: 0; color: #333; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-
-        .trx-panel { display: flex; flex-direction: column; gap: 10px; }
-        .trx-row { display: flex; align-items: center; justify-content: space-between; background: #e0f2f1; padding: 10px; border-radius: 4px; }
-        .trx-status { font-weight: bold; font-size: 0.9rem; }
-        .trx-active { color: #009688; }
-        .trx-committed { color: #757575; }
-
-        button { padding: 6px 12px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; }
-        .btn-start { background: #4caf50; }
-        .btn-update { background: #2196f3; }
-        .btn-commit { background: #ff9800; }
-        .btn-read { background: #9c27b0; }
-
-        .undo-log-chain { display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        .version-record { 
-            width: 100%; background: #fff3e0; border: 1px solid #ffb74d; padding: 10px; border-radius: 4px; position: relative;
-            transition: all 0.3s;
+        /* Database Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 0.9rem; }
+        th { background: #e0f2f1; color: #00695c; }
+        .hidden-col { color: #999; font-style: italic; font-size: 0.8rem; }
+        
+        /* Undo Log */
+        .undo-chain { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+        .undo-node { 
+            background: #fff3e0; border: 1px solid #ffb74d; padding: 10px; border-radius: 6px; 
+            position: relative; font-size: 0.85rem;
         }
-        .version-record.latest { background: #e8f5e9; border-color: #81c784; }
-        .version-meta { font-size: 0.8rem; color: #666; display: flex; justify-content: space-between; }
-        .version-data { font-size: 1.1rem; font-weight: bold; margin: 5px 0; text-align: center; }
-        .roll-ptr { text-align: center; font-size: 1.2rem; color: #999; line-height: 0.8; }
+        .undo-node::after {
+            content: '↓'; position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); color: #ff9800; font-weight: bold;
+        }
+        .undo-node:last-child::after { content: ''; }
 
-        .log-console {
-            width: 100%; background: #212121; color: #00e676; padding: 10px; border-radius: 8px; 
-            font-family: 'Consolas', monospace; height: 300px; overflow-y: auto; font-size: 0.85rem;
-        }
-        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; }
-        .log-hl { color: #ffeb3b; }
+        /* Transaction Controls */
+        .controls { display: flex; gap: 10px; margin-bottom: 15px; }
+        button { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .btn-start { background: #4caf50; color: white; }
+        .btn-update { background: #ff9800; color: white; }
+        .btn-commit { background: #2196f3; color: white; }
+        .btn-read { background: #9c27b0; color: white; }
+        .btn-theory { background: #607d8b; color: white; margin-left: auto; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
 
-        .read-view-box { background: #e3f2fd; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 0.9rem; }
+        /* Read View Box */
+        .read-view { background: #e3f2fd; padding: 10px; border-radius: 4px; margin-top: 10px; font-family: monospace; font-size: 0.9rem; color: #1565c0; }
 
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
-            display: none; justify-content: center; align-items: center; z-index: 1000;
-        }
-        .modal-content {
-            background: white; width: 800px; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;
-        }
-        .close-btn {
-            position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #666;
-        }
+        /* Log */
+        .log-panel { width: 100%; max-width: 1200px; margin-top: 20px; background: #263238; color: #eceff1; padding: 15px; border-radius: 8px; font-family: monospace; height: 150px; overflow-y: auto; }
+        .log-line { margin-bottom: 4px; border-bottom: 1px solid #37474f; }
+        .log-hl { color: #80cbc4; font-weight: bold; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: white; width: 800px; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 8px; position: relative; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; }
+
     </style>
 </head>
 <body>
-    <h1>MySQL MVCC 多版本并发控制演示</h1>
-    
-    <div style="width: 1100px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <strong>隔离级别 (Isolation Level):</strong>
-            <select id="isolation-level" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
-                <option value="RR">Repeatable Read (可重复读 - 默认)</option>
-                <option value="RC">Read Committed (读已提交)</option>
-            </select>
-        </div>
-        <button onclick="openModal()" style="background: #00695c;">📖 深度解析: Read View 原理</button>
-    </div>
 
-    <!-- Modal -->
-    <div id="deep-dive-modal" class="modal-overlay" onclick="closeModal(event)">
-        <div class="modal-content">
-            <span class="close-btn" onclick="document.getElementById('deep-dive-modal').style.display='none'">&times;</span>
-            <h2 style="color:#00695c; margin-top:0;">🤔 深度解析: MVCC 可见性算法</h2>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                <div>
-                    <strong>1. 什么是 Read View?</strong>
-                    <p>Read View 是事务进行快照读时产生的读视图。包含四个核心字段：</p>
-                    <ul style="background:#f5f5f5; padding:10px 20px; border-radius:4px;">
-                        <li><code>m_ids</code>: 生成时刻所有<strong>活跃</strong>事务的 ID 列表。</li>
-                        <li><code>min_id</code>: 活跃事务中最小的 ID。</li>
-                        <li><code>max_id</code>: 下一个将被分配的事务 ID (当前最大ID + 1)。</li>
-                        <li><code>creator_id</code>: 创建该 Read View 的事务 ID。</li>
-                    </ul>
-                </div>
-                <div>
-                    <strong>2. 可见性判断规则 (Visibility Rules)</strong>
-                    <p>对于 Undo Log 中的每一个版本 (trx_id)，判断是否可见：</p>
-                    <ul style="font-size: 0.9rem;">
-                        <li>✅ <strong>可见:</strong> <code>trx_id == creator_id</code> (自己改的)</li>
-                        <li>✅ <strong>可见:</strong> <code>trx_id < min_id</code> (生成 View 前已提交)</li>
-                        <li>❌ <strong>不可见:</strong> <code>trx_id >= max_id</code> (生成 View 后才开启)</li>
-                        <li>❌ <strong>不可见:</strong> <code>trx_id in m_ids</code> (生成 View 时还未提交)</li>
-                        <li>✅ <strong>可见:</strong> <code>trx_id</code> 在 <code>min</code> 和 <code>max</code> 之间，且不在 <code>m_ids</code> 中 (生成 View 前已提交)</li>
-                    </ul>
-                </div>
-                <div style="grid-column: span 2; border-top: 1px solid #eee; padding-top: 10px;">
-                    <strong>3. RC vs RR 的区别</strong>
-                    <ul>
-                        <li><strong>Read Committed (RC):</strong> 每次 <code>SELECT</code> 都会生成一个新的 Read View。能读到别的事务刚提交的数据。</li>
-                        <li><strong>Repeatable Read (RR):</strong> 只有第一次 <code>SELECT</code> 生成 Read View，后续复用。保证同一个事务内读取一致。</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
+    <h1>MySQL MVCC Visualization (InnoDB)</h1>
+
+    <div class="controls">
+        <button class="btn-start" onclick="startTx()">Start New Transaction</button>
+        <button class="btn-update" onclick="updateRow()" id="btn-update" disabled>Update Row (id=1)</button>
+        <button class="btn-commit" onclick="commitTx()" id="btn-commit" disabled>Commit</button>
+        <button class="btn-read" onclick="readRow()" id="btn-read" disabled>Select * (Snapshot Read)</button>
+        <button class="btn-theory" onclick="openModal()">📚 Deep Dive</button>
     </div>
 
     <div class="container">
-        <!-- Left: Transactions -->
-        <div class="col col-left">
-            <div class="card">
-                <h3>活跃事务列表 (Active Trx)</h3>
-                <div id="trx-list" class="trx-panel">
-                    <!-- Trx items injected here -->
-                </div>
-                <div style="margin-top: 15px; text-align: center;">
-                    <button class="btn-start" onclick="startTrx()">开启新事务 (Start)</button>
-                </div>
+        <!-- Current Data Panel -->
+        <div class="panel">
+            <h2>Current Table (Clustered Index)</h2>
+            <table id="main-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th class="hidden-col">DB_TRX_ID</th>
+                        <th class="hidden-col">DB_ROLL_PTR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows go here -->
+                </tbody>
+            </table>
+            <div style="margin-top: 10px; font-size: 0.8rem; color: #666;">
+                * DB_TRX_ID: Last transaction ID that modified this row.<br>
+                * DB_ROLL_PTR: Pointer to the Undo Log record.
             </div>
+        </div>
+
+        <!-- Undo Log Panel -->
+        <div class="panel">
+            <h2>Undo Log (Version Chain)</h2>
+            <div class="undo-chain" id="undo-log">
+                <div style="color:#999; text-align:center;">(Empty)</div>
+            </div>
+        </div>
+
+        <!-- Transaction Context Panel -->
+        <div class="panel">
+            <h2>Current Transaction Context</h2>
+            <div id="tx-status">No active transaction.</div>
+            <div id="read-view-box" class="read-view" style="display:none;">
+                <strong>Read View:</strong><br>
+                m_ids: []<br>
+                min_trx_id: -<br>
+                max_trx_id: -<br>
+                creator_trx_id: -
+            </div>
+        </div>
+    </div>
+
+    <div class="log-panel" id="log">
+        <div class="log-line">> System initialized. Initial row inserted (Trx 1).</div>
+    </div>
+
+    <!-- Deep Dive Modal -->
+    <div id="theory-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('theory-modal').style.display='none'">&times;</span>
+            <h2 style="color:#00695c;">MySQL MVCC Deep Dive</h2>
             
-            <div class="card">
-                <h3>当前 Read View 规则</h3>
-                <div style="font-size: 0.85rem; color: #555;">
-                    <p><strong>m_ids:</strong> 活跃事务 ID 列表</p>
-                    <p><strong>min_id:</strong> 最小活跃 ID</p>
-                    <p><strong>max_id:</strong> 下一个分配 ID</p>
-                    <hr>
-                    <p>1. trx_id < min_id: <span style="color:green">可见</span> (已提交)</p>
-                    <p>2. trx_id >= max_id: <span style="color:red">不可见</span> (未来事务)</p>
-                    <p>3. trx_id in m_ids: <span style="color:red">不可见</span> (活跃中)</p>
-                </div>
-            </div>
-        </div>
+            <h3>1. What is MVCC?</h3>
+            <p>Multi-Version Concurrency Control allows MySQL (InnoDB) to handle multiple transactions simultaneously without locking rows for reading. It keeps multiple versions of data.</p>
 
-        <!-- Center: Undo Log Chain -->
-        <div class="col col-center">
-            <div class="card">
-                <h3>Undo Log 版本链 (Row History)</h3>
-                <div id="undo-log" class="undo-log-chain">
-                    <!-- Versions injected here -->
-                </div>
-            </div>
-        </div>
+            <h3>2. Hidden Columns</h3>
+            <ul>
+                <li><strong>DB_TRX_ID:</strong> The ID of the transaction that last modified the row.</li>
+                <li><strong>DB_ROLL_PTR:</strong> A pointer (address) to the previous version of this row in the Undo Log.</li>
+            </ul>
 
-        <!-- Right: Log & Read -->
-        <div class="col col-right">
-            <div class="card">
-                <h3>操作日志 (Operation Log)</h3>
-                <div class="log-console" id="log">
-                    <div class="log-entry">> 系统初始化完成。初始行: id=1, name="Alice" (trx_id=0)</div>
-                </div>
-            </div>
+            <h3>3. Read View (The "Snapshot")</h3>
+            <p>When a transaction performs a read (in Repeatable Read), it creates a Read View containing:</p>
+            <ul>
+                <li><code>m_ids</code>: List of active (uncommitted) transactions at that moment.</li>
+                <li><code>min_trx_id</code>: The smallest active transaction ID.</li>
+                <li><code>max_trx_id</code>: The next transaction ID to be assigned.</li>
+            </ul>
+
+            <h3>4. Visibility Rules</h3>
+            <p>When checking a row version with <code>trx_id</code>:</p>
+            <ol>
+                <li>If <code>trx_id < min_trx_id</code>: Visible (Committed before we started).</li>
+                <li>If <code>trx_id >= max_trx_id</code>: Invisible (Started after we took snapshot).</li>
+                <li>If <code>trx_id</code> is in <code>m_ids</code>: Invisible (Was active/uncommitted when we started).</li>
+                <li>Else: Visible.</li>
+            </ol>
+            <p>If a row is invisible, InnoDB follows the <code>DB_ROLL_PTR</code> to the Undo Log to find an older, visible version.</p>
         </div>
     </div>
 
     <script>
+        // Global State
         let globalTrxId = 100;
-        let transactions = []; // { id, status: 'ACTIVE'|'COMMITTED', snapshot: null }
+        let currentTx = null;
         
-        // The Row History
-        let rowVersions = [
-            { trx_id: 0, value: "Alice", roll_ptr: null }
-        ];
+        // Initial Data
+        let rowData = {
+            id: 1,
+            name: 'Alice',
+            trx_id: 1, // Initial committed transaction
+            roll_ptr: null
+        };
 
-        function openModal() { document.getElementById('deep-dive-modal').style.display = 'flex'; }
-        function closeModal(e) { if(e.target.className==='modal-overlay') document.getElementById('deep-dive-modal').style.display='none'; }
+        // Undo Log (Array of objects)
+        let undoLog = [];
 
-        function log(msg, highlight=false) {
-            const div = document.createElement('div');
-            div.className = 'log-entry';
-            if(highlight) div.classList.add('log-hl');
-            div.innerHTML = `> ${msg}`;
-            const console = document.getElementById('log');
-            console.appendChild(div);
-            console.scrollTop = console.scrollHeight;
+        function init() {
+            renderTable();
         }
 
-        function startTrx() {
-            const id = globalTrxId++;
-            transactions.push({ id, status: 'ACTIVE', snapshot: null });
-            renderTrx();
-            log(`事务 <span style="color:#4caf50">TRX_${id}</span> 已开启。`);
+        function log(msg) {
+            const div = document.getElementById('log');
+            div.innerHTML += `<div class="log-line">${msg}</div>`;
+            div.scrollTop = div.scrollHeight;
         }
 
-        function commitTrx(id) {
-            const trx = transactions.find(t => t.id === id);
-            if(trx && trx.status === 'ACTIVE') {
-                trx.status = 'COMMITTED';
-                renderTrx();
-                log(`事务 <span style="color:#ff9800">TRX_${id}</span> 已提交 (Committed)。`);
-            }
-        }
+        function openModal() { document.getElementById('theory-modal').style.display = 'flex'; }
+        function closeModal(e) { if(e.target.className === 'modal-overlay') document.getElementById('theory-modal').style.display = 'none'; }
 
-        function updateRow(id) {
-            const trx = transactions.find(t => t.id === id);
-            if(!trx || trx.status !== 'ACTIVE') return;
-
-            const newValue = prompt(`TRX_${id}: 将 name 修改为?`, "Bob");
-            if(!newValue) return;
-
-            // Create new version
-            const latest = rowVersions[0];
-            const newVersion = {
-                trx_id: id,
-                value: newValue,
-                roll_ptr: latest // Point to previous
-            };
-            
-            rowVersions.unshift(newVersion); // Add to top
-            renderUndoLog();
-            log(`TRX_${id} 更新了行。新值: "${newValue}"。已添加到 Undo Log。`);
-        }
-
-        function readRow(id) {
-            const trx = transactions.find(t => t.id === id);
-            if(!trx) return;
-
-            const isolation = document.getElementById('isolation-level').value;
-            let readView = trx.snapshot;
-
-            // RC: Always create new. RR: Create only if null.
-            if (isolation === 'RC' || !readView) {
-                const activeIds = transactions.filter(t => t.status === 'ACTIVE').map(t => t.id);
-                readView = {
-                    m_ids: activeIds,
-                    min_id: activeIds.length > 0 ? Math.min(...activeIds) : globalTrxId,
-                    max_id: globalTrxId,
-                    creator_id: id
-                };
-                
-                if (isolation === 'RR') {
-                    trx.snapshot = readView; // Save for RR
-                    log(`TRX_${id} (RR) 生成 Read View: [min=${readView.min_id}, max=${readView.max_id}, active=${JSON.stringify(readView.m_ids)}]`);
-                } else {
-                    log(`TRX_${id} (RC) 生成新 Read View: [min=${readView.min_id}, max=${readView.max_id}, active=${JSON.stringify(readView.m_ids)}]`);
-                }
-            } else {
-                log(`TRX_${id} (RR) 复用旧 Read View。`);
-            }
-
-            // Traverse Undo Log
-            let visibleVersion = null;
-            for(let v of rowVersions) {
-                if(checkVisibility(v.trx_id, readView)) {
-                    visibleVersion = v;
-                    break;
-                }
-            }
-
-            if(visibleVersion) {
-                alert(`TRX_${id} 读取结果: "${visibleVersion.value}" (来自 TRX_${visibleVersion.trx_id})`);
-                log(`TRX_${id} 读取结果: <span style="color:#00e676">"${visibleVersion.value}"</span> (版本 TRX_${visibleVersion.trx_id})`, true);
-            } else {
-                alert("未找到可见版本!");
-            }
-        }
-
-        function checkVisibility(trx_id, view) {
-            // 1. If current trx created it, visible
-            if(trx_id === view.creator_id) return true;
-
-            // 2. If trx_id < min_id, committed before view creation -> Visible
-            if(trx_id < view.min_id) return true;
-
-            // 3. If trx_id >= max_id, created after view -> Invisible
-            if(trx_id >= view.max_id) return false;
-
-            // 4. If in m_ids, active when view created -> Invisible
-            if(view.m_ids.includes(trx_id)) return false;
-
-            // Else (between min and max, but not active) -> Committed -> Visible
-            return true;
-        }
-
-        function renderTrx() {
-            const container = document.getElementById('trx-list');
-            container.innerHTML = '';
-            transactions.forEach(t => {
-                const div = document.createElement('div');
-                div.className = 'trx-row';
-                div.innerHTML = `
-                    <div>
-                        <div class="trx-status ${t.status === 'ACTIVE' ? 'trx-active' : 'trx-committed'}">TRX_${t.id}</div>
-                        <div style="font-size:0.8rem">${t.status}</div>
-                    </div>
-                    <div style="display:flex; gap:5px;">
-                        ${t.status === 'ACTIVE' ? `
-                            <button class="btn-update" onclick="updateRow(${t.id})">改</button>
-                            <button class="btn-read" onclick="readRow(${t.id})">读</button>
-                            <button class="btn-commit" onclick="commitTrx(${t.id})">交</button>
-                        ` : ''}
-                    </div>
-                `;
-                container.appendChild(div);
-            });
+        function renderTable() {
+            const tbody = document.querySelector('#main-table tbody');
+            tbody.innerHTML = `
+                <tr style="background: #e8f5e9;">
+                    <td>${rowData.id}</td>
+                    <td>${rowData.name}</td>
+                    <td class="hidden-col">${rowData.trx_id}</td>
+                    <td class="hidden-col">${rowData.roll_ptr ? '0x' + rowData.roll_ptr.toString(16) : 'NULL'}</td>
+                </tr>
+            `;
         }
 
         function renderUndoLog() {
             const container = document.getElementById('undo-log');
-            container.innerHTML = '';
-            rowVersions.forEach((v, idx) => {
-                const div = document.createElement('div');
-                div.className = 'version-record';
-                if(idx === 0) div.classList.add('latest');
-                
-                div.innerHTML = `
-                    <div class="version-meta">
-                        <span>TRX_ID: ${v.trx_id}</span>
-                        <span>${idx === 0 ? '(最新)' : ''}</span>
+            if (undoLog.length === 0) {
+                container.innerHTML = '<div style="color:#999; text-align:center;">(Empty)</div>';
+                return;
+            }
+            
+            let html = '';
+            // Show newest first
+            for (let i = undoLog.length - 1; i >= 0; i--) {
+                const rec = undoLog[i];
+                html += `
+                    <div class="undo-node">
+                        <strong>Addr: 0x${rec.addr.toString(16)}</strong><br>
+                        Name: ${rec.name}<br>
+                        Trx_ID: ${rec.trx_id}
                     </div>
-                    <div class="version-data">name = "${v.value}"</div>
                 `;
-                container.appendChild(div);
-
-                if(idx < rowVersions.length - 1) {
-                    const arrow = document.createElement('div');
-                    arrow.className = 'roll-ptr';
-                    arrow.innerHTML = '↓<br><span style="font-size:0.8rem">roll_ptr</span>';
-                    container.appendChild(arrow);
-                }
-            });
+            }
+            container.innerHTML = html;
         }
 
-        // Init
-        renderUndoLog();
-        startTrx(); // Start 100
+        function startTx() {
+            if (currentTx) {
+                alert("Please commit the current transaction first.");
+                return;
+            }
+            currentTx = {
+                id: globalTrxId++,
+                readView: null // Created on first read
+            };
+            
+            document.getElementById('tx-status').innerHTML = `
+                <strong>Active Transaction ID: ${currentTx.id}</strong><br>
+                Status: Running
+            `;
+            
+            document.getElementById('btn-update').disabled = false;
+            document.getElementById('btn-commit').disabled = false;
+            document.getElementById('btn-read').disabled = false;
+            
+            log(`> Transaction ${currentTx.id} started.`);
+        }
+
+        function updateRow() {
+            if (!currentTx) return;
+            
+            const newName = prompt("Enter new name for ID=1:", "Bob");
+            if (!newName) return;
+
+            // 1. Create Undo Log Record (Copy current state)
+            const undoRecord = {
+                addr: Date.now(), // Fake address
+                id: rowData.id,
+                name: rowData.name,
+                trx_id: rowData.trx_id
+            };
+            undoLog.push(undoRecord);
+
+            // 2. Update Current Row
+            const oldName = rowData.name;
+            rowData.name = newName;
+            rowData.trx_id = currentTx.id;
+            rowData.roll_ptr = undoRecord.addr;
+
+            renderTable();
+            renderUndoLog();
+            log(`> Tx ${currentTx.id} updated ID=1: "${oldName}" -> "${newName}". Undo log created.`);
+        }
+
+        function commitTx() {
+            if (!currentTx) return;
+            log(`> Transaction ${currentTx.id} committed.`);
+            currentTx = null;
+            document.getElementById('tx-status').innerText = "No active transaction.";
+            document.getElementById('read-view-box').style.display = 'none';
+            
+            document.getElementById('btn-update').disabled = true;
+            document.getElementById('btn-commit').disabled = true;
+            document.getElementById('btn-read').disabled = true;
+        }
+
+        function readRow() {
+            if (!currentTx) return;
+
+            // Create Read View if not exists (Repeatable Read behavior)
+            if (!currentTx.readView) {
+                // Simplified Read View generation
+                // In real InnoDB, m_ids includes all active trx. 
+                // Here we simplify: if we are the only active one, m_ids is just us? 
+                // Actually, let's simulate a scenario.
+                // Let's assume there is another hypothetical active transaction 999 just for demo?
+                // No, let's stick to strict logic.
+                
+                currentTx.readView = {
+                    m_ids: [currentTx.id], // We are active
+                    min_trx_id: currentTx.id,
+                    max_trx_id: globalTrxId, // Next ID
+                    creator_trx_id: currentTx.id
+                };
+                
+                const rv = currentTx.readView;
+                document.getElementById('read-view-box').style.display = 'block';
+                document.getElementById('read-view-box').innerHTML = `
+                    <strong>Read View Created!</strong><br>
+                    m_ids: [${rv.m_ids.join(', ')}]<br>
+                    min_trx_id: ${rv.min_trx_id}<br>
+                    max_trx_id: ${rv.max_trx_id}<br>
+                    creator_trx_id: ${rv.creator_trx_id}
+                `;
+                log(`> Tx ${currentTx.id} created Read View.`);
+            }
+
+            // Perform Visibility Check
+            let visibleVersion = null;
+            let currentCheck = rowData; // Start from main table
+            
+            // Traverse chain
+            while (currentCheck) {
+                if (checkVisibility(currentCheck, currentTx.readView)) {
+                    visibleVersion = currentCheck;
+                    break;
+                }
+                // Follow pointer
+                if (currentCheck.roll_ptr) {
+                    currentCheck = undoLog.find(u => u.addr === currentCheck.roll_ptr);
+                } else {
+                    currentCheck = null;
+                }
+            }
+
+            if (visibleVersion) {
+                alert(`Read Result: ID=${visibleVersion.id}, Name="${visibleVersion.name}"\n(Version from Trx ${visibleVersion.trx_id})`);
+                log(`> Tx ${currentTx.id} read ID=1. Result: "${visibleVersion.name}".`);
+            } else {
+                alert("No visible version found.");
+            }
+        }
+
+        function checkVisibility(row, rv) {
+            const trx_id = row.trx_id;
+            
+            // 1. If I created it, I can see it
+            if (trx_id === rv.creator_trx_id) return true;
+
+            // 2. If trx_id < min_trx_id, it was committed before I started -> Visible
+            if (trx_id < rv.min_trx_id) return true;
+
+            // 3. If trx_id >= max_trx_id, it started after I created Read View -> Invisible
+            if (trx_id >= rv.max_trx_id) return false;
+
+            // 4. If trx_id in m_ids, it was active when I started -> Invisible
+            if (rv.m_ids.includes(trx_id)) return false;
+
+            return true; // Otherwise visible
+        }
+
+        init();
+
     </script>
 </body>
 </html>
