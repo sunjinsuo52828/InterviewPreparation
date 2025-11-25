@@ -70,18 +70,69 @@
         @keyframes flashGreen { 0% { background: #fff; } 50% { background: #b9f6ca; transform: scale(1.1); } 100% { background: #fff; } }
         @keyframes fadeOut { to { opacity: 0; transform: translateY(20px); } }
 
+        /* Log Console */
+        .log-console {
+            background: #212121; color: #00e676; padding: 15px; border-radius: 8px; 
+            font-family: 'Consolas', monospace; height: 150px; overflow-y: auto; margin-top: 20px;
+            font-size: 0.9rem; border: 1px solid #444;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px; }
+        .log-time { color: #888; margin-right: 10px; font-size: 0.8rem; }
+        .log-info { color: #4fc3f7; }
+        .log-warn { color: #ffb74d; }
+        .log-error { color: #ef5350; }
+
+        /* Theory Section */
+        .theory-section { display: none; padding: 20px; }
+        .theory-card { background: #f8f9fa; border-left: 4px solid #d82c20; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
+        .theory-card h3 { margin-top: 0; color: #333; }
+        .theory-card ul { margin-bottom: 0; padding-left: 20px; }
+        .theory-card li { margin-bottom: 5px; }
+
     </style>
 </head>
 <body>
-    <h1>Redis Data Structures</h1>
+    <h1>Redis Data Structures & Architecture</h1>
     <div class="tabs">
         <div class="tab active" onclick="switchTab('skiplist')">SkipList (ZSet)</div>
         <div class="tab" onclick="switchTab('lru')">LRU Cache</div>
+        <div class="tab" onclick="switchTab('theory')">Why Redis is Fast?</div>
     </div>
 
     <div class="container">
         <div class="narrative" id="narrative">
             Select a tab to begin. SkipList is used for Sorted Sets (ZSet). LRU is used for memory eviction.
+        </div>
+
+        <!-- Theory View -->
+        <div id="theory-view" class="theory-section">
+            <div class="theory-card">
+                <h3>🚀 Why is Redis so Fast? (100k+ QPS)</h3>
+                <ul>
+                    <li><strong>In-Memory Storage:</strong> Accessing RAM (ns) is 100,000x faster than Disk (ms).</li>
+                    <li><strong>Single-Threaded Model:</strong> Avoids Context Switching and Lock Contention (Race Conditions).</li>
+                    <li><strong>IO Multiplexing (epoll):</strong> Handles thousands of connections using a single thread efficiently.</li>
+                    <li><strong>Efficient Data Structures:</strong> SDS (Simple Dynamic String), SkipList, ZipList are optimized for speed.</li>
+                </ul>
+            </div>
+
+            <div class="theory-card" style="border-left-color: #0288d1;">
+                <h3>🛡️ High Availability (Sentinel)</h3>
+                <ul>
+                    <li><strong>Monitoring:</strong> Sentinel nodes check if Master is alive.</li>
+                    <li><strong>Automatic Failover:</strong> If Master dies, Sentinel promotes a Slave to be the new Master.</li>
+                    <li><strong>Notification:</strong> Clients are notified of the new Master address.</li>
+                </ul>
+            </div>
+
+            <div class="theory-card" style="border-left-color: #ff9800;">
+                <h3>🌐 Scalability (Cluster)</h3>
+                <ul>
+                    <li><strong>Sharding:</strong> Data is split into 16,384 Hash Slots.</li>
+                    <li><strong>Distribution:</strong> Different nodes hold different slots (e.g., Node A: 0-5000, Node B: 5001-10000).</li>
+                    <li><strong>Decentralized:</strong> No central proxy; clients can connect to any node to find the right slot.</li>
+                </ul>
+            </div>
         </div>
 
         <!-- SkipList View -->
@@ -110,6 +161,11 @@
                 <div class="cache-box" id="lru-box"></div>
             </div>
         </div>
+
+        <!-- Log Console -->
+        <div class="log-console" id="log-console">
+            <div class="log-entry">> Redis Server Ready. Waiting for commands...</div>
+        </div>
     </div>
 
     <script>
@@ -120,15 +176,37 @@
             currentTab = tab;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+            
             document.getElementById('skiplist-view').style.display = tab === 'skiplist' ? 'block' : 'none';
             document.getElementById('lru-view').style.display = tab === 'lru' ? 'block' : 'none';
+            document.getElementById('theory-view').style.display = tab === 'theory' ? 'block' : 'none';
             
-            if(tab === 'skiplist') narrate("<strong>SkipList (ZSet)</strong>: A multi-level linked list. Higher levels allow 'skipping' over many nodes to find values faster ($O(\\log N)$).");
-            else narrate("<strong>LRU Cache</strong>: Keeps recently used items at the front. When full, the item at the back (Least Recently Used) is removed.");
+            if(tab === 'skiplist') {
+                narrate("<strong>SkipList (ZSet)</strong>: A multi-level linked list. Higher levels allow 'skipping' over many nodes to find values faster ($O(\\log N)$).");
+                log("Switched to SkipList view.");
+            } else if(tab === 'lru') {
+                narrate("<strong>LRU Cache</strong>: Keeps recently used items at the front. When full, the item at the back (Least Recently Used) is removed.");
+                log("Switched to LRU Cache view.");
+            } else {
+                narrate("<strong>Theory</strong>: Understanding Redis Architecture (Speed, HA, Scalability).");
+                log("Viewing Redis Architecture Theory.");
+            }
         }
 
         function narrate(html) {
             document.getElementById('narrative').innerHTML = html;
+        }
+
+        function log(msg, type='info') {
+            const consoleDiv = document.getElementById('log-console');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${msg}`;
+            
+            consoleDiv.appendChild(entry);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
         }
 
         function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -159,9 +237,11 @@
             
             if (slNodes.find(n => n.val === val)) {
                 narrate(`Value <strong>${val}</strong> already exists.`);
+                log(`Insert failed: Value ${val} already exists.`, 'warn');
                 return;
             }
 
+            log(`CMD: ZADD myzset ${val}`);
             narrate(`Inserting <strong>${val}</strong>... Calculating random level.`);
 
             const update = new Array(MAX_LEVEL + 1).fill(null);
@@ -175,6 +255,7 @@
             }
 
             const lvl = randomLevel();
+            log(`Generated Random Level: ${lvl}`);
             const newNode = new SLNode(val, lvl);
             
             for (let i = 0; i <= lvl; i++) {
@@ -186,6 +267,7 @@
             slNodes.sort((a, b) => a.val - b.val);
             renderSkipList();
             narrate(`Inserted <strong>${val}</strong> at Level ${lvl}. Notice how it appears on multiple levels.`);
+            log(`Successfully inserted ${val} at Level ${lvl}.`, 'info');
         }
 
         async function slSearch() {
@@ -195,6 +277,7 @@
 
             isAnimating = true;
             renderSkipList(); // Clear previous highlights
+            log(`CMD: ZSCORE myzset ${val}`);
             narrate(`Searching for <strong>${val}</strong>. Starting from Top Level (L${MAX_LEVEL})...`);
             
             let current = head;
@@ -206,6 +289,7 @@
 
             for (let i = MAX_LEVEL; i >= 0; i--) {
                 narrate(`Checking <strong>Level ${i}</strong>...`);
+                log(`Scanning Level ${i}...`);
                 
                 // Move right
                 while (current.forward[i] && current.forward[i].val <= val) {
@@ -213,10 +297,12 @@
                     
                     // Visualize "Looking at next"
                     highlightNode(nextNode, 'highlight');
+                    log(`  -> Comparing with node [${nextNode.val}]`);
                     await wait(600);
 
                     if (nextNode.val === val) {
                         narrate(`Found <strong>${val}</strong> at Level ${i}!`);
+                        log(`  -> MATCH! Found ${val} at Level ${i}.`, 'info');
                         highlightNode(nextNode, 'target');
                         found = true;
                         isAnimating = false;
@@ -225,6 +311,7 @@
 
                     if (nextNode.val < val) {
                         narrate(`<strong>${nextNode.val}</strong> < ${val}. Moving Right.`);
+                        log(`  -> ${nextNode.val} < ${val}. Moving RIGHT.`);
                         current = nextNode;
                         highlightNode(current, 'visited');
                     }
@@ -232,11 +319,13 @@
 
                 if (i > 0) {
                     narrate(`Next value is too big (or null). Dropping down to <strong>Level ${i-1}</strong>.`);
+                    log(`  -> Next node is too large. Dropping DOWN to Level ${i-1}.`);
                     await wait(600);
                 }
             }
 
             narrate(`Reached bottom level. Value <strong>${val}</strong> not found.`);
+            log(`Search complete. Value ${val} NOT FOUND.`, 'error');
             isAnimating = false;
         }
 
@@ -254,6 +343,7 @@
             slNodes = [];
             renderSkipList();
             narrate("SkipList reset.");
+            log("SkipList cleared.");
         }
 
         function renderSkipList() {
@@ -319,10 +409,12 @@
 
             isAnimating = true;
             const idx = lruCache.indexOf(key);
+            log(`CMD: GET ${key}`);
 
             if (idx > -1) {
                 // HIT
                 narrate(`<strong>HIT!</strong> Key "${key}" found. Moving to MRU (Front).`);
+                log(`Cache HIT for key "${key}". Moving to Head (MRU).`, 'info');
                 
                 // Visual: Highlight existing
                 const items = document.querySelectorAll('.lru-item');
@@ -336,6 +428,7 @@
                 if (lruCache.length >= lruCapacity) {
                     const evicted = lruCache[lruCache.length - 1];
                     narrate(`<strong>MISS!</strong> Cache full. Evicting LRU "${evicted}" and adding "${key}".`);
+                    log(`Cache MISS. Capacity Full. Evicting "${evicted}" (LRU).`, 'warn');
                     
                     // Visual: Evict animation
                     const items = document.querySelectorAll('.lru-item');
@@ -345,6 +438,7 @@
                     lruCache.pop();
                 } else {
                     narrate(`<strong>MISS!</strong> Adding "${key}" to cache.`);
+                    log(`Cache MISS. Adding "${key}" to Head.`, 'info');
                 }
                 lruCache.unshift(key);
             }
