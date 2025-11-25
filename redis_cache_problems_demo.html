@@ -3,210 +3,351 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Redis Cache Problems Demo</title>
+    <title>Redis Cache Problems Visualized</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
         h1 { color: #d82c20; }
         
-        .container { width: 100%; max-width: 1000px; display: flex; gap: 20px; }
+        .layout { display: flex; gap: 20px; width: 100%; max-width: 1100px; margin-top: 20px; }
         
-        .control-panel { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .visual-panel { flex: 2; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; min-height: 400px; }
+        .sidebar { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 10px; }
+        .canvas { flex: 2; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; min-height: 500px; overflow: hidden; }
         
-        .component { 
-            width: 120px; height: 80px; border-radius: 8px; display: flex; align-items: center; justify-content: center; 
-            font-weight: bold; position: absolute; color: white;
+        button { padding: 10px; border: 1px solid #ccc; background: #f9f9f9; cursor: pointer; border-radius: 4px; text-align: left; transition: all 0.2s; }
+        button:hover { background: #eee; }
+        button.active { background: #d82c20; color: white; border-color: #b71c1c; }
+        button.run-btn { background: #28a745; color: white; text-align: center; font-weight: bold; margin-top: auto; }
+        button.run-btn:hover { background: #218838; }
+
+        .desc-box { background: #fff3e0; padding: 10px; border-radius: 4px; font-size: 0.9rem; color: #555; border-left: 4px solid #ff9800; min-height: 80px; }
+        .solution-box { background: #e8f5e9; padding: 10px; border-radius: 4px; font-size: 0.9rem; color: #2e7d32; border-left: 4px solid #2e7d32; display: none; }
+        
+        /* Visual Elements */
+        .component { position: absolute; border-radius: 8px; display: flex; flex-direction: column; align-items: center; padding: 10px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: all 0.3s; }
+        
+        .client { top: 20px; left: 20px; width: 100px; background: #333; color: white; z-index: 2; }
+        
+        .bloom-filter { 
+            top: 100px; left: 150px; width: 120px; height: 40px; 
+            background: #673ab7; color: white; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transform: scale(0.8); transition: all 0.3s; z-index: 2;
         }
-        .client { top: 20px; left: 20px; background: #333; }
-        .redis { top: 150px; left: 150px; background: #d82c20; }
-        .db { top: 300px; left: 300px; background: #0078d4; }
-        
-        .req-ball { 
-            width: 15px; height: 15px; border-radius: 50%; background: #ff9800; position: absolute; 
-            display: none; z-index: 10;
+        .bloom-filter.visible { opacity: 1; transform: scale(1); }
+
+        .redis { top: 180px; left: 150px; width: 200px; height: 150px; background: #ffebee; border: 2px solid #d82c20; z-index: 1; }
+        .redis-title { color: #d82c20; margin-bottom: 10px; }
+        .key-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; width: 100%; }
+        .key-item { background: white; border: 1px solid #ffcdd2; padding: 5px; font-size: 0.7rem; text-align: center; border-radius: 3px; }
+        .key-item.expired { background: #eee; color: #999; text-decoration: line-through; }
+        .key-item.missing { border-style: dashed; color: #999; }
+        .key-item.ok { background: #e8f5e9; border-color: #c8e6c9; color: #2e7d32; }
+
+        .db { top: 380px; left: 350px; width: 150px; height: 100px; background: #e3f2fd; border: 2px solid #0288d1; z-index: 1; }
+        .db-title { color: #0288d1; }
+        .db-load { width: 100%; height: 10px; background: #ddd; margin-top: 10px; border-radius: 5px; overflow: hidden; }
+        .db-load-fill { height: 100%; width: 0%; background: #d82c20; transition: width 0.2s; }
+
+        .mutex {
+            position: absolute; top: 200px; left: 370px; background: #ff9800; color: white; 
+            padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; opacity: 0; z-index: 3;
         }
-        
-        .stat-box { margin-top: 20px; padding: 10px; background: #eee; border-radius: 4px; font-family: monospace; }
-        
-        button { width: 100%; padding: 10px; margin-bottom: 10px; background: #eee; border: none; cursor: pointer; text-align: left; }
-        button.active { background: #d82c20; color: white; }
-        button:hover { opacity: 0.9; }
-        
-        .solution-toggle { margin-top: 10px; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; }
+        .mutex.visible { opacity: 1; animation: pulse 1s infinite; }
+
+        /* Request Ball */
+        .req { 
+            position: absolute; width: 20px; height: 20px; background: #333; border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; color: white; font-size: 0.6rem;
+            z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .req.hit { background: #28a745; }
+        .req.miss { background: #d82c20; }
+        .req.blocked { background: #673ab7; } /* Bloom Filter Block */
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
 
     </style>
 </head>
 <body>
-    <h1>Redis Cache Problems</h1>
+    <h1>Redis Cache Problems Visualized</h1>
     
-    <div class="container">
-        <div class="control-panel">
-            <h3>Scenarios</h3>
+    <div class="layout">
+        <div class="sidebar">
+            <h3>1. Select Scenario</h3>
             <button onclick="setScenario('NORMAL')" id="btn-normal" class="active">Normal Flow</button>
             <button onclick="setScenario('PENETRATION')" id="btn-penetration">Cache Penetration (穿透)</button>
             <button onclick="setScenario('AVALANCHE')" id="btn-avalanche">Cache Avalanche (雪崩)</button>
             <button onclick="setScenario('BREAKDOWN')" id="btn-breakdown">Cache Breakdown (击穿)</button>
             
-            <div class="solution-toggle">
-                <input type="checkbox" id="chk-solution">
-                <label for="chk-solution">Enable Solution</label>
+            <div class="desc-box" id="desc-box">
+                Normal operation. Keys exist in Redis. Requests hit Redis and return fast. DB is safe.
             </div>
-            <div id="solution-desc" style="margin-top: 10px; font-size: 0.85rem; color: #28a745; font-weight: bold;"></div>
-            
-            <button onclick="startSim()" style="margin-top: 20px; background: #28a745; color: white; text-align: center;">Start Simulation</button>
+
+            <h3>2. Apply Solution</h3>
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="chk-solution" onchange="toggleSolution()"> 
+                <strong>Enable Protection</strong>
+            </label>
+            <div class="solution-box" id="solution-box"></div>
+
+            <button class="run-btn" onclick="runSimulation()">▶ Run Simulation</button>
         </div>
 
-        <div class="visual-panel">
+        <div class="canvas">
             <div class="component client">Client</div>
-            <div class="component redis">Redis</div>
-            <div class="component db">Database</div>
             
-            <div id="req-container"></div>
-            
-            <div class="stat-box" id="stats">
-                Requests: 0<br>
-                Redis Hits: 0<br>
-                DB Hits: 0<br>
-                Status: Idle
+            <div class="bloom-filter" id="bloom-filter">Bloom Filter</div>
+
+            <div class="component redis">
+                <div class="redis-title">Redis Cache</div>
+                <div class="key-grid" id="key-grid">
+                    <!-- Keys injected by JS -->
+                </div>
+            </div>
+
+            <div class="mutex" id="mutex-lock">🔒 Mutex Lock</div>
+
+            <div class="component db">
+                <div class="db-title">Database</div>
+                <div style="font-size: 0.8rem;">Load: <span id="load-text">0%</span></div>
+                <div class="db-load"><div class="db-load-fill" id="db-load-fill"></div></div>
             </div>
         </div>
     </div>
 
     <script>
-        let scenario = 'NORMAL';
-        let stats = { req: 0, redis: 0, db: 0 };
-        
+        let currentScenario = 'NORMAL';
+        let dbLoad = 0;
+
+        const scenarios = {
+            NORMAL: {
+                title: "Normal Flow",
+                desc: "Data is present in Redis (Hot Data). Requests hit Redis (Cache Hit) and return immediately. Database load is low.",
+                keys: [
+                    { id: 1, val: 'Data A', status: 'ok' },
+                    { id: 2, val: 'Data B', status: 'ok' },
+                    { id: 3, val: 'Data C', status: 'ok' },
+                    { id: 4, val: 'Data D', status: 'ok' }
+                ]
+            },
+            PENETRATION: {
+                title: "Cache Penetration (穿透)",
+                desc: "Malicious user requests data that DOES NOT EXIST in Redis OR Database (e.g., id=-1). Every request goes to DB.",
+                solution: "<strong>Bloom Filter:</strong> Checks if key *might* exist before hitting Redis/DB. Blocks invalid keys.",
+                keys: [
+                    { id: 1, val: 'Data A', status: 'ok' },
+                    { id: 2, val: 'Data B', status: 'ok' },
+                    { id: '?', val: 'Missing', status: 'missing' }, // Visual placeholder
+                    { id: '?', val: 'Missing', status: 'missing' }
+                ]
+            },
+            AVALANCHE: {
+                title: "Cache Avalanche (雪崩)",
+                desc: "Many keys expire AT THE SAME TIME. A massive wave of requests hits the DB simultaneously.",
+                solution: "<strong>Random TTL:</strong> Add random time to expiration so keys don't expire together.",
+                keys: [
+                    { id: 1, val: 'Data A', status: 'expired' },
+                    { id: 2, val: 'Data B', status: 'expired' },
+                    { id: 3, val: 'Data C', status: 'expired' },
+                    { id: 4, val: 'Data D', status: 'expired' }
+                ]
+            },
+            BREAKDOWN: {
+                title: "Cache Breakdown (击穿)",
+                desc: "A single HOT key expires. Thousands of concurrent requests for this ONE key hit the DB.",
+                solution: "<strong>Mutex Lock:</strong> Only the first thread hits DB to rebuild cache. Others wait.",
+                keys: [
+                    { id: 1, val: 'HOT KEY', status: 'expired' },
+                    { id: 2, val: 'Data B', status: 'ok' },
+                    { id: 3, val: 'Data C', status: 'ok' },
+                    { id: 4, val: 'Data D', status: 'ok' }
+                ]
+            }
+        };
+
         function setScenario(s) {
-            scenario = s;
-            document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            currentScenario = s;
+            document.querySelectorAll('.sidebar button').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-' + s.toLowerCase()).classList.add('active');
-            updateSolutionText();
+            
+            // Update Text
+            document.getElementById('desc-box').innerHTML = scenarios[s].desc;
+            document.getElementById('solution-box').innerHTML = scenarios[s].solution || "";
+            
+            toggleSolution(); // Update solution visibility
+            renderKeys();
         }
 
-        function updateSolutionText() {
-            const chk = document.getElementById('chk-solution').checked;
-            const div = document.getElementById('solution-desc');
-            if (!chk) {
-                div.innerText = "";
-                return;
-            }
+        function toggleSolution() {
+            const enabled = document.getElementById('chk-solution').checked;
+            const box = document.getElementById('solution-box');
             
-            switch(scenario) {
-                case 'PENETRATION': div.innerText = "Solution: Bloom Filter or Cache Null Values."; break;
-                case 'AVALANCHE': div.innerText = "Solution: Randomize TTL or High Availability (Cluster)."; break;
-                case 'BREAKDOWN': div.innerText = "Solution: Mutex Lock or Logical Expiry."; break;
-                default: div.innerText = "";
-            }
-        }
-        
-        document.getElementById('chk-solution').addEventListener('change', updateSolutionText);
-
-        async function startSim() {
-            stats = { req: 0, redis: 0, db: 0 };
-            updateStats("Running...");
-            
-            const count = (scenario === 'AVALANCHE' || scenario === 'BREAKDOWN') ? 20 : 5;
-            const delay = (scenario === 'AVALANCHE') ? 50 : 300;
-            
-            for (let i = 0; i < count; i++) {
-                spawnRequest();
-                await wait(delay);
-            }
-            
-            setTimeout(() => updateStats("Finished"), 2000);
-        }
-
-        async function spawnRequest() {
-            const ball = document.createElement('div');
-            ball.className = 'req-ball';
-            ball.style.top = '60px'; ball.style.left = '80px'; ball.style.display = 'block';
-            document.getElementById('req-container').appendChild(ball);
-            
-            stats.req++;
-            updateStats("Running...");
-
-            // Move to Redis
-            await animate(ball, 60, 80, 190, 210);
-            
-            let hitRedis = false;
-            const solution = document.getElementById('chk-solution').checked;
-
-            if (scenario === 'NORMAL') {
-                hitRedis = Math.random() > 0.3; // 70% hit rate
-            } else if (scenario === 'PENETRATION') {
-                // Querying non-existent key
-                if (solution) {
-                    // Bloom filter catches it before DB, or Cache Null returns immediately
-                    // Let's simulate Cache Null hit
-                    hitRedis = true; 
+            if (enabled && scenarios[currentScenario].solution) {
+                box.style.display = 'block';
+                // Show visual elements
+                if (currentScenario === 'PENETRATION') {
+                    document.getElementById('bloom-filter').classList.add('visible');
                 } else {
-                    hitRedis = false; // Always miss
+                    document.getElementById('bloom-filter').classList.remove('visible');
                 }
-            } else if (scenario === 'AVALANCHE') {
-                // All keys expired
-                hitRedis = false; 
+            } else {
+                box.style.display = 'none';
+                document.getElementById('bloom-filter').classList.remove('visible');
+            }
+            renderKeys(); // Re-render keys (for Avalanche randomization)
+        }
+
+        function renderKeys() {
+            const grid = document.getElementById('key-grid');
+            grid.innerHTML = '';
+            const keys = scenarios[currentScenario].keys;
+            
+            // If solution enabled for Avalanche, randomize keys
+            const solution = document.getElementById('chk-solution').checked;
+            if (currentScenario === 'AVALANCHE' && solution) {
+                // Show some expired, some ok
+                keys.forEach((k, i) => {
+                    const div = document.createElement('div');
+                    div.className = `key-item ${i % 2 === 0 ? 'ok' : 'expired'}`;
+                    div.innerText = k.val;
+                    grid.appendChild(div);
+                });
+            } else {
+                keys.forEach(k => {
+                    const div = document.createElement('div');
+                    div.className = `key-item ${k.status}`;
+                    div.innerText = k.val;
+                    grid.appendChild(div);
+                });
+            }
+        }
+
+        async function runSimulation() {
+            dbLoad = 0;
+            updateDbLoad();
+            
+            const count = (currentScenario === 'AVALANCHE' || currentScenario === 'BREAKDOWN') ? 15 : 5;
+            const interval = (currentScenario === 'AVALANCHE') ? 100 : 400;
+
+            for (let i = 0; i < count; i++) {
+                spawnRequest(i);
+                await wait(interval);
+            }
+        }
+
+        async function spawnRequest(id) {
+            const solution = document.getElementById('chk-solution').checked;
+            const ball = document.createElement('div');
+            ball.className = 'req';
+            ball.innerText = 'Req';
+            ball.style.top = '60px'; ball.style.left = '60px';
+            document.querySelector('.canvas').appendChild(ball);
+
+            // 1. Move to Bloom Filter (if visible) or Redis
+            let targetY = 180; // Redis
+            let targetX = 200;
+            
+            if (currentScenario === 'PENETRATION' && solution) {
+                // Hit Bloom Filter
+                await animate(ball, 100, 150); // Bloom Filter pos
+                ball.classList.add('blocked');
+                ball.innerText = 'Blk';
+                await wait(300);
+                ball.remove();
+                return; // Blocked!
+            }
+
+            // 2. Move to Redis
+            await animate(ball, 180, 200); // Redis pos
+            
+            // Check Hit/Miss logic
+            let hit = false;
+            let waitMutex = false;
+
+            if (currentScenario === 'NORMAL') hit = true;
+            else if (currentScenario === 'PENETRATION') hit = false; // Always miss
+            else if (currentScenario === 'AVALANCHE') {
+                if (solution) hit = Math.random() > 0.5; // Random TTL saved some
+                else hit = false; // All expired
+            }
+            else if (currentScenario === 'BREAKDOWN') {
+                // Hot key expired
                 if (solution) {
-                    // Random TTL means some might still be there, but for visual simplicity, 
-                    // let's say solution prevents the DB spike by some mechanism (like rate limiting or fallback)
-                    // Or simply: Random TTL prevents ALL from expiring. So some hit.
-                    hitRedis = Math.random() > 0.5;
-                }
-            } else if (scenario === 'BREAKDOWN') {
-                // Hot key expired. Concurrent requests.
-                // First one misses, others might wait (Mutex)
-                // Without solution: All miss and hit DB
-                hitRedis = false;
-                if (solution) {
-                    // Mutex: Only 1 hits DB, others wait and then hit Redis.
-                    // Visualizing this is hard. Let's say 80% hit Redis (simulating waiting).
-                    hitRedis = Math.random() > 0.2;
+                    // Mutex logic: First one misses, others wait
+                    // We simulate this by making only the first one hit DB, others turn green at Redis
+                    // But this is a simulation loop.
+                    // Let's say: Randomly 1 goes to DB, others wait and hit.
+                    if (Math.random() > 0.8) {
+                        hit = false; // Go to DB (Acquire Lock)
+                        document.getElementById('mutex-lock').classList.add('visible');
+                        setTimeout(() => document.getElementById('mutex-lock').classList.remove('visible'), 500);
+                    } else {
+                        waitMutex = true;
+                        hit = true; // Eventually hit
+                    }
+                } else {
+                    hit = false; // All go to DB
                 }
             }
 
-            if (hitRedis) {
-                ball.style.background = '#28a745'; // Green for hit
-                stats.redis++;
-                await wait(200);
+            if (hit) {
+                if (waitMutex) {
+                    ball.innerText = 'Wait';
+                    await wait(500); // Simulate waiting for lock
+                }
+                ball.classList.add('hit');
+                ball.innerText = 'Hit';
+                await wait(300);
                 ball.remove();
             } else {
-                ball.style.background = '#d82c20'; // Red for miss
-                // Move to DB
-                await animate(ball, 190, 210, 340, 360);
-                stats.db++;
-                await wait(200);
+                ball.classList.add('miss');
+                ball.innerText = 'Miss';
+                
+                // 3. Move to DB
+                await animate(ball, 380, 400);
+                
+                // Increase Load
+                dbLoad += 10;
+                updateDbLoad();
+                
+                await wait(300);
                 ball.remove();
+                
+                // Decrease Load slowly
+                setTimeout(() => {
+                    dbLoad = Math.max(0, dbLoad - 10);
+                    updateDbLoad();
+                }, 1000);
             }
-            updateStats("Running...");
         }
 
-        function animate(el, y1, x1, y2, x2) {
+        function updateDbLoad() {
+            const fill = document.getElementById('db-load-fill');
+            const text = document.getElementById('load-text');
+            fill.style.width = Math.min(100, dbLoad) + '%';
+            text.innerText = Math.min(100, dbLoad) + '%';
+            
+            if (dbLoad > 80) fill.style.background = '#b71c1c'; // Critical
+            else if (dbLoad > 50) fill.style.background = '#f57f17'; // Warning
+            else fill.style.background = '#28a745'; // OK
+        }
+
+        function animate(el, top, left) {
             return new Promise(resolve => {
-                let start = null;
-                function step(timestamp) {
-                    if (!start) start = timestamp;
-                    const progress = Math.min((timestamp - start) / 500, 1);
-                    el.style.top = y1 + (y2 - y1) * progress + 'px';
-                    el.style.left = x1 + (x2 - x1) * progress + 'px';
-                    if (progress < 1) {
-                        window.requestAnimationFrame(step);
-                    } else {
-                        resolve();
-                    }
-                }
-                window.requestAnimationFrame(step);
+                el.style.transition = 'all 0.5s linear';
+                // Force reflow
+                el.offsetHeight; 
+                el.style.top = top + 'px';
+                el.style.left = left + 'px';
+                setTimeout(resolve, 500);
             });
         }
 
         function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-        function updateStats(status) {
-            document.getElementById('stats').innerHTML = `
-                Requests: ${stats.req}<br>
-                Redis Hits: ${stats.redis}<br>
-                DB Hits: ${stats.db}<br>
-                Status: ${status}
-            `;
-        }
+        // Init
+        setScenario('NORMAL');
+
     </script>
 </body>
 </html>
