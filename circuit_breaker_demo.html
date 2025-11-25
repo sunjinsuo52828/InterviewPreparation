@@ -60,12 +60,12 @@
     <h1>Circuit Breaker Pattern</h1>
     
     <div style="width: 1000px; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <h3 style="margin-top:0; color:#333;">Demo Guide</h3>
+        <h3 style="margin-top:0; color:#333;">演示指南 (Demo Guide)</h3>
         <ul style="margin:0; padding-left: 20px; color: #555;">
-            <li><strong>Normal Flow (Closed):</strong> Send "Success" requests. The failure counter stays low.</li>
-            <li><strong>Trip Circuit (Open):</strong> Send "Failed" requests until the threshold (3) is reached. The state flips to OPEN.</li>
-            <li><strong>Fail Fast:</strong> Try sending requests while OPEN. They are blocked immediately without executing.</li>
-            <li><strong>Recovery (Half-Open):</strong> Wait 3 seconds. The state becomes HALF-OPEN. The next request determines if we go back to CLOSED (Success) or OPEN (Fail).</li>
+            <li><strong>正常流程 (Closed):</strong> 发送 "Success" 请求。失败计数器保持在低位。</li>
+            <li><strong>熔断触发 (Open):</strong> 发送 "Failed" 请求直到达到阈值 (3)。状态变为 OPEN (熔断)。</li>
+            <li><strong>快速失败 (Fail Fast):</strong> 在 OPEN 状态下尝试发送请求。请求会被立即拦截，不会执行。</li>
+            <li><strong>恢复检测 (Half-Open):</strong> 等待 3 秒。状态变为 HALF-OPEN (半开)。下一个请求将决定是恢复到 CLOSED (成功) 还是重新 OPEN (失败)。</li>
         </ul>
     </div>
 
