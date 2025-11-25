@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring AOP Architecture Guide</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; line-height: 1.6; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        
+        h1 { color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        h2 { color: #007acc; margin-top: 30px; }
+        h3 { color: #555; margin-top: 20px; }
+        
+        .concept-box { display: flex; gap: 20px; margin: 20px 0; }
+        .concept-card { flex: 1; background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #007acc; }
+        .concept-title { font-weight: bold; color: #007acc; margin-bottom: 5px; }
+        
+        code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-family: 'Consolas', monospace; color: #d63384; }
+        pre { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 6px; overflow-x: auto; font-family: 'Consolas', monospace; }
+        
+        .annotation { color: #dcdcaa; }
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; }
+        .method { color: #dcdcaa; }
+        .class-name { color: #4ec9b0; }
+
+        .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+        .comp-col { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 15px; }
+        .comp-header { font-weight: bold; text-align: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+
+        .highlight { background: #fff3cd; padding: 15px; border-radius: 6px; border: 1px solid #ffeeba; color: #856404; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Spring AOP Implementation Guide</h1>
+        
+        <div class="highlight">
+            <strong>User Question:</strong> "Why were `Advice` and `JoinPoint` missing in the previous example?"<br>
+            <strong>Answer:</strong> They were there, but implicit! 
+            <ul>
+                <li>The <strong>Method</strong> itself IS the <strong>Advice</strong>.</li>
+                <li>The <strong>Arguments</strong> (`CreditCard card`) were bound from the <strong>JoinPoint</strong> automatically.</li>
+            </ul>
+            Below is the complete breakdown.
+        </div>
+
+        <h2>1. Core Concepts (The "What")</h2>
+        <div class="concept-box">
+            <div class="concept-card">
+                <div class="concept-title">Aspect (切面)</div>
+                A class that contains the logic you want to apply (e.g., `RiskCheckAspect`). It's a combination of Pointcuts and Advice.
+            </div>
+            <div class="concept-card">
+                <div class="concept-title">Pointcut (切点)</div>
+                An expression that defines <em>WHERE</em> to apply the logic (e.g., "All methods with `@CheckCardRisk`").
+            </div>
+            <div class="concept-card">
+                <div class="concept-title">Advice (通知)</div>
+                The actual logic method (<em>WHAT</em> to do) and <em>WHEN</em> to do it (@Before, @After, @Around).
+            </div>
+            <div class="concept-card">
+                <div class="concept-title">JoinPoint (连接点)</div>
+                The specific execution point (the method call) being intercepted. You can access method names/args here.
+            </div>
+        </div>
+
+        <h2>2. Implementation Steps (The "How")</h2>
+        
+        <h3>Step 1: Dependencies</h3>
+        <pre>
+&lt;dependency&gt;
+    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+    &lt;artifactId&gt;spring-boot-starter-aop&lt;/artifactId&gt;
+&lt;/dependency&gt;</pre>
+
+        <h3>Step 2: Enable AOP (Often automatic in Spring Boot)</h3>
+        <pre>
+<span class="annotation">@Configuration</span>
+<span class="annotation">@EnableAspectJAutoProxy</span> <span class="comment">// Ensures AOP proxies are created</span>
+<span class="keyword">public class</span> <span class="class-name">AppConfig</span> { ... }</pre>
+
+        <h3>Step 3: Define the Aspect Class</h3>
+        <pre>
+<span class="annotation">@Aspect</span>      <span class="comment">// 1. Mark as Aspect</span>
+<span class="annotation">@Component</span>   <span class="comment">// 2. Register as Bean (Crucial!)</span>
+<span class="keyword">public class</span> <span class="class-name">LoggingAspect</span> {
+
+    <span class="comment">// 3. Define Pointcut (Optional, can be inline)</span>
+    <span class="annotation">@Pointcut</span>(<span class="string">"execution(* com.example.service.*.*(..))"</span>)
+    <span class="keyword">public void</span> <span class="method">serviceLayer</span>() {}
+
+    <span class="comment">// 4. Define Advice</span>
+    <span class="annotation">@Before</span>(<span class="string">"serviceLayer()"</span>)
+    <span class="keyword">public void</span> <span class="method">logBefore</span>(<span class="class-name">JoinPoint</span> joinPoint) {
+        <span class="comment">// Logic here...</span>
+    }
+}</pre>
+
+        <h2>3. Where is the JoinPoint? (Explicit vs Implicit)</h2>
+        <p>In the previous demo, we used <strong>Argument Binding</strong> to get the `CreditCard` object directly. Here is the comparison:</p>
+
+        <div class="comparison">
+            <div class="comp-col">
+                <div class="comp-header">Style A: Explicit JoinPoint (Generic)</div>
+                <pre>
+<span class="annotation">@Before</span>(<span class="string">"execution(* processPayment(..))"</span>)
+<span class="keyword">public void</span> <span class="method">check</span>(<span class="class-name">JoinPoint</span> jp) {
+    <span class="comment">// Manually get args array</span>
+    <span class="class-name">Object</span>[] args = jp.getArgs();
+    
+    <span class="keyword">if</span> (args[0] <span class="keyword">instanceof</span> <span class="class-name">CreditCard</span>) {
+        <span class="class-name">CreditCard</span> c = (<span class="class-name">CreditCard</span>) args[0];
+        <span class="comment">// Validate c...</span>
+    }
+    
+    <span class="class-name">System</span>.out.println(jp.getSignature().getName());
+}</pre>
+                <p><em>Good for generic logging where you don't know the exact arguments.</em></p>
+            </div>
+
+            <div class="comp-col">
+                <div class="comp-header">Style B: Argument Binding (Clean)</div>
+                <pre>
+<span class="comment">// "args(card,..)" binds the first arg to 'card'</span>
+<span class="annotation">@Before</span>(<span class="string">"@annotation(CheckRisk) && args(card,..)"</span>)
+<span class="keyword">public void</span> <span class="method">check</span>(<span class="class-name">CreditCard</span> card) {
+    
+    <span class="comment">// No casting needed!</span>
+    <span class="comment">// We have the object directly.</span>
+    
+    <span class="keyword">if</span> (!card.getLogo().equals(<span class="string">"VISA"</span>)) {
+        <span class="keyword">throw new</span> <span class="class-name">Exception</span>(...);
+    }
+}</pre>
+                <p><em>Used in the demo. Cleaner when you know exactly what object you are validating.</em></p>
+            </div>
+        </div>
+
+        <h2>4. Summary of the Previous Demo</h2>
+        <ul>
+            <li><strong>Aspect</strong>: `RiskCheckAspect` class.</li>
+            <li><strong>Advice</strong>: The `validateCard` method (annotated with `@Before`).</li>
+            <li><strong>Pointcut</strong>: `@annotation(CheckCardRisk)` (Matches any method with this annotation).</li>
+            <li><strong>JoinPoint</strong>: The execution of `processPayment`. We accessed its context via the `card` parameter.</li>
+        </ul>
+
+    </div>
+</body>
+</html>
