@@ -6,43 +6,70 @@
     <title>Redis Data Structures Visualization</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
-        h1 { color: #d82c20; } /* Redis Red */
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab { padding: 10px 20px; background: #ddd; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .tab.active { background: #d82c20; color: white; }
+        h1 { color: #d82c20; margin-bottom: 10px; }
         
-        .container { width: 100%; max-width: 1000px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); min-height: 400px; }
-        .controls { margin-bottom: 20px; padding: 10px; background: #f9f9f9; border-radius: 5px; }
-        button { background: #333; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-left: 5px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; background: #ddd; border-radius: 5px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .tab.active { background: #d82c20; color: white; transform: scale(1.05); }
+        
+        .container { width: 100%; max-width: 1000px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); min-height: 500px; position: relative; }
+        .controls { margin-bottom: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        button { background: #333; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         button:hover { background: #555; }
-        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 60px; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 80px; }
+
+        .narrative {
+            background: #e1f5fe; color: #01579b; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 1.1rem; line-height: 1.6; min-height: 60px; display: flex; align-items: center; border-left: 5px solid #0288d1;
+        }
 
         /* SkipList Styles */
-        .skiplist-level { display: flex; align-items: center; margin-bottom: 10px; position: relative; height: 40px; }
-        .level-label { width: 60px; font-weight: bold; color: #666; }
+        .skiplist-container { position: relative; padding-top: 20px; overflow-x: auto; }
+        .skiplist-level { display: flex; align-items: center; margin-bottom: 15px; position: relative; height: 50px; }
+        .level-label { width: 80px; font-weight: bold; color: #666; flex-shrink: 0; }
+        
         .sl-node { 
             width: 40px; height: 40px; border: 2px solid #333; background: white; 
             display: flex; align-items: center; justify-content: center; 
-            margin-right: 40px; border-radius: 50%; font-weight: bold; z-index: 2;
-            position: absolute; transition: left 0.5s;
+            border-radius: 50%; font-weight: bold; z-index: 2;
+            position: absolute; transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        .sl-line { position: absolute; height: 2px; background: #ccc; top: 20px; left: 60px; width: 100%; z-index: 1; }
+        .sl-node.head { background: #eee; border-color: #999; }
+        .sl-node.highlight { background: #ffeb3b; border-color: #fbc02d; transform: scale(1.2); z-index: 10; }
+        .sl-node.visited { background: #e0f7fa; border-color: #00bcd4; }
+        .sl-node.target { background: #4caf50; color: white; border-color: #2e7d32; }
+
+        .sl-line { position: absolute; height: 2px; background: #e0e0e0; top: 25px; left: 80px; width: 100%; z-index: 1; }
         
+        /* Arrow for search path */
+        .search-arrow {
+            position: absolute; height: 3px; background: #d82c20; z-index: 5; transform-origin: 0 50%;
+            transition: width 0.3s linear;
+        }
+
         /* LRU Styles */
-        .lru-container { display: flex; flex-direction: column; align-items: center; }
+        .lru-wrapper { display: flex; flex-direction: column; align-items: center; margin-top: 30px; }
         .cache-box { 
-            display: flex; gap: 10px; padding: 20px; border: 2px dashed #ccc; border-radius: 10px; min-height: 80px; width: 80%; 
-            align-items: center; overflow-x: auto;
+            display: flex; gap: 15px; padding: 20px; border: 3px dashed #ccc; border-radius: 15px; 
+            min-height: 100px; width: 90%; align-items: center; overflow-x: auto; background: #fafafa;
         }
         .lru-item {
-            min-width: 60px; height: 60px; background: #e1f5fe; border: 2px solid #0288d1; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center; font-weight: bold;
-            animation: fadeIn 0.5s;
+            min-width: 70px; height: 70px; background: #fff; border: 2px solid #0288d1; border-radius: 12px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative;
+            transition: all 0.4s ease;
         }
-        .lru-head { border-color: #2e7d32; background: #e8f5e9; } /* MRU */
-        .lru-tail { border-color: #c62828; background: #ffebee; } /* LRU */
+        .lru-item span { font-size: 1.2rem; }
+        .lru-item .tag { font-size: 0.7rem; color: #666; margin-top: 4px; font-weight: normal; }
         
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+        .lru-item.new { animation: popIn 0.5s; background: #e8f5e9; border-color: #4caf50; }
+        .lru-item.hit { animation: flashGreen 1s; background: #e8f5e9; border-color: #4caf50; }
+        .lru-item.evict { animation: fadeOut 0.5s forwards; background: #ffebee; border-color: #f44336; }
+
+        @keyframes popIn { 0% { transform: scale(0); } 80% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        @keyframes flashGreen { 0% { background: #fff; } 50% { background: #b9f6ca; transform: scale(1.1); } 100% { background: #fff; } }
+        @keyframes fadeOut { to { opacity: 0; transform: translateY(20px); } }
+
     </style>
 </head>
 <body>
@@ -52,40 +79,59 @@
         <div class="tab" onclick="switchTab('lru')">LRU Cache</div>
     </div>
 
-    <div id="skiplist-view" class="container">
-        <h2>SkipList Visualization</h2>
-        <div class="controls">
-            <input type="number" id="slInput" placeholder="Val">
-            <button onclick="slInsert()">Insert</button>
-            <button onclick="slSearch()">Search</button>
-            <button onclick="slReset()">Reset</button>
+    <div class="container">
+        <div class="narrative" id="narrative">
+            Select a tab to begin. SkipList is used for Sorted Sets (ZSet). LRU is used for memory eviction.
         </div>
-        <div id="sl-canvas" style="position: relative; height: 300px;"></div>
-    </div>
 
-    <div id="lru-view" class="container" style="display: none;">
-        <h2>LRU Cache Visualization</h2>
-        <div class="controls">
-            <input type="text" id="lruInput" placeholder="Key">
-            <button onclick="lruAccess()">Get/Put</button>
-            <span>Capacity: 5</span>
-        </div>
-        <div class="lru-container">
-            <div style="width: 80%; display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.8rem; color: #666;">
-                <span>MRU (Most Recently Used)</span>
-                <span>LRU (Least Recently Used)</span>
+        <!-- SkipList View -->
+        <div id="skiplist-view">
+            <div class="controls">
+                <input type="number" id="slInput" placeholder="Value" value="15">
+                <button onclick="slInsert()" id="btn-insert">Insert</button>
+                <button onclick="slSearch()" id="btn-search" style="background: #0078d4;">Search</button>
+                <button onclick="slReset()" style="background: #757575;">Reset</button>
             </div>
-            <div class="cache-box" id="lru-box"></div>
+            <div id="sl-canvas" class="skiplist-container" style="height: 350px;"></div>
+        </div>
+
+        <!-- LRU View -->
+        <div id="lru-view" style="display: none;">
+            <div class="controls">
+                <input type="text" id="lruInput" placeholder="Key (e.g. A)" maxlength="2">
+                <button onclick="lruAccess()" style="background: #0078d4;">Get / Put</button>
+                <span style="margin-left: auto; font-weight: bold; color: #666;">Capacity: 5</span>
+            </div>
+            <div class="lru-wrapper">
+                <div style="width: 90%; display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; color: #555;">
+                    <span>MRU (Most Recently Used) <br><small style="font-weight:normal; color:#888">Front of Queue</small></span>
+                    <span style="text-align: right;">LRU (Least Recently Used) <br><small style="font-weight:normal; color:#888">Back of Queue</small></span>
+                </div>
+                <div class="cache-box" id="lru-box"></div>
+            </div>
         </div>
     </div>
 
     <script>
+        let currentTab = 'skiplist';
+        let isAnimating = false;
+
         function switchTab(tab) {
+            currentTab = tab;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
             document.getElementById('skiplist-view').style.display = tab === 'skiplist' ? 'block' : 'none';
             document.getElementById('lru-view').style.display = tab === 'lru' ? 'block' : 'none';
+            
+            if(tab === 'skiplist') narrate("<strong>SkipList (ZSet)</strong>: A multi-level linked list. Higher levels allow 'skipping' over many nodes to find values faster ($O(\\log N)$).");
+            else narrate("<strong>LRU Cache</strong>: Keeps recently used items at the front. When full, the item at the back (Least Recently Used) is removed.");
         }
+
+        function narrate(html) {
+            document.getElementById('narrative').innerHTML = html;
+        }
+
+        function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
         // --- SkipList Logic ---
         const MAX_LEVEL = 4;
@@ -93,11 +139,12 @@
             constructor(val, level) {
                 this.val = val;
                 this.forward = new Array(level + 1).fill(null);
+                this.level = level;
             }
         }
 
         let head = new SLNode(-Infinity, MAX_LEVEL);
-        let slNodes = []; // Keep track for rendering
+        let slNodes = []; 
 
         function randomLevel() {
             let lvl = 0;
@@ -106,11 +153,16 @@
         }
 
         function slInsert() {
+            if(isAnimating) return;
             const val = parseInt(document.getElementById('slInput').value);
             if (isNaN(val)) return;
             
-            // Check duplicate
-            if (slNodes.find(n => n.val === val)) return;
+            if (slNodes.find(n => n.val === val)) {
+                narrate(`Value <strong>${val}</strong> already exists.`);
+                return;
+            }
+
+            narrate(`Inserting <strong>${val}</strong>... Calculating random level.`);
 
             const update = new Array(MAX_LEVEL + 1).fill(null);
             let current = head;
@@ -133,31 +185,92 @@
             slNodes.push(newNode);
             slNodes.sort((a, b) => a.val - b.val);
             renderSkipList();
+            narrate(`Inserted <strong>${val}</strong> at Level ${lvl}. Notice how it appears on multiple levels.`);
+        }
+
+        async function slSearch() {
+            if(isAnimating) return;
+            const val = parseInt(document.getElementById('slInput').value);
+            if (isNaN(val)) return;
+
+            isAnimating = true;
+            renderSkipList(); // Clear previous highlights
+            narrate(`Searching for <strong>${val}</strong>. Starting from Top Level (L${MAX_LEVEL})...`);
+            
+            let current = head;
+            let found = false;
+
+            // Highlight Head
+            highlightNode(current, 'visited');
+            await wait(500);
+
+            for (let i = MAX_LEVEL; i >= 0; i--) {
+                narrate(`Checking <strong>Level ${i}</strong>...`);
+                
+                // Move right
+                while (current.forward[i] && current.forward[i].val <= val) {
+                    let nextNode = current.forward[i];
+                    
+                    // Visualize "Looking at next"
+                    highlightNode(nextNode, 'highlight');
+                    await wait(600);
+
+                    if (nextNode.val === val) {
+                        narrate(`Found <strong>${val}</strong> at Level ${i}!`);
+                        highlightNode(nextNode, 'target');
+                        found = true;
+                        isAnimating = false;
+                        return;
+                    }
+
+                    if (nextNode.val < val) {
+                        narrate(`<strong>${nextNode.val}</strong> < ${val}. Moving Right.`);
+                        current = nextNode;
+                        highlightNode(current, 'visited');
+                    }
+                }
+
+                if (i > 0) {
+                    narrate(`Next value is too big (or null). Dropping down to <strong>Level ${i-1}</strong>.`);
+                    await wait(600);
+                }
+            }
+
+            narrate(`Reached bottom level. Value <strong>${val}</strong> not found.`);
+            isAnimating = false;
+        }
+
+        function highlightNode(node, className) {
+            // A node exists visually at multiple levels. Highlight all of them or just the specific one?
+            // For simplicity, let's highlight all visual instances of this node value.
+            const val = node.val === -Infinity ? 'H' : node.val;
+            document.querySelectorAll(`.sl-node[data-val="${val}"]`).forEach(el => {
+                el.classList.add(className);
+            });
         }
 
         function slReset() {
             head = new SLNode(-Infinity, MAX_LEVEL);
             slNodes = [];
             renderSkipList();
+            narrate("SkipList reset.");
         }
 
         function renderSkipList() {
             const container = document.getElementById('sl-canvas');
             container.innerHTML = '';
 
-            // Calculate X positions based on sorted index
-            // Head is at 0
-            const xStep = 60;
-            const startX = 80;
+            const xStep = 70;
+            const startX = 100;
 
             for (let i = MAX_LEVEL; i >= 0; i--) {
                 const levelDiv = document.createElement('div');
                 levelDiv.className = 'skiplist-level';
-                levelDiv.style.top = (MAX_LEVEL - i) * 50 + 'px';
+                levelDiv.style.top = (MAX_LEVEL - i) * 10 + 'px'; // Slight overlap or spacing
                 
                 const label = document.createElement('div');
                 label.className = 'level-label';
-                label.innerText = `Lvl ${i}`;
+                label.innerText = `Level ${i}`;
                 levelDiv.appendChild(label);
 
                 const line = document.createElement('div');
@@ -165,26 +278,16 @@
                 levelDiv.appendChild(line);
 
                 // Draw Head
-                const headNode = document.createElement('div');
-                headNode.className = 'sl-node';
-                headNode.innerText = 'H';
-                headNode.style.left = '60px';
-                headNode.style.backgroundColor = '#eee';
+                const headNode = createVisualNode('H', 80, i);
                 levelDiv.appendChild(headNode);
 
-                // Draw nodes that exist at this level
+                // Draw nodes
                 let current = head.forward[i];
                 while(current) {
-                    // Find index in sorted list to determine X
                     const idx = slNodes.indexOf(current);
                     const x = startX + (idx + 1) * xStep;
-                    
-                    const nodeDiv = document.createElement('div');
-                    nodeDiv.className = 'sl-node';
-                    nodeDiv.innerText = current.val;
-                    nodeDiv.style.left = x + 'px';
+                    const nodeDiv = createVisualNode(current.val, x, i);
                     levelDiv.appendChild(nodeDiv);
-                    
                     current = current.forward[i];
                 }
 
@@ -192,27 +295,68 @@
             }
         }
 
+        function createVisualNode(val, left, level) {
+            const div = document.createElement('div');
+            div.className = 'sl-node';
+            if(val === 'H') div.classList.add('head');
+            div.innerText = val;
+            div.style.left = left + 'px';
+            div.dataset.val = val;
+            div.dataset.level = level;
+            return div;
+        }
+
         // --- LRU Logic ---
         const lruCapacity = 5;
-        let lruCache = []; // Array of keys. Index 0 is MRU, last is LRU.
+        let lruCache = []; 
 
-        function lruAccess() {
-            const key = document.getElementById('lruInput').value;
+        async function lruAccess() {
+            if(isAnimating) return;
+            const input = document.getElementById('lruInput');
+            const key = input.value.trim().toUpperCase();
             if (!key) return;
+            input.value = '';
 
-            // If exists, move to front
+            isAnimating = true;
             const idx = lruCache.indexOf(key);
+
             if (idx > -1) {
+                // HIT
+                narrate(`<strong>HIT!</strong> Key "${key}" found. Moving to MRU (Front).`);
+                
+                // Visual: Highlight existing
+                const items = document.querySelectorAll('.lru-item');
+                items[idx].classList.add('hit');
+                await wait(800);
+
                 lruCache.splice(idx, 1);
                 lruCache.unshift(key);
             } else {
-                // Insert at front
-                lruCache.unshift(key);
-                if (lruCache.length > lruCapacity) {
+                // MISS
+                if (lruCache.length >= lruCapacity) {
+                    const evicted = lruCache[lruCache.length - 1];
+                    narrate(`<strong>MISS!</strong> Cache full. Evicting LRU "${evicted}" and adding "${key}".`);
+                    
+                    // Visual: Evict animation
+                    const items = document.querySelectorAll('.lru-item');
+                    items[items.length - 1].classList.add('evict');
+                    await wait(600);
+                    
                     lruCache.pop();
+                } else {
+                    narrate(`<strong>MISS!</strong> Adding "${key}" to cache.`);
                 }
+                lruCache.unshift(key);
             }
+            
             renderLRU();
+            // Add 'new' class to first element for animation
+            setTimeout(() => {
+                const first = document.querySelector('.lru-item');
+                if(first) first.classList.add('new');
+            }, 50);
+            
+            isAnimating = false;
         }
 
         function renderLRU() {
@@ -222,24 +366,21 @@
             lruCache.forEach((key, index) => {
                 const div = document.createElement('div');
                 div.className = 'lru-item';
-                if (index === 0) div.classList.add('lru-head');
-                if (index === lruCache.length - 1 && lruCache.length === lruCapacity) div.classList.add('lru-tail');
-                div.innerText = key;
+                div.innerHTML = `<span>${key}</span><span class="tag">${index===0 ? 'MRU' : (index===lruCache.length-1 ? 'LRU' : '')}</span>`;
                 box.appendChild(div);
             });
         }
 
         // Init
-        slNodes = [new SLNode(10, 2), new SLNode(20, 0), new SLNode(30, 1)];
-        // Manually link for init demo
-        // ... skipping manual link for brevity, just use insert
         slReset();
-        [5, 10, 25, 15, 30, 3, 12].forEach(v => {
+        [3, 7, 12, 19, 25].forEach(v => {
             document.getElementById('slInput').value = v;
             slInsert();
         });
+        document.getElementById('slInput').value = "";
+        narrate("<strong>SkipList (ZSet)</strong>: Initialized with some data. Try searching for 19.");
 
-        lruCache = ['A', 'B', 'C'];
+        lruCache = ['C', 'B', 'A'];
         renderLRU();
 
     </script>
