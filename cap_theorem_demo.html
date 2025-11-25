@@ -1,0 +1,388 @@
+    <title>CAP 定理可视化演示</title>
+    <style>
+        body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
+        h1 { color: #2c3e50; margin-bottom: 10px; }
+        
+        .container { width: 100%; max-width: 1000px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        .controls-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 5px solid #2196f3; }
+        
+        .mode-selector { display: flex; gap: 10px; }
+        .mode-btn { padding: 8px 16px; border: 2px solid #2196f3; background: white; color: #2196f3; border-radius: 20px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .mode-btn.active { background: #2196f3; color: white; }
+        
+        .canvas { position: relative; height: 400px; background: #fafafa; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+        
+        /* Nodes */
+        .node {
+            width: 100px; height: 100px; border-radius: 50%; background: white; border: 3px solid #333;
+            position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-weight: bold; z-index: 2; transition: all 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .node.master { border-color: #ff9800; }
+        .node-title { font-size: 0.9rem; color: #666; margin-bottom: 5px; }
+        .node-data { font-size: 1.2rem; color: #333; }
+        
+        /* Network Lines */
+        .link {
+            position: absolute; height: 4px; background: #4caf50; transform-origin: 0 50%; z-index: 1; cursor: pointer; transition: all 0.3s;
+        }
+        .link:hover { height: 8px; box-shadow: 0 0 5px #4caf50; }
+        .link.broken { background: #f44336; border-style: dashed; opacity: 0.6; }
+        .link-label {
+            position: absolute; background: white; padding: 2px 5px; border-radius: 4px; font-size: 0.8rem; border: 1px solid #ccc;
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 3;
+        }
+
+        /* Client */
+        .client {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            padding: 10px 20px; background: #333; color: white; border-radius: 8px; cursor: pointer; z-index: 10;
+            display: flex; gap: 10px;
+        }
+        .client button { background: #555; color: white; border: 1px solid #777; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        .client button:hover { background: #777; }
+
+        /* Messages */
+        .packet {
+            position: absolute; width: 16px; height: 16px; background: #2196f3; border-radius: 50%; z-index: 5;
+            transition: all 0.5s linear; display: none; box-shadow: 0 0 5px #2196f3;
+        }
+
+        /* Logs & Narrative */
+        .narrative {
+            background: #fff3e0; color: #e65100; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 5px solid #ff9800; min-height: 40px; display: flex; align-items: center;
+        }
+        
+        .log-console {
+            background: #212121; color: #00e676; padding: 15px; border-radius: 8px; 
+            font-family: 'Consolas', monospace; height: 150px; overflow-y: auto;
+            font-size: 0.9rem; border: 1px solid #444;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; padding-bottom: 2px; }
+
+        /* Guide Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            display: flex; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: white; width: 700px; max-height: 90vh; overflow-y: auto; padding: 30px; border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;
+        }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; }
+        
+        .guide-step { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+        .guide-step:last-child { border-bottom: none; }
+        .guide-step h3 { color: #2196f3; margin-top: 0; }
+
+        /* Status Indicators */
+        .status-badge {
+            display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; margin-left: 10px;
+        }
+        .status-cp { background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0; }
+        .status-ap { background: #e8f5e9; color: #2e7d32; border: 1px solid #2e7d32; }
+
+    </style>
+</head>
+<body>
+    <h1>CAP 定理可视化演示 (CAP Theorem)</h1>
+    
+    <div class="container">
+        <div class="controls-top">
+            <div>
+                <strong>系统模式 (System Mode):</strong>
+                <div class="mode-selector" style="display: inline-flex; vertical-align: middle; margin-left: 10px;">
+                    <button class="mode-btn active" onclick="setMode('CP')" id="btn-cp">CP (一致性优先)</button>
+                    <button class="mode-btn" onclick="setMode('AP')" id="btn-ap">AP (可用性优先)</button>
+                </div>
+            </div>
+            <button onclick="showGuide()" style="background: #607d8b; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer;">📖 演示指南 (Guide)</button>
+        </div>
+
+        <div class="narrative" id="narrative">
+            欢迎！请选择模式 (CP 或 AP) 并尝试写入数据。点击绿色的连线可以模拟“网络分区”故障。
+        </div>
+
+        <div class="canvas" id="canvas">
+            <!-- Packet Element -->
+            <div id="packet" class="packet"></div>
+
+            <!-- Nodes -->
+            <div class="node master" style="top: 50px; left: 50%; transform: translateX(-50%);" id="node1">
+                <div class="node-title">节点 A (Leader)</div>
+                <div class="node-data">v: 0</div>
+            </div>
+            <div class="node" style="bottom: 100px; left: 20%;" id="node2">
+                <div class="node-title">节点 B</div>
+                <div class="node-data">v: 0</div>
+            </div>
+            <div class="node" style="bottom: 100px; right: 20%;" id="node3">
+                <div class="node-title">节点 C</div>
+                <div class="node-data">v: 0</div>
+            </div>
+
+            <!-- Links (SVG for lines) -->
+            <svg style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; pointer-events: none;">
+                <line id="link1-2" x1="50%" y1="100" x2="25%" y2="300" stroke="#4caf50" stroke-width="4" style="pointer-events: auto; cursor: pointer;" onclick="toggleLink('link1-2')"/>
+                <line id="link1-3" x1="50%" y1="100" x2="75%" y2="300" stroke="#4caf50" stroke-width="4" style="pointer-events: auto; cursor: pointer;" onclick="toggleLink('link1-3')"/>
+                <line id="link2-3" x1="25%" y1="300" x2="75%" y2="300" stroke="#4caf50" stroke-width="4" style="pointer-events: auto; cursor: pointer;" onclick="toggleLink('link2-3')"/>
+            </svg>
+            
+            <!-- Link Status Labels -->
+            <div id="label1-2" class="link-label" style="top: 200px; left: 37%;">连接正常</div>
+            <div id="label1-3" class="link-label" style="top: 200px; left: 63%;">连接正常</div>
+            <div id="label2-3" class="link-label" style="top: 300px; left: 50%;">连接正常</div>
+
+            <!-- Client -->
+            <div class="client" id="client">
+                <span>客户端 (Client):</span>
+                <button onclick="clientWrite()">写入 (Write v+1)</button>
+                <button onclick="clientRead()">读取 (Read)</button>
+            </div>
+        </div>
+
+        <div class="log-console" id="log-console">
+            <div class="log-entry">> 系统初始化完成。所有节点数据一致 (v: 0)。</div>
+        </div>
+    </div>
+
+    <!-- Guide Modal -->
+    <div id="guide-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('guide-modal').style.display='none'">&times;</span>
+            <h2>📖 CAP 定理演示指南</h2>
+            
+            <div class="guide-step">
+                <h3>1. 什么是 CAP?</h3>
+                <p>在分布式系统中，你只能同时满足以下三项中的两项：</p>
+                <ul>
+                    <li><strong>Consistency (一致性):</strong> 所有节点在同一时间看到的数据是相同的。</li>
+                    <li><strong>Availability (可用性):</strong> 每个请求都能收到响应（成功/失败），但不保证是最新的数据。</li>
+                    <li><strong>Partition Tolerance (分区容错性):</strong> 系统在部分节点通信失败（网络分区）时仍能继续运行。</li>
+                </ul>
+                <p><em>由于网络分区 (P) 是不可避免的，因此我们必须在 C 和 A 之间做选择。</em></p>
+            </div>
+
+            <div class="guide-step">
+                <h3>2. CP 模式 (一致性 > 可用性)</h3>
+                <p><strong>场景:</strong> 银行转账系统、分布式锁 (Zookeeper/Etcd)。</p>
+                <p><strong>行为:</strong> 如果发生网络分区（例如节点 A 无法联系 B/C），节点 A 会<strong>拒绝写入</strong>，以防止数据不一致。系统选择“不可用”来保证“数据正确”。</p>
+                <p><strong>试一试:</strong> 选择 CP 模式 -> 点击 A 和 B 之间的绿线断开连接 -> 尝试写入。</p>
+            </div>
+
+            <div class="guide-step">
+                <h3>3. AP 模式 (可用性 > 一致性)</h3>
+                <p><strong>场景:</strong> 社交媒体点赞、DNS、Eureka。</p>
+                <p><strong>行为:</strong> 如果发生网络分区，节点 A 仍然<strong>接受写入</strong>。但是，节点 B 和 C 无法收到更新。系统保持“可用”，但数据暂时“不一致”。</p>
+                <p><strong>试一试:</strong> 选择 AP 模式 -> 断开连接 -> 写入。注意节点 A 更新了，但 B/C 还是旧数据。</p>
+            </div>
+            
+            <button onclick="document.getElementById('guide-modal').style.display='none'" style="background: #2196f3; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1rem;">开始演示</button>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'CP';
+        let dataValue = 0;
+        let links = {
+            'link1-2': true, // A-B
+            'link1-3': true, // A-C
+            'link2-3': true  // B-C
+        };
+        let nodeData = {
+            'node1': 0,
+            'node2': 0,
+            'node3': 0
+        };
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('btn-cp').className = mode === 'CP' ? 'mode-btn active' : 'mode-btn';
+            document.getElementById('btn-ap').className = mode === 'AP' ? 'mode-btn active' : 'mode-btn';
+            
+            const msg = mode === 'CP' 
+                ? "已切换到 <strong>CP 模式</strong>。系统将优先保证一致性。写入操作需要大多数节点确认。"
+                : "已切换到 <strong>AP 模式</strong>。系统将优先保证可用性。即使发生分区，写入操作也会在本地成功。";
+            
+            narrate(msg);
+            log(`系统模式已切换为 ${mode}。`);
+        }
+
+        function toggleLink(id) {
+            links[id] = !links[id];
+            const line = document.getElementById(id);
+            const label = document.getElementById(id.replace('link', 'label'));
+            
+            if (links[id]) {
+                line.setAttribute('stroke', '#4caf50');
+                line.setAttribute('stroke-dasharray', '');
+                label.innerText = "连接正常";
+                label.style.color = "green";
+                log(`网络链路 ${id} 已恢复。`);
+            } else {
+                line.setAttribute('stroke', '#f44336');
+                line.setAttribute('stroke-dasharray', '5,5');
+                label.innerText = "已断开";
+                label.style.color = "red";
+                log(`网络链路 ${id} 已断开 (模拟分区)。`, 'warn');
+            }
+            
+            // Check partition status
+            checkPartition();
+        }
+
+        function checkPartition() {
+            const a_b = links['link1-2'];
+            const a_c = links['link1-3'];
+            
+            if (!a_b && !a_c) {
+                narrate("⚠️ <strong>网络分区警告!</strong> 节点 A 与 B、C 失去联系。");
+            }
+        }
+
+        async function clientWrite() {
+            const newValue = nodeData['node1'] + 1;
+            log(`CMD: 客户端请求写入 (v=${newValue}) 到节点 A...`);
+            
+            // Visual: Packet from Client to Node A
+            await animatePacket('client', 'node1');
+
+            // Check connections from A
+            const canReachB = links['link1-2'];
+            const canReachC = links['link1-3'];
+            
+            if (currentMode === 'CP') {
+                // CP Mode: Needs Quorum (Majority). Total 3 nodes, Majority = 2.
+                if (canReachB || canReachC) {
+                    // Success scenario
+                    processWriteSuccess(newValue, canReachB, canReachC);
+                } else {
+                    // Failure scenario
+                    narrate(`❌ <strong>写入失败 (CP 模式)</strong>。节点 A 无法联系大多数节点 (需要 2 个)。为了保证一致性，拒绝写入。`);
+                    log(`写入错误: 检测到分区。无法复制数据。CP 模式拒绝写入以防止脑裂。`, 'error');
+                    flashNode('node1', 'red');
+                }
+            } else {
+                // AP Mode: Always accept write locally
+                processWriteSuccess(newValue, canReachB, canReachC);
+                if (!canReachB && !canReachC) {
+                    narrate(`⚠️ <strong>写入成功 (AP 模式)</strong>。节点 A 已更新，但无法复制到 B 或 C。系统出现数据不一致。`);
+                    log(`写入成功 (本地): 节点 A 更新为 v=${newValue}。复制失败 (分区)。`, 'warn');
+                }
+            }
+        }
+
+        async function processWriteSuccess(val, sendToB, sendToC) {
+            // Update Leader
+            updateNode('node1', val);
+            flashNode('node1', 'green');
+            
+            if (sendToB) {
+                animatePacket('node1', 'node2').then(() => updateNode('node2', val));
+            }
+            if (sendToC) {
+                animatePacket('node1', 'node3').then(() => updateNode('node3', val));
+            }
+            
+            if (sendToB && sendToC) {
+                narrate(`✅ <strong>写入成功</strong>。数据已复制到所有节点。`);
+                log(`写入提交。v=${val} 已复制到 B 和 C。`);
+            } else if (sendToB || sendToC) {
+                 narrate(`✅ <strong>写入成功</strong>。数据已复制到大多数节点。`);
+                 log(`写入提交。v=${val} 已复制到可用节点。`);
+            }
+        }
+
+        function clientRead() {
+            // Randomly read from a node to show inconsistency
+            const nodes = ['node1', 'node2', 'node3'];
+            const target = nodes[Math.floor(Math.random() * nodes.length)];
+            const val = nodeData[target];
+            
+            log(`CMD: 客户端从 ${target} 读取... 值 = ${val}`);
+            narrate(`客户端从 <strong>${target}</strong> 读取: 值 = ${val}`);
+            flashNode(target, 'blue');
+            animatePacket('client', target);
+        }
+
+        function updateNode(id, val) {
+            nodeData[id] = val;
+            document.querySelector(`#${id} .node-data`).innerText = `v: ${val}`;
+        }
+
+        function flashNode(id, color) {
+            const node = document.getElementById(id);
+            const originalBorder = node.style.borderColor;
+            node.style.borderColor = color;
+            node.style.boxShadow = `0 0 15px ${color}`;
+            setTimeout(() => {
+                node.style.borderColor = '';
+                node.style.boxShadow = '';
+            }, 500);
+        }
+
+        function animatePacket(fromId, toId) {
+            return new Promise(resolve => {
+                const fromEl = document.getElementById(fromId);
+                const toEl = document.getElementById(toId);
+                const packet = document.getElementById('packet');
+                
+                // Get coordinates
+                const fromRect = fromEl.getBoundingClientRect();
+                const toRect = toEl.getBoundingClientRect();
+                const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+                
+                // Calculate relative positions
+                const startX = fromRect.left + fromRect.width/2 - canvasRect.left;
+                const startY = fromRect.top + fromRect.height/2 - canvasRect.top;
+                const endX = toRect.left + toRect.width/2 - canvasRect.left;
+                const endY = toRect.top + toRect.height/2 - canvasRect.top;
+                
+                packet.style.display = 'block';
+                packet.style.left = startX + 'px';
+                packet.style.top = startY + 'px';
+                packet.style.transition = 'none';
+                
+                // Force reflow
+                void packet.offsetWidth;
+                
+                packet.style.transition = 'all 0.5s linear';
+                packet.style.left = endX + 'px';
+                packet.style.top = endY + 'px';
+                
+                setTimeout(() => {
+                    packet.style.display = 'none';
+                    resolve();
+                }, 500);
+            });
+        }
+
+        function narrate(html) {
+            document.getElementById('narrative').innerHTML = html;
+        }
+
+        function log(msg, type='info') {
+            const consoleDiv = document.getElementById('log-console');
+            const entry = document.createElement('div');
+            entry.className = `log-entry`;
+            if(type==='error') entry.style.color = '#ff5252';
+            if(type==='warn') entry.style.color = '#ffb74d';
+            
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span style="color:#888">[${time}]</span> ${msg}`;
+            
+            consoleDiv.appendChild(entry);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function showGuide() {
+            document.getElementById('guide-modal').style.display = 'flex';
+        }
+
+        // Init
+        showGuide();
+
+    </script>
+</body>
+</html>
