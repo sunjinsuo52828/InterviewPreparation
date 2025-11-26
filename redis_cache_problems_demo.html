@@ -61,13 +61,19 @@
             position: absolute; width: 24px; height: 24px; background: #333; border-radius: 50%; 
             display: flex; align-items: center; justify-content: center; color: white; font-size: 0.7rem;
             z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.3); font-weight: bold;
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Smooth movement */
         }
-        .req.hit { background: #2e7d32; border: 2px solid white; }
-        .req.miss { background: #d32f2f; border: 2px solid white; }
+        .req.hit { background: #2e7d32; border: 2px solid white; transform: scale(1.2); }
+        .req.miss { background: #d32f2f; border: 2px solid white; transform: scale(1.2); }
         .req.blocked { background: #512da8; border: 2px solid white; } /* Bloom Filter Block */
         .req.wait { background: #f57c00; border: 2px solid white; }
 
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+        /* SVG Overlay */
+        #svg-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+        path { fill: none; stroke: #90a4ae; stroke-width: 2; stroke-dasharray: 5; opacity: 0.6; animation: dash 1s linear infinite; }
+        @keyframes dash { to { stroke-dashoffset: -10; } }
 
         /* Modal Styles */
         .modal-overlay {
@@ -129,11 +135,12 @@
         </div>
 
         <div class="canvas">
-            <div class="component client">Client</div>
+            <svg id="svg-overlay"></svg>
+            <div class="component client" id="comp-client">Client</div>
             
-            <div class="bloom-filter" id="bloom-filter">Bloom Filter</div>
+            <div class="bloom-filter" id="comp-bloom">Bloom Filter</div>
 
-            <div class="component redis">
+            <div class="component redis" id="comp-redis">
                 <div class="redis-title">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="#d82c20"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
                     Redis Cache
@@ -145,7 +152,7 @@
 
             <div class="mutex" id="mutex-lock">🔒 Mutex Lock</div>
 
-            <div class="component db">
+            <div class="component db" id="comp-db">
                 <div class="db-title">Database (DB)</div>
                 <div style="font-size: 0.8rem; display:flex; justify-content:space-between;">
                     <span>Load:</span>
@@ -284,13 +291,13 @@
                 box.style.display = 'block';
                 // Show visual elements
                 if (currentScenario === 'PENETRATION') {
-                    document.getElementById('bloom-filter').classList.add('visible');
+                    document.getElementById('comp-bloom').classList.add('visible');
                 } else {
-                    document.getElementById('bloom-filter').classList.remove('visible');
+                    document.getElementById('comp-bloom').classList.remove('visible');
                 }
             } else {
                 box.style.display = 'none';
-                document.getElementById('bloom-filter').classList.remove('visible');
+                document.getElementById('comp-bloom').classList.remove('visible');
             }
             renderKeys(); // Re-render keys (for Avalanche randomization)
         }
@@ -335,11 +342,47 @@
 
         function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-        function animate(element, top, left) {
+        function getCenter(id) {
+            const el = document.getElementById(id);
+            const rect = el.getBoundingClientRect();
+            const canvasRect = document.querySelector('.canvas').getBoundingClientRect();
+            return {
+                top: rect.top - canvasRect.top + rect.height / 2 - 12, // -12 for ball radius
+                left: rect.left - canvasRect.left + rect.width / 2 - 12
+            };
+        }
+
+        function drawArrow(fromId, toId) {
+            const svg = document.getElementById('svg-overlay');
+            const fromEl = document.getElementById(fromId);
+            const toEl = document.getElementById(toId);
+            const canvas = document.querySelector('.canvas');
+
+            if (!fromEl || !toEl) return null;
+
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+
+            const startX = fromRect.left + fromRect.width / 2 - canvasRect.left;
+            const startY = fromRect.top + fromRect.height / 2 - canvasRect.top;
+            const endX = toRect.left + toRect.width / 2 - canvasRect.left;
+            const endY = toRect.top + toRect.height / 2 - canvasRect.top;
+
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            const d = `M ${startX} ${startY} L ${endX} ${endY}`;
+            path.setAttribute("d", d);
+            
+            svg.appendChild(path);
+            return path;
+        }
+
+        function animate(element, targetId) {
             return new Promise(resolve => {
-                element.style.top = top + 'px';
-                element.style.left = left + 'px';
-                setTimeout(resolve, 300);
+                const pos = getCenter(targetId);
+                element.style.top = pos.top + 'px';
+                element.style.left = pos.left + 'px';
+                setTimeout(resolve, 500); // Match CSS transition
             });
         }
 
@@ -348,7 +391,7 @@
             updateDbLoad();
             
             const count = (currentScenario === 'AVALANCHE' || currentScenario === 'BREAKDOWN') ? 20 : 5;
-            const interval = (currentScenario === 'AVALANCHE') ? 80 : 400;
+            const interval = (currentScenario === 'AVALANCHE') ? 150 : 600;
 
             for (let i = 0; i < count; i++) {
                 spawnRequest(i);
@@ -361,19 +404,26 @@
             const ball = document.createElement('div');
             ball.className = 'req';
             ball.innerText = 'Req';
-            ball.style.top = '60px'; ball.style.left = '60px';
+            
+            // Start at Client
+            const startPos = getCenter('comp-client');
+            ball.style.top = startPos.top + 'px'; 
+            ball.style.left = startPos.left + 'px';
             document.querySelector('.canvas').appendChild(ball);
 
-            // 1. Move to Bloom Filter (if visible) or Redis
-            // Coordinates based on CSS
-            // Client: 30, 30
-            // Bloom: 120, 180
-            // Redis: 220, 180
-            // DB: 450, 450
-            
+            // Wait a bit before moving
+            await wait(50);
+
+            let currentLoc = 'comp-client';
+            let arrow = null;
+
+            // 1. Move to Bloom Filter (if visible)
             if (currentScenario === 'PENETRATION' && solution) {
-                // Hit Bloom Filter
-                await animate(ball, 135, 200); // Bloom Filter center
+                arrow = drawArrow(currentLoc, 'comp-bloom');
+                await animate(ball, 'comp-bloom');
+                currentLoc = 'comp-bloom';
+                if(arrow) arrow.remove();
+
                 ball.classList.add('blocked');
                 ball.innerText = 'Blk';
                 await wait(300);
@@ -382,7 +432,10 @@
             }
 
             // 2. Move to Redis
-            await animate(ball, 250, 250); // Redis center
+            arrow = drawArrow(currentLoc, 'comp-redis');
+            await animate(ball, 'comp-redis');
+            currentLoc = 'comp-redis';
+            if(arrow) arrow.remove();
             
             // Check Hit/Miss logic
             let hit = false;
@@ -402,9 +455,6 @@
                 // Hot key expired
                 if (solution) {
                     // Mutex logic: First one misses, others wait
-                    // We simulate this by making only the first one hit DB, others turn green at Redis
-                    // But this is a simulation loop.
-                    // Let's say: Randomly 1 goes to DB, others wait and hit.
                     if (Math.random() > 0.8) {
                         hit = false; // Go to DB (Acquire Lock)
                         document.getElementById('mutex-lock').classList.add('visible');
@@ -434,7 +484,9 @@
                 ball.innerText = 'Miss';
                 await wait(200);
                 
-                await animate(ball, 480, 480); // DB center
+                arrow = drawArrow(currentLoc, 'comp-db');
+                await animate(ball, 'comp-db');
+                if(arrow) arrow.remove();
                 
                 // Increase Load
                 dbLoad = Math.min(100, dbLoad + 10);

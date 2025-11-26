@@ -38,28 +38,42 @@
         .close-btn:hover { color: #d82c20; }
 
         /* SkipList Styles */
-        .skiplist-container { position: relative; padding-top: 20px; overflow-x: auto; }
-        .skiplist-level { display: flex; align-items: center; margin-bottom: 15px; position: relative; height: 50px; }
-        .level-label { width: 80px; font-weight: bold; color: #666; flex-shrink: 0; }
+        .skiplist-container { position: relative; padding-top: 20px; overflow-x: auto; min-height: 300px; }
+        .skiplist-level { display: flex; align-items: center; margin-bottom: 30px; position: relative; height: 40px; }
+        .level-label { width: 60px; font-weight: bold; color: #666; flex-shrink: 0; font-size: 0.8rem; }
         
         .sl-node { 
-            width: 40px; height: 40px; border: 2px solid #333; background: white; 
+            width: 36px; height: 36px; border: 2px solid #333; background: white; 
             display: flex; align-items: center; justify-content: center; 
             border-radius: 50%; font-weight: bold; z-index: 2;
             position: absolute; transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 0.9rem;
         }
         .sl-node.head { background: #eee; border-color: #999; }
         .sl-node.highlight { background: #ffeb3b; border-color: #fbc02d; transform: scale(1.2); z-index: 10; }
         .sl-node.visited { background: #e0f7fa; border-color: #00bcd4; }
         .sl-node.target { background: #4caf50; color: white; border-color: #2e7d32; }
+        .sl-node.new-node { animation: dropIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); background: #e1bee7; border-color: #8e24aa; }
 
-        .sl-line { position: absolute; height: 2px; background: #e0e0e0; top: 25px; left: 80px; width: 100%; z-index: 1; }
+        @keyframes dropIn { from { transform: scale(0) translateY(-50px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+
+        .sl-line { position: absolute; height: 2px; background: #eee; top: 18px; left: 60px; width: 100%; z-index: 1; }
         
-        /* Arrow for search path */
-        .search-arrow {
-            position: absolute; height: 3px; background: #d82c20; z-index: 5; transform-origin: 0 50%;
-            transition: width 0.3s linear;
+        /* SVG Overlay */
+        #svg-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+        path { fill: none; stroke: #d82c20; stroke-width: 3; stroke-linecap: round; marker-end: url(#arrowhead); transition: all 0.3s; }
+        
+        /* Coin Flip Animation */
+        .coin-flip {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 100px; height: 100px; background: gold; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; font-weight: bold; border: 5px solid #fbc02d;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3); z-index: 2000;
+            display: none;
         }
+        .coin-flip.animate { display: flex; animation: flip 1s infinite; }
+        @keyframes flip { 0% { transform: translate(-50%, -50%) rotateY(0); } 100% { transform: translate(-50%, -50%) rotateY(720deg); } }
 
         /* LRU Styles */
         .lru-wrapper { display: flex; flex-direction: column; align-items: center; margin-top: 30px; }
@@ -110,7 +124,7 @@
     <div class="tabs">
         <div class="tab active" onclick="switchTab('skiplist')">SkipList (ZSet)</div>
         <div class="tab" onclick="switchTab('lru')">LRU Eviction</div>
-        <div class="tab" onclick="switchTab('theory')">Why Redis is Fast?</div>
+        <div class="tab" onclick="switchTab('theory')">Theory & Use Cases</div>
     </div>
 
     <!-- Modal Overlay -->
@@ -121,12 +135,19 @@
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                 <div>
-                    <strong>1. Why not Red-Black Tree?</strong>
+                    <strong>1. Why not B+ Tree or RB-Tree?</strong>
                     <ul style="margin-top:5px; padding-left:20px; font-size:0.9rem; color:#333;">
-                        <li><strong>Simplicity:</strong> SkipLists are easier to implement and debug than balanced trees.</li>
-                        <li><strong>Range Queries:</strong> ZSet often needs range scans (`ZRANGE`). SkipList just finds the start node and traverses the Level 0 list. Trees require complex traversal.</li>
-                        <li><strong>Memory:</strong> SkipList nodes average 1.33 pointers, while tree nodes usually need 2 (left/right) + color bit.</li>
+                        <li><strong>vs B+ Tree (Why DBs use it?):</strong>
+                            <ul>
+                                <li><strong>Disk-First vs Memory-First:</strong> Databases (MySQL) assume data > memory. B+ Trees group keys into <strong>Pages (16KB)</strong> to minimize Disk I/O. Redis is pure memory, so it doesn't need complex Page management.</li>
+                                <li><strong>CPU Cache:</strong> B+ Trees <em>do</em> have better CPU Cache locality (arrays) than SkipLists (linked nodes), but Redis prioritizes <strong>implementation simplicity</strong>.</li>
+                            </ul>
+                        </li>
+                        <li><strong>vs RB-Tree:</strong> SkipLists support <strong>Range Queries</strong> (`ZRANGE`) much better. Just find the start and traverse the linked list. Trees require complex in-order traversal.</li>
                     </ul>
+                    <div style="margin-top:10px; background:#fff3e0; padding:8px; border-radius:4px; font-size:0.9rem; color:#e65100; border-left: 3px solid #ff9800;">
+                        <strong>💡 TL;DR:</strong> Redis chooses SkipList because it offers the best balance of <strong>Implementation Simplicity</strong>, <strong>Efficient Range Queries</strong>, and <strong>Sufficient Performance</strong> for in-memory use cases.
+                    </div>
                 </div>
                 <div>
                     <strong>2. How are levels decided? (Probabilistic)</strong>
@@ -155,11 +176,23 @@
                         <li><strong>Update:</strong> If Score is updated (`ZADD`), Redis deletes the old node and re-inserts with new Score (potentially new random level).</li>
                     </ul>
                 </div>
+                <div style="grid-column: span 2; background: #e3f2fd; padding: 10px; border-radius: 5px;">
+                    <strong>5. Why Redundancy? (Space-Time Trade-off)</strong>
+                    <p style="margin:5px 0; font-size:0.9rem; color:#333;">
+                        You noticed that high-level nodes exist in all lower levels. This is a classic <strong>Space for Time</strong> trade-off.
+                    </p>
+                    <ul style="margin-top:5px; padding-left:20px; font-size:0.9rem; color:#333;">
+                        <li><strong>Express Lanes:</strong> Think of levels as "Express Trains". Level 3 stops only at major stations. Level 0 is the "Local Train" that stops everywhere.</li>
+                        <li><strong>Fast Access:</strong> By storing pointers at higher levels, we can skip huge chunks of data (hence "Skip" List).</li>
+                        <li><strong>Cost:</strong> The extra pointers consume memory, but since higher levels are exponentially rarer (1/4, 1/16...), the average overhead is small (only ~1.33 pointers per node).</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="container">
+        <div class="coin-flip" id="coin-flip">HEADS</div>
         <div class="narrative" id="narrative">
             Select a tab to begin. SkipList is used for Sorted Sets (ZSet), LRU for memory eviction.
         </div>
@@ -193,6 +226,142 @@
                     <li><strong>Decentralized:</strong> No central proxy. Clients can connect to any node, which redirects (MOVED) to the correct one.</li>
                 </ul>
             </div>
+
+            <div class="theory-card" style="border-left-color: #9c27b0;">
+                <h3>💡 Common Use Cases</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <strong>1. Caching (String/Hash)</strong>
+                        <p style="margin:5px 0; font-size:0.85rem; color:#555;">Cache hot data (HTML, JSON) to reduce DB load. <em>"The classic use case."</em></p>
+                    </div>
+                    <div>
+                        <strong>2. Session Store (String)</strong>
+                        <p style="margin:5px 0; font-size:0.85rem; color:#555;">Store user session tokens with TTL. Fast and centralized.</p>
+                    </div>
+                    <div>
+                        <strong>3. Leaderboards (ZSet)</strong>
+                        <p style="margin:5px 0; font-size:0.85rem; color:#555;">Real-time ranking (e.g., Game Scores). `ZADD`, `ZRANGE`.</p>
+                    </div>
+                    <div>
+                        <strong>4. Rate Limiting (String/Lua)</strong>
+                        <p style="margin:5px 0; font-size:0.85rem; color:#555;">Limit API requests (e.g., 10 req/sec). `INCR`, `EXPIRE`.</p>
+                    </div>
+                    <div>
+                        <strong>5. Queues (List/Stream)</strong>
+                        <p style="margin:5px 0; font-size:0.85rem; color:#555;">Async job processing. `LPUSH`/`RPOP` or Redis Streams.</p>
+                    </div>
+                    <div>
+                        <strong>6. Geo-Location (Geo)</strong>
+                        <p style="margin:5px 0; font-size:0.85rem; color:#555;">Find nearby drivers/shops. `GEOADD`, `GEORADIUS`.</p>
+                    </div>
+                    <div>
+                        <strong>7. User Activity (Bitmap)</strong>
+                        <p style="margin:5px 0; font-size:0.85rem; color:#555;">Track daily active users (DAU) efficiently. 1 bit per user.</p>
+                    </div>
+                    <div>
+                        <strong>8. Distributed Locks (String)</strong>
+                        <p style="margin:5px 0; font-size:0.85rem; color:#555;">`SET NX PX` (Redlock) to coordinate across systems.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="theory-card" style="border-left-color: #4caf50;">
+                <h3>🛠️ Implementation: Function-Level Caching</h3>
+                <p style="margin-bottom:10px; color:#555;">Caching the result of a specific function (e.g., `getUserProfile(id)`) to avoid repeated DB hits. This pattern is often called <strong>Cache-Aside</strong>.</p>
+                
+                <div style="background:#263238; color:#eceff1; padding:10px; border-radius:4px; font-family:monospace; font-size:0.85rem; overflow-x:auto;">
+<span style="color:#c792ea">function</span> <span style="color:#82b1ff">getCachedUser</span>(userId) {<br>
+&nbsp;&nbsp;<span style="color:#546e7a">// 1. Generate Key (Prefix + Args)</span><br>
+&nbsp;&nbsp;<span style="color:#c792ea">const</span> key = <span style="color:#c3e88d">`user:${userId}`</span>;<br><br>
+&nbsp;&nbsp;<span style="color:#546e7a">// 2. Check Cache</span><br>
+&nbsp;&nbsp;<span style="color:#c792ea">const</span> cached = redis.<span style="color:#82b1ff">get</span>(key);<br>
+&nbsp;&nbsp;<span style="color:#c792ea">if</span> (cached) <span style="color:#c792ea">return</span> JSON.<span style="color:#82b1ff">parse</span>(cached);<br><br>
+&nbsp;&nbsp;<span style="color:#546e7a">// 3. Execute Logic (Cache Miss)</span><br>
+&nbsp;&nbsp;<span style="color:#c792ea">const</span> data = db.<span style="color:#82b1ff">query</span>(<span style="color:#c3e88d">"SELECT * FROM users WHERE id = ?"</span>, userId);<br><br>
+&nbsp;&nbsp;<span style="color:#546e7a">// 4. Write Cache (with TTL)</span><br>
+&nbsp;&nbsp;redis.<span style="color:#82b1ff">setex</span>(key, <span style="color:#f78c6c">3600</span>, JSON.<span style="color:#82b1ff">stringify</span>(data));<br><br>
+&nbsp;&nbsp;<span style="color:#c792ea">return</span> data;<br>
+}
+                </div>
+                <ul style="margin-top:10px; font-size:0.9rem;">
+                    <li><strong>Key Strategy:</strong> Must be unique to arguments (e.g., `func:arg1:arg2`).</li>
+                    <li><strong>TTL (Time To Live):</strong> Crucial to prevent stale data (`SETEX`).</li>
+                    <li><strong>Frameworks:</strong> Spring Boot <code>@Cacheable</code>, Python Decorators.</li>
+                </ul>
+            </div>
+
+            <div class="theory-card" style="border-left-color: #9c27b0;">
+                <h3>🔗 Hierarchical / Scoped Caching (Session-Bound)</h3>
+                <p style="margin-bottom:10px; color:#555;">
+                    You asked about "Cascading Cache" where function data lives <em>inside</em> a session and dies with it. 
+                    The best way to model this in Redis is using the <strong>Hash</strong> structure.
+                </p>
+                <div style="background:#f3e5f5; padding:10px; border-radius:4px; font-size:0.9rem;">
+                    <strong>Key:</strong> <code>session:user:1001</code> (The Parent)<br>
+                    <strong>Structure:</strong> Hash (Map)
+                </div>
+                <ul style="margin-top:10px; font-size:0.9rem;">
+                    <li><strong>Field 1 (Core):</strong> <code>auth_token</code>: "xyz..."</li>
+                    <li><strong>Field 2 (Func A):</strong> <code>temp_edit_data</code>: "{...}" <span style="color:#d81b60; font-size:0.8rem;">(Added when entering Edit Page)</span></li>
+                    <li><strong>Field 3 (Func B):</strong> <code>cart_preview</code>: "{...}"</li>
+                </ul>
+                <p style="font-size:0.9rem; margin-top:10px;"><strong>Benefits:</strong></p>
+                <ul style="font-size:0.9rem;">
+                    <li><strong>Lifecycle Binding:</strong> If you delete the Key (Logout/Timeout), <strong>ALL</strong> fields (Function Caches) vanish instantly.</li>
+                    <li><strong>Manual Cleanup:</strong> When user leaves "Edit Page", just <code>HDEL session:user:1001 temp_edit_data</code>.</li>
+                </ul>
+            </div>
+
+            <div class="theory-card" style="border-left-color: #607d8b;">
+                <h3>📚 Redis Data Types Cheat Sheet</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; font-size: 0.85rem;">
+                    <div style="background:white; padding:8px; border-radius:4px; border:1px solid #eee;">
+                        <strong style="color:#d81b60;">String</strong><br>
+                        Binary-safe strings.<br>
+                        <em>Use: Cache, Counters</em>
+                    </div>
+                    <div style="background:white; padding:8px; border-radius:4px; border:1px solid #eee;">
+                        <strong style="color:#8e24aa;">List</strong><br>
+                        Linked List (Deque).<br>
+                        <em>Use: Queues, Timelines</em>
+                    </div>
+                    <div style="background:white; padding:8px; border-radius:4px; border:1px solid #eee;">
+                        <strong style="color:#3949ab;">Set</strong><br>
+                        Unordered, Unique.<br>
+                        <em>Use: Tags, Common Friends</em>
+                    </div>
+                    <div style="background:white; padding:8px; border-radius:4px; border:1px solid #eee;">
+                        <strong style="color:#039be5;">Hash</strong><br>
+                        Field-Value Map.<br>
+                        <em>Use: Objects, Sessions</em>
+                    </div>
+                    <div style="background:white; padding:8px; border-radius:4px; border:1px solid #eee;">
+                        <strong style="color:#00897b;">ZSet</strong><br>
+                        Ordered by Score.<br>
+                        <em>Use: Leaderboards</em>
+                    </div>
+                    <div style="background:white; padding:8px; border-radius:4px; border:1px solid #eee;">
+                        <strong style="color:#7cb342;">Bitmap</strong><br>
+                        Bit array operations.<br>
+                        <em>Use: DAU, Check-ins</em>
+                    </div>
+                    <div style="background:white; padding:8px; border-radius:4px; border:1px solid #eee;">
+                        <strong style="color:#fdd835;">HyperLogLog</strong><br>
+                        Probabilistic Count.<br>
+                        <em>Use: Unique Visitors (UV)</em>
+                    </div>
+                    <div style="background:white; padding:8px; border-radius:4px; border:1px solid #eee;">
+                        <strong style="color:#fb8c00;">Geo</strong><br>
+                        Geospatial Index.<br>
+                        <em>Use: Nearby Search</em>
+                    </div>
+                    <div style="background:white; padding:8px; border-radius:4px; border:1px solid #eee;">
+                        <strong style="color:#546e7a;">Stream</strong><br>
+                        Append-only Log.<br>
+                        <em>Use: Event Sourcing, Kafka-like</em>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- SkipList View -->
@@ -205,7 +374,15 @@
                 <button onclick="openModal()" style="background: #e65100; margin-left: auto;">🤔 Deep Dive: Why SkipList?</button>
             </div>
             
-            <div id="sl-canvas" class="skiplist-container" style="height: 350px;"></div>
+            <div id="sl-canvas" class="skiplist-container" style="height: 350px;">
+                <svg id="svg-overlay">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#d82c20" />
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
         </div>
 
         <!-- LRU View -->
@@ -250,7 +427,7 @@
                 narrate("<strong>LRU Cache</strong>: Moves recently used items to the front. Removes the last item (Least Recently Used) when full.");
                 log("Switched to LRU Cache view.");
             } else {
-                narrate("<strong>Architecture Theory</strong>: Understanding Redis High Performance, HA, and Scalability.");
+                narrate("<strong>Theory & Use Cases</strong>: High Performance, Architecture, and Common Application Scenarios.");
                 log("Viewing Redis Architecture Theory.");
             }
         }
@@ -278,12 +455,13 @@
         class SLNode {
             constructor(val, level) {
                 this.val = val;
-                this.forward = new Array(level + 1).fill(null);
                 this.level = level;
+                this.id = `node-${val}-${Math.floor(Math.random()*10000)}`; // Unique ID for DOM
             }
         }
 
         let head = new SLNode(-Infinity, MAX_LEVEL);
+        head.id = 'node-head';
         let slNodes = []; 
 
         function openModal() {
@@ -296,39 +474,92 @@
             }
         }
 
-        function randomLevel() {
+        async function animateCoinFlip() {
+            const coin = document.getElementById('coin-flip');
+            coin.classList.add('animate');
+            coin.style.display = 'flex';
+            coin.innerText = "?";
+            coin.style.background = "#ffd54f";
+            
+            await wait(600); // Initial spin time
+
             let lvl = 0;
-            while (Math.random() < 0.25 && lvl < MAX_LEVEL - 1) {
+            // Simulate flips (Use 0.5 for demo purposes to see more levels, real Redis is 0.25)
+            while (Math.random() < 0.5 && lvl < MAX_LEVEL - 1) {
+                coin.innerText = "HEADS";
+                coin.style.background = "gold";
+                narrate(`<strong>HEADS!</strong> Level increased to ${lvl + 1}. Flipping again...`);
+                await wait(1000);
                 lvl++;
             }
+            
+            // Final state
+            coin.classList.remove('animate');
+            if (lvl < MAX_LEVEL - 1) {
+                coin.innerText = "TAILS";
+                coin.style.background = "#e0e0e0";
+                narrate(`<strong>TAILS!</strong> Stopped at Level ${lvl}.`);
+            } else {
+                coin.innerText = "MAX";
+                coin.style.background = "#ff5722";
+                coin.style.color = "white";
+                narrate(`<strong>MAX LEVEL!</strong> Stopped at Level ${lvl}.`);
+            }
+            
+            await wait(1200);
+            coin.style.display = 'none';
             return lvl;
         }
 
         function slReset() {
             head = new SLNode(-Infinity, MAX_LEVEL);
+            head.id = 'node-head';
             slNodes = [];
             renderSkipList();
+            clearArrows();
             log("SkipList Reset.");
         }
 
-        function slInsert() {
+        async function slInsert() {
+            if (isAnimating) return;
             const val = parseInt(document.getElementById('slInput').value);
             if (isNaN(val)) return;
             
-            // Check duplicate
             if (slNodes.find(n => n.val === val)) {
                 log(`Value ${val} already exists!`, 'warn');
                 return;
             }
 
-            const level = randomLevel();
+            isAnimating = true;
+            clearArrows();
+            
+            // 1. Determine Level
+            narrate(`Inserting <strong>${val}</strong>. First, we flip a coin to decide the level.`);
+            const level = await animateCoinFlip();
+            log(`Coin Flip Result: Level ${level} (0-indexed)`);
+
+            // 2. Visualize Search for Position
+            narrate(`Searching for insertion point for <strong>${val}</strong>...`);
+            await visualizeSearch(val, true); // true = stop before greater
+
+            // 3. Insert
             const newNode = new SLNode(val, level);
             slNodes.push(newNode);
-            slNodes.sort((a, b) => a.val - b.val); // Keep sorted for rendering simplicity
-
-            // Rebuild links (Simplified for visualization)
-            log(`Inserted ${val} (Level: ${level + 1})`);
+            slNodes.sort((a, b) => a.val - b.val);
+            
             renderSkipList();
+            
+            // Highlight new node
+            setTimeout(() => {
+                for(let i=0; i<=level; i++) {
+                    const el = document.getElementById(`${newNode.id}-L${i}`);
+                    if(el) el.classList.add('new-node');
+                }
+            }, 50);
+
+            log(`Inserted ${val} at Level ${level}.`);
+            narrate(`Inserted <strong>${val}</strong>. Pointers updated.`);
+            isAnimating = false;
         }
 
         async function slSearch() {
@@ -337,39 +568,42 @@
             if (isNaN(target)) return;
 
             isAnimating = true;
+            clearArrows();
             log(`Searching for: ${target}...`);
+            narrate(`Searching for <strong>${target}</strong>. Starting from Top Level.`);
             
-            // We need to simulate the path
-            // Find the node in our simplified array
-            const targetNode = slNodes.find(n => n.val === target);
+            const found = await visualizeSearch(target, false);
             
-            // Visualize path
-            // Start at Head, Max Level
-            let currentVal = -Infinity;
-            let currentLevel = MAX_LEVEL - 1;
-            
-            // Clear highlights
-            document.querySelectorAll('.sl-node').forEach(n => n.classList.remove('highlight', 'visited'));
+            if (found) {
+                log(`Found target ${target}!`, 'info');
+                narrate(`Found <strong>${target}</strong>!`);
+            } else {
+                log(`Target ${target} not found.`, 'warn');
+                narrate(`Target <strong>${target}</strong> not found.`);
+            }
+            isAnimating = false;
+        }
 
-            // Animation Loop
-            // This is a "fake" traversal for visual effect based on the sorted array
-            // Real traversal logic:
+        // Returns true if found, false otherwise
+        async function visualizeSearch(target, isInsertMode) {
+            // Clear previous highlights
+            document.querySelectorAll('.sl-node').forEach(n => n.classList.remove('highlight', 'visited', 'target'));
+
             let curr = head;
+            let currVal = -Infinity;
             
-            // Let's just highlight the nodes we "visit"
-            // 1. Highlight Head
-            highlightNode(-Infinity, MAX_LEVEL - 1);
-            await wait(500);
+            // Highlight Head
+            highlightNode('node-head', MAX_LEVEL - 1);
+            await wait(400);
 
             for (let i = MAX_LEVEL - 1; i >= 0; i--) {
                 // Move right in current level
                 while (true) {
-                    // Find next node in this level
-                    // In our simplified array 'slNodes', find first node > curr.val
+                    // Find next node in this level from our sorted array
                     let nextNode = null;
+                    // Logic: Find first node > currVal
                     for(let n of slNodes) {
-                        if(n.val > (curr.val === -Infinity ? -999999 : curr.val)) {
-                            // Check if this node has this level
+                        if(n.val > (currVal === -Infinity ? -999999 : currVal)) {
                             if(n.level >= i) {
                                 nextNode = n;
                                 break;
@@ -377,31 +611,56 @@
                         }
                     }
 
+                    // Check if we should move right
                     if (nextNode && nextNode.val <= target) {
-                        // Move Right
-                        highlightNode(nextNode.val, i);
-                        curr = nextNode;
-                        await wait(500);
-                        if (curr.val === target) {
-                            log(`Found target ${target}!`, 'info');
-                            document.querySelector(`.sl-node[data-val="${target}"]`).classList.add('target');
-                            isAnimating = false;
-                            return;
+                        // If insert mode, we stop if nextNode.val >= target (actually strictly greater for insert position, but here we want to find the node BEFORE target)
+                        // Actually for insert, we want to find the largest node < target.
+                        // So if nextNode.val > target, we stop.
+                        // If nextNode.val == target, we found duplicate (handled before).
+                        
+                        // Wait, standard logic:
+                        // while next.val < target: move right
+                        
+                        if (nextNode.val === target && !isInsertMode) {
+                            // Found it!
+                            drawArrowPath(`${curr.id}-L${i}`, `${nextNode.id}-L${i}`);
+                            highlightNode(nextNode.id, i);
+                            document.getElementById(`${nextNode.id}-L${i}`).classList.add('target');
+                            return true;
+                        }
+
+                        if (nextNode.val < target) {
+                            // Move Right
+                            drawArrowPath(`${curr.id}-L${i}`, `${nextNode.id}-L${i}`);
+                            highlightNode(nextNode.id, i);
+                            curr = nextNode;
+                            currVal = nextNode.val;
+                            await wait(500);
+                        } else {
+                            // nextNode.val > target (or == target in insert mode)
+                            // Stop moving right, go down
+                            break;
                         }
                     } else {
-                        // Drop Down
+                        // No next node, or next node is > target
                         break; 
                     }
                 }
+                
                 // Drop down to i-1
+                if (i > 0) {
+                    // Visualize drop down
+                    // drawArrowPath(`${curr.id}-L${i}`, `${curr.id}-L${i-1}`, true); // dashed line?
+                    // Just highlight
+                    highlightNode(curr.id, i-1);
+                    await wait(300);
+                }
             }
-
-            log(`Target ${target} not found.`, 'warn');
-            isAnimating = false;
+            return false;
         }
 
-        function highlightNode(val, level) {
-            const el = document.querySelector(`.sl-node[data-val="${val}"][data-level="${level}"]`);
+        function highlightNode(baseId, level) {
+            const el = document.getElementById(`${baseId}-L${level}`);
             if (el) {
                 el.classList.add('visited');
                 el.classList.add('highlight');
@@ -409,9 +668,45 @@
             }
         }
 
+        function drawArrowPath(fromId, toId) {
+            const svg = document.getElementById('svg-overlay');
+            const fromEl = document.getElementById(fromId);
+            const toEl = document.getElementById(toId);
+            const container = document.getElementById('sl-canvas');
+
+            if (!fromEl || !toEl) return;
+
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+            const contRect = container.getBoundingClientRect();
+
+            const startX = fromRect.left + fromRect.width / 2 - contRect.left;
+            const startY = fromRect.top + fromRect.height / 2 - contRect.top;
+            const endX = toRect.left + toRect.width / 2 - contRect.left;
+            const endY = toRect.top + toRect.height / 2 - contRect.top;
+
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            // Curve
+            const d = `M ${startX} ${startY} Q ${(startX+endX)/2} ${startY - 20}, ${endX} ${endY}`;
+            path.setAttribute("d", d);
+            
+            svg.appendChild(path);
+        }
+
+        function clearArrows() {
+            const svg = document.getElementById('svg-overlay');
+            // Keep defs
+            const defs = svg.querySelector('defs');
+            svg.innerHTML = '';
+            svg.appendChild(defs);
+        }
+
         function renderSkipList() {
             const container = document.getElementById('sl-canvas');
+            // Clear but keep SVG
+            const svg = document.getElementById('svg-overlay');
             container.innerHTML = '';
+            container.appendChild(svg);
 
             // Create rows for levels
             for (let i = MAX_LEVEL - 1; i >= 0; i--) {
@@ -432,24 +727,26 @@
                 const headNode = document.createElement('div');
                 headNode.className = 'sl-node head';
                 headNode.innerText = 'H';
-                headNode.style.left = '80px';
-                headNode.dataset.val = -Infinity;
-                headNode.dataset.level = i;
+                headNode.style.left = '60px';
+                headNode.id = `node-head-L${i}`; // Unique ID per level
                 row.appendChild(headNode);
 
                 // Data Nodes
-                let leftPos = 140;
+                let leftPos = 120;
                 slNodes.forEach(node => {
+                    // Calculate position based on value to keep alignment? 
+                    // Simple approach: fixed spacing for all nodes, but only render if level exists
+                    // To align vertically, we need consistent spacing for all nodes in the list
+                    
                     if (node.level >= i) {
                         const n = document.createElement('div');
                         n.className = 'sl-node';
                         n.innerText = node.val;
                         n.style.left = `${leftPos}px`;
-                        n.dataset.val = node.val;
-                        n.dataset.level = i;
+                        n.id = `${node.id}-L${i}`;
                         row.appendChild(n);
                     }
-                    leftPos += 60; // Fixed spacing for simplicity
+                    leftPos += 50; 
                 });
 
                 container.appendChild(row);
@@ -500,7 +797,13 @@
         }
 
         // Init
-        slInsert(); slInsert(); slInsert(); // Add some initial data
+        // Manually add some initial data without animation
+        slNodes.push(new SLNode(3, 0));
+        slNodes.push(new SLNode(7, 1));
+        slNodes.push(new SLNode(12, 0));
+        slNodes.push(new SLNode(19, 2));
+        slNodes.sort((a, b) => a.val - b.val);
+        
         renderSkipList();
         renderLRU();
 

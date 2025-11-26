@@ -242,6 +242,33 @@
 
         function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+        function drawArrow(fromId, toId) {
+            const svg = document.getElementById('svg-overlay');
+            const fromEl = document.getElementById(fromId);
+            const toEl = document.getElementById(toId);
+            const container = document.querySelector('.container');
+
+            if (!fromEl || !toEl || !container) return null;
+
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+            const contRect = container.getBoundingClientRect();
+
+            const startX = fromRect.left + fromRect.width / 2 - contRect.left;
+            const startY = fromRect.bottom - contRect.top;
+            const endX = toRect.left + toRect.width / 2 - contRect.left;
+            const endY = toRect.top - contRect.top;
+
+            const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            // Bezier curve for smooth connector
+            const d = `M ${startX} ${startY} C ${startX} ${startY + 50}, ${endX} ${endY - 50}, ${endX} ${endY}`;
+            path.setAttribute("d", d);
+            path.classList.add("visible");
+            
+            svg.appendChild(path);
+            return path;
+        }
+
         async function runHashAnimation(hNum, idx, type) {
             const box = document.getElementById(`h${hNum}-box`);
             const valBox = document.getElementById(`h${hNum}-val`);
@@ -251,9 +278,12 @@
             valBox.innerText = idx;
             await wait(300);
 
+            // Draw Arrow
+            const arrow = drawArrow(`h${hNum}-box`, `bit-${idx}`);
+
             // Draw line (Simplified: just highlight bit)
             bit.classList.add('highlight');
-            await wait(400);
+            await wait(600); // Increased wait time to see the arrow
 
             if (type === 'set') {
                 bitArray[idx] = 1;
@@ -270,6 +300,10 @@
             await wait(300);
             box.classList.remove('active');
             bit.classList.remove('highlight');
+            
+            // Remove Arrow
+            if (arrow) arrow.remove();
+
             if(type === 'check') {
                 setTimeout(() => {
                     bit.classList.remove('check-pass', 'check-fail');

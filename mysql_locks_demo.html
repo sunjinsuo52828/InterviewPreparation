@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySQL 锁与隔离级别可视化演示</title>
+    <style>
+        :root {
+            --primary: #2196F3;
+            --success: #4CAF50;
+            --warning: #FFC107;
+            --danger: #F44336;
+            --dark: #263238;
+            --light: #ECEFF1;
+            --lock-s: #29B6F6; /* Light Blue */
+            --lock-x: #EF5350; /* Red */
+            --lock-gap: #AB47BC; /* Purple */
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h1 { text-align: center; color: var(--dark); margin: 0 0 20px 0; }
+
+        /* Layout */
+        .main-layout {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .left-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .center-panel {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            overflow-y: auto;
+        }
+
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .card h3 { margin-top: 0; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; color: var(--dark); }
+
+        /* Isolation Matrix */
+        .iso-matrix {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .iso-matrix th, .iso-matrix td {
+            border: 1px solid #eee;
+            padding: 8px;
+            text-align: center;
+        }
+        .iso-matrix th { background: #f9f9f9; }
+        .iso-matrix .allowed { color: var(--danger); font-weight: bold; }
+        .iso-matrix .blocked { color: var(--success); font-weight: bold; }
+        .iso-matrix tr.active { background-color: #e3f2fd; border: 2px solid var(--primary); }
+
+        /* Controls */
+        .control-group { margin-bottom: 15px; }
+        .control-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #ddd; }
+        
+        .scenario-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: white;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s;
+        }
+        .scenario-btn:hover { background: #e3f2fd; }
+
+        /* Transaction Panels */
+        .tx-panel {
+            border-top: 4px solid #ccc;
+            transition: all 0.3s;
+        }
+        .tx-panel.active { border-top-color: var(--success); background: #f1f8e9; }
+        .tx-panel.blocked { border-top-color: var(--danger); opacity: 0.7; pointer-events: none; }
+        
+        .tx-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .tx-actions button {
+            padding: 6px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #e0e0e0;
+            font-size: 12px;
+        }
+        .tx-actions button:hover { filter: brightness(0.9); }
+        .btn-begin { background: var(--success) !important; color: white; }
+        .btn-commit { background: var(--primary) !important; color: white; }
+        .btn-rollback { background: var(--warning) !important; color: black; }
+
+        .tx-log {
+            height: 150px;
+            overflow-y: auto;
+            background: #263238;
+            color: #eceff1;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #37474f; padding-bottom: 2px; }
+        .log-hl { color: #80cbc4; }
+
+        /* Visualization Table */
+        .db-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 10px; /* Spacing for gaps */
+        }
+        
+        .row-container { position: relative; }
+        
+        .db-row {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            position: relative;
+            z-index: 2;
+            transition: all 0.3s;
+        }
+        
+        .db-gap {
+            height: 20px;
+            margin: -5px 10px; /* Overlap slightly */
+            border: 1px dashed #ccc;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #999;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Locks */
+        .lock-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 6px;
+            border-radius: 10px;
+            color: white;
+            font-size: 10px;
+            margin-left: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .lock-s { background: var(--lock-s); }
+        .lock-x { background: var(--lock-x); }
+        .lock-gap { background: var(--lock-gap); }
+
+        .db-row.locked-x { border-color: var(--lock-x); background: #ffebee; }
+        .db-row.locked-s { border-color: var(--lock-s); background: #e1f5fe; }
+        .db-gap.locked { border-color: var(--lock-gap); background: #f3e5f5; }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 300px;
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group input { width: 100%; padding: 8px; box-sizing: border-box; }
+
+    </style>
+</head>
+<body>
+
+    <h1>MySQL 隔离级别与锁机制深度演示</h1>
+    <div style="text-align: center; margin-bottom: 10px;">
+        <a href="mysql_mvcc_demo.html" style="color: var(--primary); text-decoration: none;">&larr; 返回 MVCC 演示</a>
+    </div>
+
+    <div class="main-layout">
+        <!-- Left: Settings & Scenarios -->
+        <div class="left-panel">
+            <div class="card">
+                <h3>⚙️ 设置 (Settings)</h3>
+                <div class="control-group">
+                    <label>隔离级别 (Isolation Level)</label>
+                    <select id="isoLevel" onchange="updateIsoDisplay()">
+                        <option value="RU">Read Uncommitted (RU)</option>
+                        <option value="RC">Read Committed (RC)</option>
+                        <option value="RR" selected>Repeatable Read (RR)</option>
+                        <option value="SERIAL">Serializable</option>
+                    </select>
+                </div>
+                <button onclick="resetAll()" style="width:100%; padding:10px; background:#607d8b; color:white; border:none; border-radius:4px; cursor:pointer;">重置演示 (Reset)</button>
+            </div>
+
+            <div class="card">
+                <h3>📚 现象矩阵 (Phenomena)</h3>
+                <table class="iso-matrix">
+                    <thead>
+                        <tr>
+                            <th>级别</th>
+                            <th>脏读</th>
+                            <th>不可重复读</th>
+                            <th>幻读</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr id="row-RU">
+                            <td>RU</td>
+                            <td class="allowed">允许</td>
+                            <td class="allowed">允许</td>
+                            <td class="allowed">允许</td>
+                        </tr>
+                        <tr id="row-RC">
+                            <td>RC</td>
+                            <td class="blocked">禁止</td>
+                            <td class="allowed">允许</td>
+                            <td class="allowed">允许</td>
+                        </tr>
+                        <tr id="row-RR">
+                            <td>RR</td>
+                            <td class="blocked">禁止</td>
+                            <td class="blocked">禁止</td>
+                            <td class="blocked">禁止*</td>
+                        </tr>
+                        <tr id="row-SERIAL">
+                            <td>Serial</td>
+                            <td class="blocked">禁止</td>
+                            <td class="blocked">禁止</td>
+                            <td class="blocked">禁止</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="font-size: 11px; color: #666; margin-top: 5px;">* RR级别通过 Next-Key Lock 在当前读下防止幻读，MVCC 在快照读下防止幻读。</p>
+            </div>
+
+            <div class="card">
+                <h3>🎬 场景演示 (Scenarios)</h3>
+                <button class="scenario-btn" onclick="runScenario('dirtyRead')">演示：脏读 (Dirty Read)</button>
+                <button class="scenario-btn" onclick="runScenario('nonRepeatable')">演示：不可重复读</button>
+                <button class="scenario-btn" onclick="runScenario('phantom')">演示：幻读 (Phantom Read)</button>
+                <button class="scenario-btn" onclick="runScenario('deadlock')">演示：死锁 (Deadlock)</button>
+            </div>
+        </div>
+
+        <!-- Center: Visualization -->
+        <div class="center-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3>📊 数据表 (users) & 锁状态</h3>
+                <div style="font-size:12px;">
+                    <span class="lock-badge lock-s">S锁 (读)</span>
+                    <span class="lock-badge lock-x">X锁 (写)</span>
+                    <span class="lock-badge lock-gap">Gap锁 (间隙)</span>
+                </div>
+            </div>
+            
+            <div id="dbContainer">
+                <!-- Rendered by JS -->
+            </div>
+        </div>
+
+        <!-- Right: Transactions -->
+        <div class="right-panel">
+            <!-- Tx A -->
+            <div class="card tx-panel" id="panel-A">
+                <h3>事务 A (TxA) <span id="status-A" style="font-size:12px; float:right;">未开始</span></h3>
+                <div class="tx-actions">
+                    <button class="btn-begin" onclick="exec('A', 'BEGIN')">BEGIN</button>
+                    <button class="btn-commit" onclick="exec('A', 'COMMIT')">COMMIT</button>
+                    <button onclick="exec('A', 'SELECT')">SELECT *</button>
+                    <button onclick="exec('A', 'SELECT_LOCK')">SELECT FOR UPDATE</button>
+                    <button onclick="openModal('A', 'UPDATE')">UPDATE ...</button>
+                    <button onclick="openModal('A', 'INSERT')">INSERT ...</button>
+                    <button class="btn-rollback" onclick="exec('A', 'ROLLBACK')">ROLLBACK</button>
+                </div>
+                <div class="tx-log" id="log-A"></div>
+            </div>
+
+            <!-- Tx B -->
+            <div class="card tx-panel" id="panel-B">
+                <h3>事务 B (TxB) <span id="status-B" style="font-size:12px; float:right;">未开始</span></h3>
+                <div class="tx-actions">
+                    <button class="btn-begin" onclick="exec('B', 'BEGIN')">BEGIN</button>
+                    <button class="btn-commit" onclick="exec('B', 'COMMIT')">COMMIT</button>
+                    <button onclick="exec('B', 'SELECT')">SELECT *</button>
+                    <button onclick="exec('B', 'SELECT_LOCK')">SELECT FOR UPDATE</button>
+                    <button onclick="openModal('B', 'UPDATE')">UPDATE ...</button>
+                    <button onclick="openModal('B', 'INSERT')">INSERT ...</button>
+                    <button class="btn-rollback" onclick="exec('B', 'ROLLBACK')">ROLLBACK</button>
+                </div>
+                <div class="tx-log" id="log-B"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Input Modal -->
+    <div id="inputModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTitle">操作</h3>
+            <div class="form-group">
+                <label>ID:</label>
+                <input type="number" id="modalId">
+            </div>
+            <div class="form-group" id="modalValGroup">
+                <label>Value (Age):</label>
+                <input type="number" id="modalVal">
+            </div>
+            <div style="text-align: right;">
+                <button onclick="closeModal()" style="padding: 8px 16px;">取消</button>
+                <button onclick="confirmModal()" style="padding: 8px 16px; background: var(--primary); color: white; border: none; border-radius: 4px;">执行</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        const initialData = [
+            { id: 1, name: 'Alice', age: 10 },
+            { id: 5, name: 'Bob', age: 20 },
+            { id: 10, name: 'Charlie', age: 30 }
+        ];
+        
+        let db = JSON.parse(JSON.stringify(initialData));
+        let locks = []; // { type: 'S'|'X'|'Gap'|'NextKey', resource: 'row-1'|'gap-5', owner: 'A'|'B' }
+        let transactions = {
+            'A': { active: false, snapshot: null },
+            'B': { active: false, snapshot: null }
+        };
+        
+        let modalState = { tx: null, type: null };
+
+        // --- Initialization ---
+        function init() {
+            updateIsoDisplay();
+            renderDB();
+        }
+
+        function updateIsoDisplay() {
+            const level = document.getElementById('isoLevel').value;
+            document.querySelectorAll('.iso-matrix tr').forEach(tr => tr.classList.remove('active'));
+            document.getElementById(`row-${level}`).classList.add('active');
+        }
+
+        function resetAll() {
+            db = JSON.parse(JSON.stringify(initialData));
+            locks = [];
+            transactions['A'] = { active: false, snapshot: null };
+            transactions['B'] = { active: false, snapshot: null };
+            document.getElementById('log-A').innerHTML = '';
+            document.getElementById('log-B').innerHTML = '';
+            updateStatus('A');
+            updateStatus('B');
+            renderDB();
+        }
+
+        // --- Core Logic ---
+
+        function exec(tx, action, params = {}) {
+            const isoLevel = document.getElementById('isoLevel').value;
+            
+            // Auto-start transaction if needed (except for BEGIN)
+            if (action !== 'BEGIN' && !transactions[tx].active) {
+                exec(tx, 'BEGIN');
+            }
+
+            log(tx, `> ${action} ${JSON.stringify(params) === '{}' ? '' : JSON.stringify(params)}`);
+
+            switch(action) {
+                case 'BEGIN':
+                    if (transactions[tx].active) {
+                        log(tx, "Already active", "warn");
+                        return;
+                    }
+                    transactions[tx].active = true;
+                    // In RR, snapshot is taken at first read. In RC, at every read.
+                    // For simplicity, we'll just mark active.
+                    updateStatus(tx);
+                    break;
+
+                case 'COMMIT':
+                    releaseLocks(tx);
+                    transactions[tx].active = false;
+                    transactions[tx].snapshot = null;
+                    updateStatus(tx);
+                    log(tx, "Committed successfully", "success");
+                    break;
+
+                case 'ROLLBACK':
+                    releaseLocks(tx);
+                    transactions[tx].active = false;
+                    transactions[tx].snapshot = null;
+                    // Ideally revert data changes. For this demo, we assume data changes were "dirty" in memory
+                    // and we should reload from "disk" or just keep it simple.
+                    // Let's just reset DB to initial for simplicity or implement undo?
+                    // Implementing full undo is complex. Let's just say "Rolled back" and clear locks.
+                    // If we modified data, we should revert.
+                    // For this demo, let's assume we modified the global `db` array directly (Dirty Write).
+                    // To support rollback properly, we'd need a real undo log.
+                    // Let's just warn: "Data rollback not fully simulated in this visualizer"
+                    updateStatus(tx);
+                    log(tx, "Rolled back (Locks released)", "warn");
+                    break;
+
+                case 'SELECT':
+                    handleSelect(tx, isoLevel);
+                    break;
+
+                case 'SELECT_LOCK':
+                    handleSelectLock(tx, isoLevel);
+                    break;
+
+                case 'UPDATE':
+                    handleUpdate(tx, params.id, params.val, isoLevel);
+                    break;
+
+                case 'INSERT':
+                    handleInsert(tx, params.id, params.val, isoLevel);
+                    break;
+            }
+            
+            renderDB();
+        }
+
+        function handleSelect(tx, isoLevel) {
+            // RU: Read latest data (even uncommitted/dirty)
+            // RC: Read latest committed (we don't track committed vs uncommitted in `db` array easily without complexity)
+            // RR: Read from snapshot.
+            // SERIAL: Adds S-Locks!
+            
+            if (isoLevel === 'SERIAL') {
+                // Acquire S locks on all rows (Table scan simulation)
+                if (acquireLock(tx, 'table', 'S')) {
+                    log(tx, "Read data with S-Locks (Serializable)");
+                } else {
+                    log(tx, "Blocked waiting for S-Lock", "error");
+                }
+                return;
+            }
+
+            // For visualization, we just show the current DB state.
+            // In a real engine, we'd filter based on MVCC.
+            // Here we just log what happened.
+            if (isoLevel === 'RU') {
+                log(tx, "Read latest data (including dirty)");
+            } else if (isoLevel === 'RC') {
+                log(tx, "Read latest committed data (MVCC)");
+            } else if (isoLevel === 'RR') {
+                log(tx, "Read from consistent snapshot (MVCC)");
+            }
+        }
+
+        function handleSelectLock(tx, isoLevel) {
+            // SELECT ... FOR UPDATE
+            // Needs X locks.
+            // If RR/Serial, needs Gap locks too.
+            
+            let blocked = false;
+            
+            // Lock all rows (simulating table scan or range)
+            db.forEach(row => {
+                if (!acquireLock(tx, `row-${row.id}`, 'X')) blocked = true;
+            });
+
+            if (isoLevel === 'RR' || isoLevel === 'SERIAL') {
+                // Lock gaps
+                getGaps().forEach(gap => {
+                    if (!acquireLock(tx, gap.id, 'Gap')) blocked = true;
+                });
+            }
+
+            if (blocked) {
+                log(tx, "Blocked waiting for locks...", "error");
+            } else {
+                log(tx, "Acquired X-Locks on result set");
+            }
+        }
+
+        function handleUpdate(tx, id, val, isoLevel) {
+            // 1. Find row
+            const row = db.find(r => r.id === id);
+            if (!row) {
+                log(tx, `Row ${id} not found.`, "warn");
+                // In RR, this might lock the gap where it *would* be.
+                if (isoLevel === 'RR' || isoLevel === 'SERIAL') {
+                    const gap = findGapForId(id);
+                    if (acquireLock(tx, gap, 'Gap')) {
+                        log(tx, `Locked gap ${gap} (Phantom protection)`);
+                    } else {
+                        log(tx, "Blocked on Gap Lock", "error");
+                    }
+                }
+                return;
+            }
+
+            // 2. Acquire Row Lock (X)
+            if (!acquireLock(tx, `row-${id}`, 'X')) {
+                log(tx, `Blocked updating row ${id}`, "error");
+                return;
+            }
+
+            // 3. Perform Update
+            row.age = val;
+            log(tx, `Updated row ${id} to age ${val}`, "success");
+        }
+
+        function handleInsert(tx, id, val, isoLevel) {
+            // 1. Check Gap Locks (Insert Intention)
+            const gapId = findGapForId(id);
+            
+            // If anyone else has a Gap lock here, we block.
+            const gapLock = locks.find(l => l.resource === gapId && l.owner !== tx && (l.type === 'Gap' || l.type === 'NextKey'));
+            if (gapLock) {
+                log(tx, `Blocked by Gap Lock on ${gapId}`, "error");
+                return;
+            }
+
+            // 2. Insert
+            db.push({ id: parseInt(id), name: 'New', age: parseInt(val) });
+            db.sort((a,b) => a.id - b.id);
+            
+            // 3. Lock the new row
+            acquireLock(tx, `row-${id}`, 'X');
+            
+            log(tx, `Inserted row ${id}`, "success");
+        }
+
+        // --- Lock Manager ---
+
+        function acquireLock(tx, resource, type) {
+            // Check conflicts
+            const conflict = locks.find(l => l.resource === resource && l.owner !== tx);
+            if (conflict) {
+                // Compatibility Matrix
+                // Existing: S, Request: S -> OK
+                // Existing: X, Request: Any -> Block
+                // Existing: Any, Request: X -> Block
+                // Gap locks are compatible with other Gap locks, but block Insert.
+                
+                if (type === 'Gap' && conflict.type === 'Gap') return true; // Gap locks compatible
+                
+                if (conflict.type === 'S' && type === 'S') {
+                    // Shared compatible
+                    // Add us to owners if not already? Simplified: just return true
+                    return true;
+                }
+                
+                return false; // Blocked
+            }
+
+            // No conflict, grant lock
+            // Check if we already have it
+            const existing = locks.find(l => l.resource === resource && l.owner === tx);
+            if (!existing) {
+                locks.push({ type, resource, owner: tx });
+            } else {
+                // Upgrade? S -> X
+                if (existing.type === 'S' && type === 'X') existing.type = 'X';
+            }
+            return true;
+        }
+
+        function releaseLocks(tx) {
+            locks = locks.filter(l => l.owner !== tx);
+            renderDB();
+        }
+
+        function getGaps() {
+            // Return list of gap IDs: gap-inf-1, gap-1-5, gap-5-10, gap-10-inf
+            let gaps = [];
+            let prev = -Infinity;
+            db.forEach(row => {
+                gaps.push({ id: `gap-${prev}-${row.id}`, start: prev, end: row.id });
+                prev = row.id;
+            });
+            gaps.push({ id: `gap-${prev}-inf`, start: prev, end: Infinity });
+            return gaps;
+        }
+
+        function findGapForId(id) {
+            let prev = -Infinity;
+            for (let row of db) {
+                if (id < row.id) return `gap-${prev}-${row.id}`;
+                prev = row.id;
+            }
+            return `gap-${prev}-inf`;
+        }
+
+        // --- Rendering ---
+
+        function renderDB() {
+            const container = document.getElementById('dbContainer');
+            container.innerHTML = '';
+            
+            // Sort DB
+            db.sort((a,b) => a.id - b.id);
+
+            let prevId = -Infinity;
+
+            db.forEach(row => {
+                // Render Gap before
+                renderGap(container, prevId, row.id);
+                
+                // Render Row
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'db-row';
+                rowDiv.innerHTML = `
+                    <div style="flex:1">ID: ${row.id}</div>
+                    <div style="flex:1">${row.name}</div>
+                    <div style="flex:1">Age: ${row.age}</div>
+                    <div id="locks-row-${row.id}"></div>
+                `;
+                
+                // Check locks
+                const rowLocks = locks.filter(l => l.resource === `row-${row.id}`);
+                rowLocks.forEach(l => {
+                    rowDiv.classList.add(l.type === 'S' ? 'locked-s' : 'locked-x');
+                    const badge = document.createElement('span');
+                    badge.className = `lock-badge lock-${l.type.toLowerCase()}`;
+                    badge.innerText = `${l.type} by ${l.owner}`;
+                    rowDiv.querySelector(`div[id^="locks-"]`).appendChild(badge);
+                });
+
+                container.appendChild(rowDiv);
+                prevId = row.id;
+            });
+
+            // Final Gap
+            renderGap(container, prevId, Infinity);
+        }
+
+        function renderGap(container, start, end) {
+            const gapDiv = document.createElement('div');
+            gapDiv.className = 'db-gap';
+            const gapId = `gap-${start}-${end === Infinity ? 'inf' : end}`;
+            gapDiv.innerText = `Gap (${start === -Infinity ? '-∞' : start}, ${end === Infinity ? '+∞' : end})`;
+            
+            const gapLocks = locks.filter(l => l.resource === gapId);
+            if (gapLocks.length > 0) {
+                gapDiv.classList.add('locked');
+                gapLocks.forEach(l => {
+                    const badge = document.createElement('span');
+                    badge.className = 'lock-badge lock-gap';
+                    badge.innerText = `Gap by ${l.owner}`;
+                    gapDiv.appendChild(badge);
+                });
+            }
+            
+            container.appendChild(gapDiv);
+        }
+
+        function log(tx, msg, type='normal') {
+            const div = document.getElementById(`log-${tx}`);
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            if (type === 'error') entry.style.color = '#ef5350';
+            if (type === 'success') entry.style.color = '#66bb6a';
+            if (type === 'warn') entry.style.color = '#ffa726';
+            entry.innerText = msg;
+            div.prepend(entry);
+        }
+
+        function updateStatus(tx) {
+            const el = document.getElementById(`status-${tx}`);
+            if (transactions[tx].active) {
+                el.innerText = "进行中";
+                el.style.color = "green";
+                document.getElementById(`panel-${tx}`).classList.add('active');
+            } else {
+                el.innerText = "未开始";
+                el.style.color = "gray";
+                document.getElementById(`panel-${tx}`).classList.remove('active');
+            }
+        }
+
+        // --- Scenarios ---
+        async function runScenario(type) {
+            resetAll();
+            await new Promise(r => setTimeout(r, 500));
+
+            if (type === 'dirtyRead') {
+                document.getElementById('isoLevel').value = 'RU';
+                updateIsoDisplay();
+                alert("场景: 脏读 (Dirty Read)\n隔离级别: Read Uncommitted\n\nTxA 修改数据但未提交，TxB 读取到了这个未提交的数据。");
+                
+                exec('A', 'BEGIN');
+                exec('A', 'UPDATE', {id: 1, val: 99});
+                setTimeout(() => exec('B', 'SELECT'), 1000);
+            }
+            else if (type === 'nonRepeatable') {
+                document.getElementById('isoLevel').value = 'RC';
+                updateIsoDisplay();
+                alert("场景: 不可重复读\n隔离级别: Read Committed\n\nTxA 读取一次，TxB 修改并提交，TxA 再次读取发现值变了。");
+                
+                exec('A', 'BEGIN');
+                exec('A', 'SELECT');
+                setTimeout(() => {
+                    exec('B', 'UPDATE', {id: 1, val: 88});
+                    exec('B', 'COMMIT');
+                }, 1000);
+                setTimeout(() => exec('A', 'SELECT'), 2000);
+            }
+            else if (type === 'phantom') {
+                document.getElementById('isoLevel').value = 'RR';
+                updateIsoDisplay();
+                alert("场景: 幻读 (Phantom Read) 防护\n隔离级别: Repeatable Read\n\nTxA 进行范围查询 (SELECT FOR UPDATE)，TxB 尝试插入数据到该范围。\n预期结果: TxB 被 Gap Lock 阻塞。");
+                
+                exec('A', 'BEGIN');
+                exec('A', 'SELECT_LOCK'); // Locks all rows and gaps
+                setTimeout(() => {
+                    exec('B', 'INSERT', {id: 2, val: 25}); // Should block
+                }, 1000);
+            }
+            else if (type === 'deadlock') {
+                document.getElementById('isoLevel').value = 'RR';
+                updateIsoDisplay();
+                alert("场景: 死锁 (Deadlock)\n\nTxA 锁住 Row 1，TxB 锁住 Row 5。\n然后 TxA 尝试锁 Row 5，TxB 尝试锁 Row 1。");
+                
+                exec('A', 'BEGIN');
+                exec('B', 'BEGIN');
+                
+                exec('A', 'UPDATE', {id: 1, val: 11});
+                exec('B', 'UPDATE', {id: 5, val: 22});
+                
+                setTimeout(() => {
+                    exec('A', 'UPDATE', {id: 5, val: 55}); // Blocked by B
+                }, 1000);
+                
+                setTimeout(() => {
+                    exec('B', 'UPDATE', {id: 1, val: 12}); // Blocked by A -> Deadlock
+                    alert("死锁发生！(模拟)");
+                }, 2000);
+            }
+        }
+
+        // --- Modal Utils ---
+        function openModal(tx, type) {
+            modalState = { tx, type };
+            document.getElementById('modalTitle').innerText = `${type} 操作 (${tx})`;
+            document.getElementById('modalValGroup').style.display = type === 'INSERT' || type === 'UPDATE' ? 'block' : 'none';
+            document.getElementById('inputModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('inputModal').style.display = 'none';
+        }
+
+        function confirmModal() {
+            const id = document.getElementById('modalId').value;
+            const val = document.getElementById('modalVal').value;
+            closeModal();
+            exec(modalState.tx, modalState.type, { id, val });
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
