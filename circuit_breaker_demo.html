@@ -43,6 +43,7 @@
         .btn-success { background: #4caf50; }
         .btn-fail { background: #f44336; }
         .btn-reset { background: #607d8b; margin-top: 10px; }
+        .btn-code { background: #3f51b5; margin-bottom: 15px; }
 
         .log-console {
             width: 100%; background: #212121; color: #00e676; padding: 10px; border-radius: 8px; 
@@ -54,6 +55,65 @@
 
         /* Arrows */
         .arrow-line { position: absolute; height: 2px; background: #ddd; top: 50%; z-index: 1; }
+
+        /* Modal */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 100; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5); 
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; 
+            max-width: 900px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover { color: black; }
+        
+        pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .keyword { color: #c678dd; }
+        .type { color: #e5c07b; }
+        .string { color: #98c379; }
+        .comment { color: #5c6370; font-style: italic; }
+        .function { color: #61afef; }
+
+        /* Tabs */
+        .tab-container { border-bottom: 1px solid #ddd; margin-bottom: 15px; display: flex; gap: 10px; }
+        .tab-btn { 
+            background: none; border: none; padding: 10px 15px; cursor: pointer; 
+            font-size: 14px; font-weight: bold; color: #666; border-bottom: 3px solid transparent;
+            margin-bottom: -1px; width: auto;
+        }
+        .tab-btn:hover { color: #333; background: #f5f5f5; }
+        .tab-btn.active { color: #2196F3; border-bottom: 3px solid #2196F3; }
+        .code-block { display: none; }
+        .code-block.active { display: block; }
     </style>
 </head>
 <body>
@@ -67,6 +127,69 @@
             <li><strong>快速失败 (Fail Fast):</strong> 在 OPEN 状态下尝试发送请求。请求会被立即拦截，不会执行。</li>
             <li><strong>恢复检测 (Half-Open):</strong> 等待 3 秒。状态变为 HALF-OPEN (半开)。下一个请求将决定是恢复到 CLOSED (成功) 还是重新 OPEN (失败)。</li>
         </ul>
+    </div>
+
+    <!-- Code Modal -->
+    <div id="codeModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCode()">&times;</span>
+            <h2 style="margin-top:0; color:#333;">💻 Circuit Breaker Implementation</h2>
+            <p style="color:#666;">Industry standard implementations using Resilience4j and Hystrix.</p>
+            
+            <div class="tab-container">
+                <button class="tab-btn active" onclick="showTab('resilience4j', this)">Resilience4j (Recommended)</button>
+                <button class="tab-btn" onclick="showTab('hystrix', this)">Netflix Hystrix (Legacy)</button>
+            </div>
+
+            <div id="code-resilience4j" class="code-block active">
+                <pre><code><span class="comment">// 1. Configuration</span>
+<span class="type">CircuitBreakerConfig</span> config = <span class="type">CircuitBreakerConfig</span>.custom()
+    .failureRateThreshold(50) <span class="comment">// 50% failure rate</span>
+    .waitDurationInOpenState(<span class="type">Duration</span>.ofMillis(1000)) <span class="comment">// Wait 1s before Half-Open</span>
+    .slidingWindowSize(10) <span class="comment">// Last 10 calls</span>
+    .build();
+
+<span class="comment">// 2. Registry & Instance</span>
+<span class="type">CircuitBreakerRegistry</span> registry = <span class="type">CircuitBreakerRegistry</span>.of(config);
+<span class="type">CircuitBreaker</span> circuitBreaker = registry.circuitBreaker(<span class="string">"backendService"</span>);
+
+<span class="comment">// 3. Decorate Supplier</span>
+<span class="type">Supplier</span>&lt;<span class="type">String</span>&gt; decoratedSupplier = <span class="type">CircuitBreaker</span>
+    .decorateSupplier(circuitBreaker, () -> backendService.doSomething());
+
+<span class="comment">// 4. Execute with Protection</span>
+<span class="keyword">try</span> {
+    <span class="type">String</span> result = decoratedSupplier.get();
+} <span class="keyword">catch</span> (<span class="type">CallNotPermittedException</span> e) {
+    <span class="comment">// Circuit is OPEN - Handle fallback</span>
+}</code></pre>
+            </div>
+
+            <div id="code-hystrix" class="code-block">
+                <pre><code><span class="keyword">public class</span> <span class="type">CommandHelloWorld</span> <span class="keyword">extends</span> <span class="type">HystrixCommand</span>&lt;<span class="type">String</span>&gt; {
+    <span class="keyword">private final</span> <span class="type">String</span> name;
+
+    <span class="keyword">public</span> <span class="function">CommandHelloWorld</span>(<span class="type">String</span> name) {
+        <span class="keyword">super</span>(<span class="type">Setter</span>.withGroupKey(<span class="type">HystrixCommandGroupKey</span>.Factory.asKey(<span class="string">"ExampleGroup"</span>))
+              .andCommandPropertiesDefaults(<span class="type">HystrixCommandProperties</span>.Setter()
+                  .withCircuitBreakerEnabled(<span class="keyword">true</span>)
+                  .withCircuitBreakerRequestVolumeThreshold(20)
+                  .withCircuitBreakerErrorThresholdPercentage(50)));
+    }
+
+    <span class="keyword">@Override</span>
+    <span class="keyword">protected</span> <span class="type">String</span> <span class="function">run</span>() {
+        <span class="comment">// Your business logic here</span>
+        <span class="keyword">return</span> <span class="string">"Hello "</span> + name + <span class="string">"!"</span>;
+    }
+
+    <span class="keyword">@Override</span>
+    <span class="keyword">protected</span> <span class="type">String</span> <span class="function">getFallback</span>() {
+        <span class="keyword">return</span> <span class="string">"Hello Failure!"</span>;
+    }
+}</code></pre>
+            </div>
+        </div>
     </div>
 
     <div class="container">
@@ -108,6 +231,7 @@
         <div class="controls-area">
             <div class="control-card">
                 <h3>Simulate Traffic</h3>
+                <button class="btn-code" onclick="openCode()">View Code Implementation</button>
                 <button class="btn-success" onclick="sendRequest(true)">Send Success Request</button>
                 <button class="btn-fail" onclick="sendRequest(false)">Send Failed Request</button>
                 <button class="btn-reset" onclick="resetBreaker()">Reset Breaker</button>
@@ -213,6 +337,30 @@
         function resetBreaker() {
             transitionTo(STATE.CLOSED);
             log("Manually Reset Breaker.");
+        }
+
+        // Modal Logic
+        function openCode() {
+            document.getElementById('codeModal').style.display = "block";
+        }
+        function closeCode() {
+            document.getElementById('codeModal').style.display = "none";
+        }
+        function showTab(tabName, btn) {
+            // Hide all code blocks
+            document.querySelectorAll('.code-block').forEach(el => el.classList.remove('active'));
+            // Deactivate all tabs
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            // Activate selected
+            document.getElementById(`code-${tabName}`).classList.add('active');
+            btn.classList.add('active');
+        }
+        window.onclick = function(event) {
+            const modal = document.getElementById('codeModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
         }
 
         // Init

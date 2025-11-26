@@ -5,253 +5,902 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consistent Hashing Visualization</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        h1 { color: #673ab7; }
-        
-        .container { display: flex; gap: 20px; width: 1000px; margin-top: 20px; }
-        
-        .canvas-area { 
-            width: 600px; height: 600px; background: white; border-radius: 50%; position: relative; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1); border: 2px solid #ddd;
+        :root {
+            --primary: #2196F3;
+            --success: #4CAF50;
+            --danger: #F44336;
+            --dark: #333;
+            --light: #f5f5f5;
         }
-        
-        .controls-area { width: 350px; display: flex; flex-direction: column; gap: 15px; }
-        
-        .control-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        
-        button { padding: 10px; width: 100%; margin-bottom: 5px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; color: white; }
-        .btn-add-node { background: #4caf50; }
-        .btn-remove-node { background: #f44336; }
-        .btn-add-key { background: #2196f3; }
-        
-        .node { 
-            position: absolute; width: 30px; height: 30px; border-radius: 50%; 
-            transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: bold; font-size: 0.8rem; z-index: 10; transition: all 0.5s;
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
         }
+        h1 { text-align: center; margin: 0 0 20px 0; color: var(--dark); }
         
-        .key {
-            position: absolute; width: 10px; height: 10px; background: #333; border-radius: 50%;
-            transform: translate(-50%, -50%); z-index: 5; transition: all 0.5s;
+        .main-layout {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+            overflow: hidden;
         }
 
-        .log-console {
-            width: 100%; background: #212121; color: #00e676; padding: 10px; border-radius: 8px; 
-            font-family: 'Consolas', monospace; height: 200px; overflow-y: auto; font-size: 0.85rem;
+        /* Left: Controls & Stats */
+        .panel-left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 300px;
         }
-        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #333; }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .card h3 { margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        button:active { transform: scale(0.98); }
+        .btn-add { background: var(--success); color: white; }
+        .btn-remove { background: var(--danger); color: white; }
+        .btn-data { background: var(--primary); color: white; }
+        
+        .stat-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+        .stat-val { font-weight: bold; }
 
-        /* SVG Lines */
-        svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        line { stroke: #ccc; stroke-width: 1; stroke-dasharray: 5; }
+        /* Center: Ring Visualization */
+        .panel-center {
+            flex: 2;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #ring-container {
+            position: relative;
+            width: 500px;
+            height: 500px;
+        }
+        
+        /* SVG Layer */
+        svg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+        #ring-svg {
+            transform: rotate(-90deg); /* Start at top */
+            z-index: 1;
+        }
+        #interaction-svg {
+            z-index: 20; /* Above dots */
+            pointer-events: none; /* Let clicks pass through to dots */
+        }
+        
+        .node-dot {
+            position: absolute;
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            border: 2px solid white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s;
+            cursor: pointer; /* Add cursor */
+        }
+        .node-dot:hover { transform: translate(-50%, -50%) scale(1.2); z-index: 30; }
+
+        .node-dot.virtual {
+            width: 12px; height: 12px;
+            opacity: 0.8;
+            font-size: 0;
+            border: 1px solid white;
+        }
+        
+        .key-dot {
+            position: absolute;
+            width: 8px; height: 8px;
+            background: #333;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            transition: all 0.5s ease-in-out;
+            cursor: pointer; /* Add cursor */
+        }
+        .key-dot:hover { transform: translate(-50%, -50%) scale(2); z-index: 30; }
+
+        .key-dot.moving {
+            width: 12px; height: 12px;
+            background: #FFD700; /* Gold */
+            box-shadow: 0 0 10px #FFD700;
+            z-index: 20;
+        }
+
+        /* Right: Load Distribution */
+        .panel-right {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            min-width: 250px;
+        }
+        
+        .bar-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .bar-row { display: flex; align-items: center; gap: 10px; }
+        .bar-label { width: 60px; font-size: 12px; text-align: right; }
+        .bar-track { flex: 1; background: #eee; height: 20px; border-radius: 4px; overflow: hidden; }
+        .bar-fill { height: 100%; transition: width 0.5s; display: flex; align-items: center; padding-left: 5px; color: white; font-size: 10px; }
+
+        .log-panel {
+            flex: 1;
+            background: #263238;
+            color: #eceff1;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-y: auto;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #37474f; padding-bottom: 2px; }
+        .log-highlight { color: #FFD700; }
+
+        /* Modal Styles */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 100; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5); 
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%; 
+            max-width: 800px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .tutorial-step {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid var(--primary);
+            border-radius: 4px;
+        }
+        .tutorial-step h4 { margin-top: 0; color: var(--primary); }
+
     </style>
 </head>
 <body>
-    <h1>Consistent Hashing Ring</h1>
-    
-    <div style="width: 1000px; margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-        <h3 style="margin-top:0; color:#333;">演示指南 (Demo Guide)</h3>
-        <ul style="margin:0; padding-left: 20px; color: #555;">
-            <li><strong>添加节点 (Add Node):</strong> 在哈希环 (0° - 360°) 上添加一个新服务器。现有的 Key 会自动重新平衡。</li>
-            <li><strong>添加数据 (Add Key):</strong> 模拟添加数据。它会被路由到顺时针方向找到的第一个节点。</li>
-            <li><strong>虚拟节点 (Virtual Nodes):</strong> 勾选此项可为每个真实节点创建多个副本 (vNodes)，以减少数据倾斜并改善平衡。</li>
-            <li><strong>移除节点 (Remove Node):</strong> 模拟服务器宕机。它的 Key 会被重新路由到下一个可用节点。</li>
-        </ul>
+
+    <h1>Consistent Hashing Ring (一致性哈希)</h1>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeHelp()">&times;</span>
+            <h2>📖 算法原理 (Algorithm Explanation)</h2>
+            
+            <div class="tutorial-step">
+                <h4>1. 哈希环 (The Ring)</h4>
+                <p>想象一个闭合的环，代表哈希空间 $0$ 到 $2^{32}-1$。我们将这个线性空间首尾相连。</p>
+            </div>
+
+            <div class="tutorial-step">
+                <h4>2. 节点映射 (Node Placement)</h4>
+                <p>服务器节点 (Node) 通过哈希函数 (如 `hash(IP)`) 映射到环上的某个位置。</p>
+            </div>
+
+            <div class="tutorial-step">
+                <h4>3. 数据定位 (Key Routing)</h4>
+                <p>数据对象 (Key) 也通过相同的哈希函数映射到环上。要找到数据归属的节点，我们从数据的位置开始，<b>顺时针 (Clockwise)</b> 查找，遇到的第一个节点就是它的归属。</p>
+            </div>
+
+            <div class="tutorial-step">
+                <h4>4. 虚拟节点 (Virtual Nodes)</h4>
+                <p>如果节点太少，数据分布可能不均匀 (Data Skew)。为了解决这个问题，我们为每个真实节点创建多个“虚拟节点”分布在环上。这使得数据更均匀地分散到各个真实节点。</p>
+            </div>
+        </div>
     </div>
 
-    <div class="container">
-        <div class="canvas-area" id="ring">
-            <svg id="lines"></svg>
-            <!-- Nodes and Keys injected here -->
-        </div>
+    <!-- Interview Modal -->
+    <div id="interviewModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeInterview()">&times;</span>
+            <h2>🎓 面试核心考点 (Interview Key Points)</h2>
+            
+            <div class="tutorial-step">
+                <h4>1. 为什么要用一致性哈希? (Why?)</h4>
+                <p><b>传统哈希 (hash % N)</b>: 当节点数 N 变化时，几乎所有数据都需要迁移，导致缓存雪崩。</p>
+                <p><b>一致性哈希</b>: 只有环上的一小段数据需要迁移 (约 $1/N$)，保证了系统的<b>单调性 (Monotonicity)</b>。</p>
+            </div>
 
-        <div class="controls-area">
-            <div class="control-card">
-                <h3>Nodes (Servers)</h3>
-                <button class="btn-add-node" onclick="addNode()">Add Node</button>
-                <button class="btn-remove-node" onclick="removeNode()">Remove Random Node</button>
-                <div style="margin-top:10px">
-                    <label><input type="checkbox" id="vnodes" onchange="toggleVNodes()"> Use Virtual Nodes (x3)</label>
+            <div class="tutorial-step">
+                <h4>2. 虚拟节点的作用? (Virtual Nodes)</h4>
+                <p><b>解决数据倾斜 (Data Skew)</b>: 节点少时，数据容易集中在某一个节点。虚拟节点将物理节点切分为多个小点均匀分布。</p>
+                <p><b>处理异构节点</b>: 性能强的机器可以分配更多的虚拟节点 (权重调整)。</p>
+            </div>
+
+            <div class="tutorial-step">
+                <h4>3. 常见哈希算法? (Hash Algorithms)</h4>
+                <p>通常使用 <b>MurmurHash</b> (高性能) 或 <b>MD5</b> (均匀性好)。Java `HashMap` 默认的 hashCode 不够均匀，不适合直接用于一致性哈希。</p>
+            </div>
+
+            <div class="tutorial-step">
+                <h4>4. 实际应用场景? (Real-world Usage)</h4>
+                <ul>
+                    <li><b>分布式缓存</b>: Memcached 客户端 (如 Spymemcached)。</li>
+                    <li><b>NoSQL 数据库</b>: Amazon DynamoDB, Apache Cassandra (使用 Token Ring)。</li>
+                    <li><b>负载均衡</b>: Nginx (`ip_hash`), Google Maglev。</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <svg style="width:0;height:0;position:absolute;" aria-hidden="true" focusable="false">
+        <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+            refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#333" />
+            </marker>
+        </defs>
+    </svg>
+
+    <div class="main-layout">
+        <!-- Left Panel -->
+        <div class="panel-left">
+            <div class="card">
+                <h3>🛠️ 控制台 (Controls)</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button style="background: #607D8B; color: white; flex: 1; margin-bottom: 0;" onclick="openHelp()">❓ 算法原理</button>
+                    <button style="background: #9C27B0; color: white; flex: 1; margin-bottom: 0;" onclick="openInterview()">🎓 面试考点</button>
+                </div>
+                <button class="btn-add" onclick="addNode()">➕ 添加节点 (Add Node)</button>
+                <button class="btn-remove" onclick="removeNode()">➖ 移除节点 (Remove Node)</button>
+                <button class="btn-data" onclick="addKeys(50)">🔑 注入数据 (Add 50 Keys)</button>
+                
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee;">
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                        <input type="checkbox" id="vnode-toggle" onchange="toggleVNodes()">
+                        <span>启用虚拟节点 (Virtual Nodes)</span>
+                    </label>
+                    <p style="font-size: 12px; color: #666; margin-top: 5px;">
+                        每个真实节点将映射为 10 个虚拟节点，解决数据倾斜问题。
+                    </p>
                 </div>
             </div>
 
-            <div class="control-card">
-                <h3>Data Keys</h3>
-                <button class="btn-add-key" onclick="addKey()">Add Random Key</button>
-                <button class="btn-add-key" onclick="addKeyBatch()" style="background:#00bcd4">Add 10 Keys</button>
+            <div class="card">
+                <h3>📊 统计 (Statistics)</h3>
+                <div class="stat-row">
+                    <span>Total Nodes:</span>
+                    <span class="stat-val" id="stat-nodes">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Total Keys:</span>
+                    <span class="stat-val" id="stat-keys">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Standard Deviation (Skew):</span>
+                    <span class="stat-val" id="stat-stddev">0</span>
+                </div>
+                <div class="stat-row" style="margin-top: 10px; color: var(--primary);">
+                    <span>Last Migration:</span>
+                    <span class="stat-val" id="stat-migration">0 keys</span>
+                </div>
+                <p style="font-size: 11px; color: #888;">
+                    * Standard Deviation 越低，负载越均衡。
+                </p>
             </div>
+        </div>
 
-            <div class="log-console" id="log">
-                <div class="log-entry">> Hash Ring Initialized (0 - 2^32).</div>
+        <!-- Center Panel -->
+        <div class="panel-center">
+            <div id="ring-container">
+                <svg id="ring-svg"></svg>
+                <svg id="interaction-svg"></svg>
+                <!-- Nodes and Keys injected here -->
+            </div>
+            <div style="position: absolute; bottom: 20px; text-align: center; color: #666; font-size: 12px;">
+                Hash Space: $0$ to $2^{32}-1$ (Mapped to $0^{\circ}-360^{\circ}$)<br>
+                <span style="color: var(--primary); font-weight: bold;">Tip: Hover over any dot to see its binding!</span>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="panel-right">
+            <div class="card">
+                <h3>⚖️ 负载分布 (Load Balance)</h3>
+                <div id="load-chart" class="bar-chart">
+                    <!-- Bars injected here -->
+                </div>
+            </div>
+            
+            <div class="log-panel" id="log">
+                <div class="log-entry">> System Initialized.</div>
             </div>
         </div>
     </div>
 
     <script>
-        const RING_RADIUS = 280;
-        const CENTER = 300;
-        let nodes = []; // { id, angle, color, isVirtual, parentId }
-        let keys = [];  // { id, angle }
+        window.onerror = function(msg, url, line) {
+            alert("Javascript Error: " + msg + "\nLine: " + line);
+        };
+
+        // --- Config ---
+        const RING_SIZE = 500;
+        const RADIUS = 200;
+        const CENTER = 250;
+        const VNODE_COUNT = 10; // Virtual nodes per real node
+        const COLORS = ['#F44336', '#9C27B0', '#3F51B5', '#009688', '#FF9800', '#795548', '#E91E63', '#673AB7'];
+
+        // --- State ---
+        let nodes = []; // { id, color, angle, isVirtual, parentId }
+        let keys = [];  // { id, angle, ownerId }
         let nodeIdCounter = 1;
-        let keyIdCounter = 1;
-        const COLORS = ['#e91e63', '#9c27b0', '#3f51b5', '#009688', '#ff9800', '#795548'];
+        let useVNodes = false;
 
-        function log(msg) {
-            const div = document.createElement('div');
-            div.className = 'log-entry';
-            div.innerText = `> ${msg}`;
-            const console = document.getElementById('log');
-            console.appendChild(div);
-            console.scrollTop = console.scrollHeight;
-        }
+        // --- Core Logic ---
 
-        function getPos(angle) {
-            const rad = (angle - 90) * (Math.PI / 180); // -90 to start at top
-            return {
-                x: CENTER + RING_RADIUS * Math.cos(rad),
-                y: CENTER + RING_RADIUS * Math.sin(rad)
-            };
+        function getHash(str) {
+            // Simple hash for demo: string -> 0-360
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }
+            return Math.abs(hash) % 360;
         }
 
         function addNode() {
             const id = `N${nodeIdCounter++}`;
+            const color = COLORS[nodes.filter(n => !n.isVirtual).length % COLORS.length];
+            
+            // Add Real Node
+            // For demo visual clarity, we try to place real nodes somewhat randomly but not too close if possible,
+            // or just purely random. Pure random is more realistic for hashing.
             const angle = Math.floor(Math.random() * 360);
-            const color = COLORS[nodes.length % COLORS.length];
             
-            const node = { id, angle, color, isVirtual: false };
-            nodes.push(node);
-            
-            // Virtual Nodes
-            if(document.getElementById('vnodes').checked) {
-                for(let i=1; i<=3; i++) {
-                    nodes.push({ 
-                        id: `${id}-v${i}`, 
-                        angle: (angle + i*90 + Math.random()*20) % 360, 
-                        color: color, 
+            const newNodes = [];
+            newNodes.push({ id, color, angle, isVirtual: false, parentId: id });
+
+            // Add Virtual Nodes if enabled
+            if (useVNodes) {
+                for (let i = 0; i < VNODE_COUNT; i++) {
+                    newNodes.push({
+                        id: `${id}#${i}`,
+                        color,
+                        angle: Math.floor(Math.random() * 360),
                         isVirtual: true,
                         parentId: id
                     });
                 }
             }
 
+            nodes.push(...newNodes);
             nodes.sort((a, b) => a.angle - b.angle);
-            render();
-            rebalanceKeys();
-            log(`Added Node ${id} at ${angle}°. Total Nodes: ${nodes.length}`);
+            
+            rebalance(`Added Node ${id}`);
         }
 
         function removeNode() {
-            if(nodes.length === 0) return;
-            // Find a real node
             const realNodes = nodes.filter(n => !n.isVirtual);
-            if(realNodes.length === 0) return;
+            if (realNodes.length === 0) return;
             
             const target = realNodes[Math.floor(Math.random() * realNodes.length)];
             
-            // Remove target and its virtuals
-            nodes = nodes.filter(n => n.id !== target.id && n.parentId !== target.id);
+            // Remove target and all its virtual nodes
+            nodes = nodes.filter(n => n.parentId !== target.parentId);
             
-            render();
-            rebalanceKeys();
-            log(`Removed Node ${target.id}. Keys re-routed.`);
+            rebalance(`Removed Node ${target.parentId}`);
+        }
+
+        function addKeys(count) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.floor(Math.random() * 360);
+                keys.push({
+                    id: `k-${Date.now()}-${i}`,
+                    angle,
+                    ownerId: null // Will be set by rebalance
+                });
+            }
+            rebalance(`Added ${count} Keys`);
         }
 
         function toggleVNodes() {
-            // Reset and re-add current real nodes with/without vnodes
-            // Simplified: Just clear and ask user to add again or implement complex logic.
-            // For demo, let's just clear.
+            useVNodes = document.getElementById('vnode-toggle').checked;
+            
+            // Re-generate nodes based on current real nodes
+            const currentRealNodes = nodes.filter(n => !n.isVirtual).map(n => ({ id: n.parentId, color: n.color }));
+            
             nodes = [];
-            keys = [];
+            currentRealNodes.forEach(n => {
+                // Re-add real node (random pos for demo variety or keep pos? Let's keep pos logic simple: random new pos)
+                // Actually, to show the effect, we should probably keep real nodes where they are?
+                // But VNodes are random. Let's just regenerate all positions for simplicity or keep real node pos?
+                // Let's regenerate to ensure good distribution demo.
+                
+                const angle = Math.floor(Math.random() * 360);
+                nodes.push({ id: n.id, color: n.color, angle, isVirtual: false, parentId: n.id });
+                
+                if (useVNodes) {
+                    for (let i = 0; i < VNODE_COUNT; i++) {
+                        nodes.push({
+                            id: `${n.id}#${i}`,
+                            color: n.color,
+                            angle: Math.floor(Math.random() * 360),
+                            isVirtual: true,
+                            parentId: n.id
+                        });
+                    }
+                }
+            });
+            
+            nodes.sort((a, b) => a.angle - b.angle);
+            rebalance("Toggled Virtual Nodes");
+        }
+
+        function rebalance(reason) {
+            if (nodes.length === 0) {
+                keys.forEach(k => k.ownerId = null);
+                render();
+                updateStats(0);
+                log(reason);
+                return;
+            }
+
+            let movedCount = 0;
+
+            keys.forEach(k => {
+                // Find first node clockwise
+                let target = nodes.find(n => n.angle >= k.angle);
+                if (!target) target = nodes[0]; // Wrap around
+                
+                const newOwner = target.parentId;
+                if (k.ownerId !== newOwner) {
+                    if (k.ownerId !== null) movedCount++; // Only count if it had an owner before
+                    k.ownerId = newOwner;
+                    k.targetAngle = target.angle; // For visual line
+                }
+            });
+
             render();
-            log("Toggled Virtual Nodes. Ring cleared.");
+            updateStats(movedCount);
+            log(`${reason}. Migration: ${movedCount} keys moved.`);
         }
 
-        function addKey() {
-            const id = `K${keyIdCounter++}`;
-            const angle = Math.floor(Math.random() * 360);
-            keys.push({ id, angle });
-            render();
-            routeKey(id, angle);
-        }
+        // --- Rendering ---
 
-        function addKeyBatch() {
-            for(let i=0; i<10; i++) addKey();
-        }
-
-        function routeKey(keyId, keyAngle) {
-            if(nodes.length === 0) {
-                log(`Key ${keyId} dropped (No Nodes).`);
+        function render() {
+            const container = document.getElementById('ring-container');
+            const svg = document.getElementById('ring-svg');
+            const interactionSvg = document.getElementById('interaction-svg');
+            
+            if (!container || !svg || !interactionSvg) {
+                console.error("Critical Error: DOM elements missing.");
                 return;
             }
             
-            // Find first node with angle >= keyAngle
-            let targetNode = nodes.find(n => n.angle >= keyAngle);
-            // If not found (wrap around), take the first node (smallest angle)
-            if(!targetNode) targetNode = nodes[0];
-
-            log(`Key ${keyId} (${keyAngle}°) -> Node ${targetNode.id} (${Math.floor(targetNode.angle)}°)`);
-            
-            // Draw line
-            drawRouteLine(keyAngle, targetNode.angle);
-        }
-
-        function rebalanceKeys() {
-            document.getElementById('lines').innerHTML = ''; // Clear lines
-            keys.forEach(k => routeKey(k.id, k.angle));
-        }
-
-        function drawRouteLine(startAngle, endAngle) {
-            const start = getPos(startAngle);
-            const end = getPos(endAngle);
-            
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("x1", start.x);
-            line.setAttribute("y1", start.y);
-            line.setAttribute("x2", end.x);
-            line.setAttribute("y2", end.y);
-            document.getElementById('lines').appendChild(line);
-        }
-
-        function render() {
-            const container = document.getElementById('ring');
-            // Keep SVG, remove divs
-            const children = Array.from(container.children);
-            children.forEach(c => {
-                if(c.tagName !== 'svg') c.remove();
+            // Clear DOM elements (except SVGs)
+            // Fix: Check IDs to avoid removing SVGs (tagName can be 'svg' or 'SVG')
+            Array.from(container.children).forEach(c => {
+                if (c.id !== 'ring-svg' && c.id !== 'interaction-svg') c.remove();
             });
+            svg.innerHTML = '';
+            interactionSvg.innerHTML = ''; // Clear interactions
 
+            // 1. Draw Ring Segments (Ownership Ranges)
+            if (nodes.length > 0) {
+                if (nodes.length === 1) {
+                    // Special case: Single node owns the whole ring
+                    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    circle.setAttribute("cx", CENTER);
+                    circle.setAttribute("cy", CENTER);
+                    circle.setAttribute("r", RADIUS);
+                    circle.setAttribute("stroke", nodes[0].color);
+                    circle.setAttribute("stroke-width", "10");
+                    circle.setAttribute("fill", "none");
+                    circle.setAttribute("opacity", "0.5");
+                    svg.appendChild(circle);
+                } else {
+                    for (let i = 0; i < nodes.length; i++) {
+                        const curr = nodes[i];
+                        const prev = nodes[i === 0 ? nodes.length - 1 : i - 1];
+                        
+                        // Arc from prev.angle to curr.angle
+                        let startAngle = prev.angle;
+                        let endAngle = curr.angle;
+                        if (i === 0) startAngle -= 360; // Wrap logic for first segment
+                        
+                        // Draw Arc
+                        const path = describeArc(CENTER, CENTER, RADIUS, startAngle, endAngle);
+                        const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        pathEl.setAttribute("d", path);
+                        pathEl.setAttribute("fill", "none");
+                        pathEl.setAttribute("stroke", curr.color);
+                        pathEl.setAttribute("stroke-width", "10");
+                        pathEl.setAttribute("opacity", "0.5");
+                        svg.appendChild(pathEl);
+                    }
+                }
+            } else {
+                // Empty ring
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", CENTER);
+                circle.setAttribute("cy", CENTER);
+                circle.setAttribute("r", RADIUS);
+                circle.setAttribute("stroke", "#ddd");
+                circle.setAttribute("stroke-width", "4");
+                circle.setAttribute("fill", "none");
+                svg.appendChild(circle);
+            }
+
+            // 2. Draw Nodes
             nodes.forEach(n => {
-                const pos = getPos(n.angle);
+                const pos = getPos(n.angle, RADIUS);
                 const el = document.createElement('div');
-                el.className = 'node';
+                el.className = `node-dot ${n.isVirtual ? 'virtual' : ''}`;
                 el.style.left = pos.x + 'px';
                 el.style.top = pos.y + 'px';
                 el.style.backgroundColor = n.color;
-                if(n.isVirtual) {
-                    el.style.width = '15px';
-                    el.style.height = '15px';
-                    el.style.opacity = '0.7';
-                    el.innerText = '';
-                } else {
-                    el.innerText = n.id;
-                }
+                if (!n.isVirtual) el.innerText = n.id;
+                
+                // Interaction
+                el.onmouseenter = () => highlightNode(n);
+                el.onmouseleave = () => clearHighlights();
+                
                 container.appendChild(el);
             });
 
+            // 3. Draw Keys
             keys.forEach(k => {
-                const pos = getPos(k.angle);
+                // Place key slightly inside the ring
+                const pos = getPos(k.angle, RADIUS - 20);
                 const el = document.createElement('div');
-                el.className = 'key';
+                el.className = 'key-dot';
                 el.style.left = pos.x + 'px';
                 el.style.top = pos.y + 'px';
+                
+                // Color key by owner
+                const ownerNode = nodes.find(n => n.parentId === k.ownerId); // Just get color
+                if (ownerNode) {
+                    el.style.backgroundColor = ownerNode.color;
+                } else {
+                    el.style.backgroundColor = '#ccc';
+                }
+                
+                // Interaction
+                el.onmouseenter = () => highlightKey(k);
+                el.onmouseleave = () => clearHighlights();
+                
                 container.appendChild(el);
             });
         }
 
+        // --- Interaction Logic ---
+
+        function highlightKey(key) {
+            const svg = document.getElementById('interaction-svg');
+            const keyPos = getPos(key.angle, RADIUS - 20);
+            
+            // Find owner node
+            const owner = nodes.find(n => n.parentId === key.ownerId); // This might find any virtual node of the same parent
+            // Actually we want the specific node (virtual or real) that owns this range.
+            // The rebalance logic assigns ownerId (parentId). It doesn't store which specific virtual node caught it.
+            // Let's re-calculate the specific target node for visualization.
+            
+            let target = nodes.find(n => n.angle >= key.angle);
+            if (!target) target = nodes[0];
+            
+            if (target) {
+                const nodePos = getPos(target.angle, RADIUS);
+                
+                // Draw Line
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", keyPos.x);
+                line.setAttribute("y1", keyPos.y);
+                line.setAttribute("x2", nodePos.x);
+                line.setAttribute("y2", nodePos.y);
+                line.setAttribute("stroke", "#333");
+                line.setAttribute("stroke-width", "2");
+                line.setAttribute("stroke-dasharray", "5,5");
+                svg.appendChild(line);
+                
+                // Draw Clockwise Arrow (Arc)
+                // From Key Angle to Node Angle
+                // Note: describeArc expects 0 at top (handled by rotation in ring-svg).
+                // But interaction-svg is NOT rotated.
+                // So we need to adjust angles for describeArc if we use it here?
+                // describeArc uses polarToCartesian which uses standard math (0 is Right).
+                // Our angles are 0-360 where 0 is Top (because we rotated ring-svg).
+                // So if key.angle is 0, it is visually at Top.
+                // In standard math, Top is -90 (or 270).
+                // So we need to subtract 90 from our angles when calling polarToCartesian for the non-rotated SVG.
+                
+                // Let's make a helper for non-rotated arc
+                const path = describeArcNoRotate(CENTER, CENTER, RADIUS - 10, key.angle, target.angle);
+                const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                pathEl.setAttribute("d", path);
+                pathEl.setAttribute("fill", "none");
+                pathEl.setAttribute("stroke", target.color);
+                pathEl.setAttribute("stroke-width", "3");
+                pathEl.setAttribute("marker-end", "url(#arrowhead)");
+                svg.appendChild(pathEl);
+            }
+        }
+
+        function highlightNode(node) {
+            const svg = document.getElementById('interaction-svg');
+            const nodePos = getPos(node.angle, RADIUS);
+            
+            // Find all keys that map to THIS specific node instance (real or virtual)
+            // We need to check the range this node covers.
+            // Range is (PreviousNode.angle, ThisNode.angle]
+            
+            const nodeIndex = nodes.indexOf(node);
+            const prevNode = nodes[nodeIndex === 0 ? nodes.length - 1 : nodeIndex - 1];
+            
+            let start = prevNode.angle;
+            let end = node.angle;
+            
+            // Filter keys in this range
+            const ownedKeys = keys.filter(k => {
+                if (start < end) {
+                    return k.angle > start && k.angle <= end;
+                } else {
+                    // Wrap around case
+                    return k.angle > start || k.angle <= end;
+                }
+            });
+            
+            ownedKeys.forEach(k => {
+                const keyPos = getPos(k.angle, RADIUS - 20);
+                const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                line.setAttribute("x1", keyPos.x);
+                line.setAttribute("y1", keyPos.y);
+                line.setAttribute("x2", nodePos.x);
+                line.setAttribute("y2", nodePos.y);
+                line.setAttribute("stroke", node.color);
+                line.setAttribute("stroke-width", "1");
+                line.setAttribute("opacity", "0.6");
+                svg.appendChild(line);
+            });
+        }
+
+        function clearHighlights() {
+            const svg = document.getElementById('interaction-svg');
+            if (svg) svg.innerHTML = '';
+        }
+
+        function describeArcNoRotate(x, y, radius, startAngle, endAngle) {
+             // Adjust angles because 0 is Top in our data, but 0 is Right in Math.
+             // So Data 0 -> Math -90.
+             return describeArc(x, y, radius, startAngle - 90, endAngle - 90);
+        }
+
+        // Add Arrow Marker definition to SVG once
+        // We can do this in HTML or JS. Let's do it in JS init.
+        function initMarkers() {
+             const svg = document.getElementById('interaction-svg');
+             if(!svg) return;
+             
+             // We need a defs block. Since we clear innerHTML, we should re-add it or put it in the static HTML.
+             // Let's put it in static HTML via replace_string or just re-add it in highlightKey if missing.
+             // Better: Add it to the main ring-svg which is not cleared? 
+             // No, ring-svg is cleared in render().
+             // Let's add it to interaction-svg in render() or just append it.
+        }
+        
+        // Actually, let's just add the marker def to the HTML directly.
+
+
+        function updateStats(movedCount) {
+            // Count keys per real node
+            const counts = {};
+            const realNodes = [...new Set(nodes.map(n => n.parentId))];
+            realNodes.forEach(id => counts[id] = 0);
+            
+            keys.forEach(k => {
+                if (k.ownerId) counts[k.ownerId]++;
+            });
+
+            // Update Chart
+            const chart = document.getElementById('load-chart');
+            chart.innerHTML = '';
+            
+            let maxVal = 0;
+            Object.values(counts).forEach(v => maxVal = Math.max(maxVal, v));
+            
+            realNodes.forEach(id => {
+                const count = counts[id];
+                const color = nodes.find(n => n.parentId === id).color;
+                const percent = keys.length > 0 ? Math.round((count / keys.length) * 100) : 0;
+                const width = keys.length > 0 ? (count / maxVal) * 100 : 0;
+
+                const row = document.createElement('div');
+                row.className = 'bar-row';
+                row.innerHTML = `
+                    <div class="bar-label">${id}</div>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: ${width}%; background: ${color};">
+                            ${count} (${percent}%)
+                        </div>
+                    </div>
+                `;
+                chart.appendChild(row);
+            });
+
+            // Calc Std Dev
+            const values = Object.values(counts);
+            const mean = values.reduce((a,b) => a+b, 0) / values.length || 0;
+            const variance = values.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / values.length || 0;
+            const stdDev = Math.sqrt(variance).toFixed(2);
+
+            document.getElementById('stat-nodes').innerText = realNodes.length;
+            document.getElementById('stat-keys').innerText = keys.length;
+            document.getElementById('stat-stddev').innerText = stdDev;
+            document.getElementById('stat-migration').innerText = `${movedCount} keys`;
+            
+            // Color code std dev
+            const stdEl = document.getElementById('stat-stddev');
+            if (stdDev < 5) stdEl.style.color = 'green';
+            else if (stdDev < 15) stdEl.style.color = 'orange';
+            else stdEl.style.color = 'red';
+        }
+
+        function describeArcNoRotate(x, y, radius, startAngle, endAngle) {
+             // Adjust angles because 0 is Top in our data, but 0 is Right in Math.
+             // So Data 0 -> Math -90.
+             return describeArc(x, y, radius, startAngle - 90, endAngle - 90);
+        }
+
+        // --- Helpers ---
+
+        function getPos(angle, radius) {
+            const rad = (angle - 90) * (Math.PI / 180);
+            return {
+                x: CENTER + radius * Math.cos(rad),
+                y: CENTER + radius * Math.sin(rad)
+            };
+        }
+
+        function describeArc(x, y, radius, startAngle, endAngle) {
+            // Convert to radians
+            // SVG coordinate system: 0 is right (3 o'clock), clockwise.
+            // Our system: 0 is top (12 o'clock), clockwise.
+            // Adjust: -90 degrees offset handled in CSS rotate, so here we treat 0 as 0.
+            
+            // Handle wrap-around for drawing
+            if (startAngle > endAngle) startAngle -= 360;
+
+            const start = polarToCartesian(x, y, radius, endAngle);
+            const end = polarToCartesian(x, y, radius, startAngle);
+
+            const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+
+            const d = [
+                "M", start.x, start.y, 
+                "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y
+            ].join(" ");
+
+            return d;
+        }
+
+        function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+            var rad = angleInDegrees * Math.PI / 180.0;
+            return {
+                x: centerX + (radius * Math.cos(rad)),
+                y: centerY + (radius * Math.sin(rad))
+            };
+        }
+
+        function log(msg) {
+            const div = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span style="color:#888">[${new Date().toLocaleTimeString().split(' ')[0]}]</span> ${msg}`;
+            div.prepend(entry);
+        }
+
+        // --- Modal Logic ---
+        function openHelp() {
+            document.getElementById('helpModal').style.display = "block";
+        }
+        function closeHelp() {
+            document.getElementById('helpModal').style.display = "none";
+        }
+        function openInterview() {
+            document.getElementById('interviewModal').style.display = "block";
+        }
+        function closeInterview() {
+            document.getElementById('interviewModal').style.display = "none";
+        }
+        // Close modal if user clicks outside
+        window.onclick = function(event) {
+            const helpModal = document.getElementById('helpModal');
+            const interviewModal = document.getElementById('interviewModal');
+            if (event.target == helpModal) {
+                helpModal.style.display = "none";
+            }
+            if (event.target == interviewModal) {
+                interviewModal.style.display = "none";
+            }
+        }
+
         // Init
-        addNode();
-        addNode();
-        addNode();
+        try {
+            // Start with a clean state for better understanding
+            // addNode();
+            // addNode();
+            // addNode();
+            // addKeys(20);
+            
+            // Auto-open help on first load
+            openHelp();
+            
+            // Add initial nodes after a slight delay so user sees the empty ring first? 
+            // No, let's just init 3 nodes but maybe fewer keys.
+            addNode();
+            addNode();
+            addNode();
+            log("Tip: Click '❓ 算法说明' to understand the concept.");
+        } catch (e) {
+            alert("Initialization Error: " + e.message);
+            console.error(e);
+        }
+
     </script>
 </body>
 </html>
