@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Rendering Process: URL to Pixel</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { color: #333; }
+        
+        .container { width: 100%; max-width: 1200px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        
+        /* Address Bar */
+        .browser-bar { 
+            background: #e0e0e0; padding: 10px; border-radius: 8px 8px 0 0; display: flex; gap: 10px; align-items: center; margin-bottom: 20px;
+        }
+        .url-input { flex: 1; padding: 8px; border-radius: 20px; border: 1px solid #ccc; padding-left: 15px; font-family: monospace; }
+        .btn-go { background: #2196f3; color: white; border: none; padding: 8px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .btn-go:disabled { background: #ccc; }
+
+        /* Pipeline */
+        .pipeline-container { position: relative; padding-bottom: 40px; margin-bottom: 20px; }
+        .pipeline { display: flex; justify-content: space-between; position: relative; z-index: 2; }
+        .stage { 
+            width: 14%; background: #fafafa; border: 2px solid #ddd; border-radius: 6px; padding: 10px 5px; 
+            display: flex; flex-direction: column; align-items: center; transition: all 0.3s; opacity: 0.6;
+            position: relative; min-height: 100px;
+        }
+        .stage.active { border-color: #2196f3; background: #e3f2fd; opacity: 1; transform: scale(1.1); box-shadow: 0 4px 15px rgba(33,150,243,0.3); z-index: 10; }
+        
+        /* Connecting Line */
+        .pipeline-line { 
+            position: absolute; top: 50%; left: 0; width: 100%; height: 4px; background: #e0e0e0; z-index: 1; transform: translateY(-50%); 
+        }
+        .pipeline-progress {
+            position: absolute; top: 50%; left: 0; height: 4px; background: #2196f3; z-index: 1; transform: translateY(-50%); width: 0%; transition: width 0.5s linear;
+        }
+
+        .stage-icon { font-size: 1.8rem; margin-bottom: 5px; }
+        .stage-name { font-weight: bold; font-size: 0.85rem; text-align: center; }
+        .stage-detail { font-size: 0.7rem; color: #666; text-align: center; margin-top: 5px; }
+
+        /* Visualization Area */
+        .visual-area { 
+            height: 300px; background: #2d2d2d; border-radius: 8px; margin-top: 20px; position: relative; overflow: hidden; 
+            display: flex; align-items: center; justify-content: center; color: #ccc; font-family: monospace;
+        }
+        
+        /* DOM/CSSOM Nodes */
+        .tree-node { 
+            border: 2px solid #fff; padding: 5px 10px; border-radius: 4px; margin: 5px; display: inline-block; 
+            background: #444; color: white; font-size: 0.8rem; transition: all 0.5s;
+        }
+        .tree-node.dom { border-color: #ff9800; }
+        .tree-node.cssom { border-color: #2196f3; }
+        .tree-node.render { border-color: #4caf50; background: #1b5e20; }
+
+        /* Optimization Toggles */
+        .opt-panel { margin-top: 20px; padding: 15px; background: #fff3e0; border-radius: 8px; border: 1px solid #ffe0b2; }
+        .opt-title { font-weight: bold; color: #e65100; margin-bottom: 10px; }
+        .opt-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        .opt-section { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 6px; }
+        .opt-section.optimize { background: #e8f5e9; border: 1px solid #c8e6c9; }
+        .opt-section.blocking { background: #ffebee; border: 1px solid #ffcdd2; }
+        .opt-section-title { font-size: 0.75rem; font-weight: bold; color: #666; margin-bottom: 5px; }
+        .opt-check { display: flex; align-items: center; gap: 5px; font-size: 0.9rem; cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: all 0.2s; }
+        .opt-check:hover { background: rgba(0,0,0,0.05); }
+        .opt-check input:checked + span { font-weight: bold; }
+        .opt-check.disabled { opacity: 0.5; pointer-events: none; }
+        .opt-hint { font-size: 0.75rem; color: #888; margin-top: 5px; font-style: italic; }
+        .opt-status { margin-top: 10px; padding: 8px; background: #fff; border-radius: 4px; font-size: 0.85rem; border-left: 3px solid #2196f3; }
+
+        /* Performance Metrics */
+        .metrics-panel { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 20px; 
+        }
+        .metric-card { background: #e8f5e9; padding: 10px; border-radius: 6px; text-align: center; border: 1px solid #c8e6c9; }
+        .metric-val { font-size: 1.5rem; font-weight: bold; color: #2e7d32; }
+        .metric-label { font-size: 0.8rem; color: #555; }
+
+        /* Interview Corner */
+        .interview-panel { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .qa-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #673ab7; }
+        .qa-q { font-weight: bold; color: #333; margin-bottom: 10px; }
+        .qa-a { font-size: 0.9rem; color: #555; line-height: 1.5; }
+
+        /* Comparison Table */
+        .compare-section { margin-top: 30px; }
+        .compare-title { font-size: 1.2rem; font-weight: bold; color: #1976d2; margin-bottom: 15px; border-bottom: 2px solid #1976d2; padding-bottom: 5px; }
+        .compare-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .compare-table th { background: #e3f2fd; padding: 12px; text-align: left; border: 1px solid #bbdefb; }
+        .compare-table td { padding: 10px; border: 1px solid #e0e0e0; vertical-align: top; }
+        .compare-table tr:nth-child(even) { background: #fafafa; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin: 2px; }
+        .tag-green { background: #c8e6c9; color: #2e7d32; }
+        .tag-red { background: #ffcdd2; color: #c62828; }
+        .tag-blue { background: #bbdefb; color: #1565c0; }
+        .tag-orange { background: #ffe0b2; color: #e65100; }
+
+        /* Process Architecture */
+        .arch-section { margin-top: 30px; background: #f5f5f5; padding: 20px; border-radius: 8px; }
+        .arch-title { font-size: 1.2rem; font-weight: bold; color: #424242; margin-bottom: 15px; }
+        .arch-diagram { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; }
+        .arch-box { background: white; border: 2px solid #9e9e9e; border-radius: 8px; padding: 15px; min-width: 150px; text-align: center; }
+        .arch-box.browser { border-color: #2196f3; background: #e3f2fd; }
+        .arch-box.renderer { border-color: #4caf50; background: #e8f5e9; }
+        .arch-box.gpu { border-color: #ff9800; background: #fff3e0; }
+        .arch-box.network { border-color: #9c27b0; background: #f3e5f5; }
+        .arch-box-title { font-weight: bold; margin-bottom: 8px; }
+        .arch-box-detail { font-size: 0.8rem; color: #666; }
+
+        /* Tips Section */
+        .tips-section { margin-top: 30px; }
+        .tips-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }
+        .tip-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 8px; }
+        .tip-card.perf { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .tip-card.avoid { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
+        .tip-title { font-weight: bold; margin-bottom: 8px; font-size: 1rem; }
+        .tip-content { font-size: 0.85rem; opacity: 0.95; }
+        .tip-code { background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; margin-top: 8px; font-family: monospace; font-size: 0.8rem; }
+
+        /* Animation Classes */
+        .packet { position: absolute; width: 10px; height: 10px; background: yellow; border-radius: 50%; }
+        .pixel { width: 5px; height: 5px; background: white; position: absolute; opacity: 0; }
+
+        /* Log Panel */
+        .log-panel { 
+            background: #1e1e1e; border-radius: 8px; padding: 15px; margin-top: 20px; 
+            font-family: 'Consolas', 'Monaco', monospace; font-size: 0.85rem; 
+            max-height: 200px; overflow-y: auto; 
+        }
+        .log-title { color: #4ec9b0; font-weight: bold; margin-bottom: 10px; }
+        .log-entry { padding: 3px 0; border-bottom: 1px solid #333; display: flex; gap: 10px; }
+        .log-time { color: #569cd6; min-width: 60px; }
+        .log-stage { color: #dcdcaa; min-width: 100px; }
+        .log-msg { color: #ce9178; }
+        .log-entry.network .log-stage { color: #4fc1ff; }
+        .log-entry.parse .log-stage { color: #ff9800; }
+        .log-entry.render .log-stage { color: #4caf50; }
+        .log-entry.layout .log-stage { color: #9c27b0; }
+        .log-entry.paint .log-stage { color: #f44336; }
+        .log-entry.composite .log-stage { color: #2196f3; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Browser Rendering Process: URL to Pixel</h1>
+
+    <div class="container">
+        <div class="browser-bar">
+            <div style="font-weight:bold; color:#555;">Chrome</div>
+            <input type="text" class="url-input" value="https://www.example.com" readonly>
+            <button class="btn-go" onclick="startProcess()" id="btnStart">Go</button>
+            <button class="btn-go" onclick="reset()" style="background:#757575; margin-left:5px;">Reset</button>
+        </div>
+
+        <div class="pipeline-container">
+            <div class="pipeline-line"></div>
+            <div class="pipeline-progress" id="progress-bar"></div>
+            <div class="pipeline">
+                <div class="stage" id="st-dns">
+                    <div class="stage-icon">🌐</div>
+                    <div class="stage-name">1. Network</div>
+                    <div class="stage-detail">DNS, TCP, HTTP</div>
+                </div>
+                <div class="stage" id="st-parse">
+                    <div class="stage-icon">📄</div>
+                    <div class="stage-name">2. Parsing</div>
+                    <div class="stage-detail">HTML -> DOM<br>CSS -> CSSOM</div>
+                </div>
+                <div class="stage" id="st-render">
+                    <div class="stage-icon">🌳</div>
+                    <div class="stage-name">3. Render Tree</div>
+                    <div class="stage-detail">Visible Nodes</div>
+                </div>
+                <div class="stage" id="st-layout">
+                    <div class="stage-icon">📐</div>
+                    <div class="stage-name">4. Layout</div>
+                    <div class="stage-detail">Geometry (Reflow)</div>
+                </div>
+                <div class="stage" id="st-paint">
+                    <div class="stage-icon">🎨</div>
+                    <div class="stage-name">5. Paint</div>
+                    <div class="stage-detail">Pixels (Repaint)</div>
+                </div>
+                <div class="stage" id="st-comp">
+                    <div class="stage-icon">📑</div>
+                    <div class="stage-name">6. Composite</div>
+                    <div class="stage-detail">GPU Layers</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="visual-area" id="visual">
+            <div style="color:#666;">Click "Go" to visualize the Critical Rendering Path</div>
+        </div>
+
+        <div class="log-panel">
+            <div class="log-title">📋 Rendering Log (实时日志)</div>
+            <div id="log-container"></div>
+        </div>
+
+        <div class="metrics-panel">
+            <div class="metric-card">
+                <div class="metric-val" id="m-fp">-</div>
+                <div class="metric-label">FP (First Paint)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-val" id="m-fcp">-</div>
+                <div class="metric-label">FCP (Content Paint)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-val" id="m-lcp">-</div>
+                <div class="metric-label">LCP (Largest Content)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-val" id="m-tti">-</div>
+                <div class="metric-label">TTI (Interactive)</div>
+            </div>
+        </div>
+
+        <div class="opt-panel">
+            <div class="opt-title">⚡ Optimization & Blocking Simulation (运行前勾选)</div>
+            <div class="opt-group">
+                <div class="opt-section optimize">
+                    <div class="opt-section-title">✅ 优化选项 (Optimization)</div>
+                    <label class="opt-check"><input type="checkbox" id="opt-dns" onchange="updateOptStatus()"> <span>DNS Prefetch</span></label>
+                    <label class="opt-check"><input type="checkbox" id="opt-async" onchange="updateOptStatus()"> <span>Async Scripts</span></label>
+                </div>
+                <div class="opt-section blocking">
+                    <div class="opt-section-title">🛑 阻塞模拟 (Blocking)</div>
+                    <label class="opt-check" id="label-block-js"><input type="checkbox" id="opt-block-js" onchange="updateOptStatus()"> <span>Blocking JS (同步脚本)</span></label>
+                    <label class="opt-check"><input type="checkbox" id="opt-block-css" onchange="updateOptStatus()"> <span>Blocking CSS (样式表)</span></label>
+                </div>
+            </div>
+            <div class="opt-hint">💡 提示: Async Scripts 会使 Blocking JS 失效 (async脚本不阻塞HTML解析)</div>
+            <div class="opt-status" id="opt-status">当前配置: 默认 (无优化, 无阻塞模拟)</div>
+        </div>
+
+        <!-- Browser Process Architecture -->
+        <div class="arch-section">
+            <div class="arch-title">🏗️ Chrome 多进程架构 (Multi-Process Architecture)</div>
+            <div class="arch-diagram">
+                <div class="arch-box browser">
+                    <div class="arch-box-title">🖥️ Browser Process</div>
+                    <div class="arch-box-detail">主进程: UI, 书签, 网络请求<br>管理其他进程</div>
+                </div>
+                <div class="arch-box renderer">
+                    <div class="arch-box-title">📄 Renderer Process</div>
+                    <div class="arch-box-detail">每个Tab一个进程<br>HTML/CSS/JS解析渲染<br><strong>本页面演示的核心</strong></div>
+                </div>
+                <div class="arch-box gpu">
+                    <div class="arch-box-title">🎮 GPU Process</div>
+                    <div class="arch-box-detail">图层合成<br>3D CSS, Canvas, Video</div>
+                </div>
+                <div class="arch-box network">
+                    <div class="arch-box-title">🌐 Network Process</div>
+                    <div class="arch-box-detail">网络请求<br>DNS, HTTP, WebSocket</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- defer vs async Comparison -->
+        <div class="compare-section">
+            <div class="compare-title">📝 defer vs async vs 普通 script 对比 (高频面试题)</div>
+            <table class="compare-table">
+                <tr>
+                    <th>特性</th>
+                    <th>&lt;script&gt;</th>
+                    <th>&lt;script async&gt;</th>
+                    <th>&lt;script defer&gt;</th>
+                </tr>
+                <tr>
+                    <td><strong>下载时机</strong></td>
+                    <td>立即下载，<span class="tag tag-red">阻塞解析</span></td>
+                    <td>异步下载，<span class="tag tag-green">不阻塞</span></td>
+                    <td>异步下载，<span class="tag tag-green">不阻塞</span></td>
+                </tr>
+                <tr>
+                    <td><strong>执行时机</strong></td>
+                    <td>下载完立即执行</td>
+                    <td>下载完立即执行 <span class="tag tag-orange">无序</span></td>
+                    <td>HTML解析完后执行 <span class="tag tag-blue">有序</span></td>
+                </tr>
+                <tr>
+                    <td><strong>执行顺序</strong></td>
+                    <td>按书写顺序</td>
+                    <td><span class="tag tag-red">谁先下载完谁先执行</span></td>
+                    <td><span class="tag tag-green">按书写顺序</span></td>
+                </tr>
+                <tr>
+                    <td><strong>DOMContentLoaded</strong></td>
+                    <td>等待执行完</td>
+                    <td>不等待</td>
+                    <td>等待执行完</td>
+                </tr>
+                <tr>
+                    <td><strong>适用场景</strong></td>
+                    <td>内联关键代码</td>
+                    <td>独立统计/广告脚本</td>
+                    <td><span class="tag tag-green">推荐!多数常规JS</span></td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Performance Tips -->
+        <div class="tips-section">
+            <div class="compare-title">🚀 性能优化技巧 (Performance Tips)</div>
+            <div class="tips-grid">
+                <div class="tip-card perf">
+                    <div class="tip-title">✅ 推荐做法</div>
+                    <div class="tip-content">
+                        • 使用 <code>transform</code> 代替 top/left 动画<br>
+                        • 使用 <code>opacity</code> 代替 visibility<br>
+                        • 使用 <code>will-change</code> 提示浏览器<br>
+                        • CSS放<code>&lt;head&gt;</code>，JS放<code>&lt;/body&gt;</code>前
+                    </div>
+                    <div class="tip-code">// 只触发 Composite，跳过 Layout/Paint<br>transform: translateX(100px);</div>
+                </div>
+                <div class="tip-card avoid">
+                    <div class="tip-title">❌ 避免做法</div>
+                    <div class="tip-content">
+                        • 避免强制同步布局 (offsetWidth)<br>
+                        • 避免频繁 DOM 操作<br>
+                        • 避免大量使用 table 布局<br>
+                        • 避免 CSS 表达式 (calc 除外)
+                    </div>
+                    <div class="tip-code">// 强制同步布局 - 避免!<br>el.style.width = '100px';<br>console.log(el.offsetWidth); // 强制重排</div>
+                </div>
+                <div class="tip-card">
+                    <div class="tip-title">🎯 Core Web Vitals</div>
+                    <div class="tip-content">
+                        <strong>LCP</strong> &lt; 2.5s (最大内容绘制)<br>
+                        <strong>FID</strong> &lt; 100ms (首次输入延迟)<br>
+                        <strong>CLS</strong> &lt; 0.1 (累积布局偏移)<br>
+                        <em>这是Google搜索排名因素!</em>
+                    </div>
+                </div>
+                <div class="tip-card perf">
+                    <div class="tip-title">📦 资源加载优化</div>
+                    <div class="tip-content">
+                        • <code>&lt;link rel="preload"&gt;</code> 预加载关键资源<br>
+                        • <code>&lt;link rel="prefetch"&gt;</code> 预取下一页<br>
+                        • <code>&lt;link rel="preconnect"&gt;</code> 预连接<br>
+                        • 图片懒加载 <code>loading="lazy"</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interview Q&A -->
+        <div class="compare-section">
+            <div class="compare-title">🎯 高频面试题 (Interview Questions)</div>
+        </div>
+        <div class="interview-panel">
+            <div class="qa-card">
+                <div class="qa-q">Q: 什么是重排(Reflow)和重绘(Repaint)？</div>
+                <div class="qa-a">
+                    <strong>重排 (Reflow/Layout):</strong> 几何属性变化(width/height/position)。<span class="tag tag-red">代价高</span> 影响所有子/父节点<br>
+                    <strong>重绘 (Repaint):</strong> 外观变化(color/background)但几何不变。<span class="tag tag-orange">代价较低</span><br>
+                    <strong>最优:</strong> 用 <code>transform/opacity</code> 动画，只触发 Composite <span class="tag tag-green">代价最低</span>
+                </div>
+            </div>
+            <div class="qa-card">
+                <div class="qa-q">Q: 为什么要把JS放在body底部？</div>
+                <div class="qa-a">
+                    JS会阻塞HTML解析 (Parser Blocking)。如果在 <code>&lt;head&gt;</code> 中，浏览器会暂停DOM构建去下载执行JS。<br>
+                    <strong>解决方案:</strong> 使用 <code>defer</code>(按序执行) 或 <code>async</code>(无序执行)
+                </div>
+            </div>
+            <div class="qa-card">
+                <div class="qa-q">Q: 什么是关键渲染路径(CRP)？</div>
+                <div class="qa-a">
+                    浏览器将 HTML/CSS/JS 转换为屏幕像素的步骤序列。<br>
+                    <strong>优化目标:</strong> 减少关键资源数量和字节数，加速 First Paint
+                </div>
+            </div>
+            <div class="qa-card">
+                <div class="qa-q">Q: CSS如何影响渲染？</div>
+                <div class="qa-a">
+                    CSS 是<strong>渲染阻塞</strong>的。CSSOM构建完成前不会渲染任何内容(避免FOUC-无样式闪烁)。<br>
+                    <strong>Tip:</strong> 内联关键CSS，异步加载非关键CSS
+                </div>
+            </div>
+            <div class="qa-card">
+                <div class="qa-q">Q: 解释一下浏览器的事件循环(Event Loop)？</div>
+                <div class="qa-a">
+                    <strong>宏任务:</strong> script, setTimeout, setInterval, I/O<br>
+                    <strong>微任务:</strong> Promise.then, MutationObserver, queueMicrotask<br>
+                    <strong>执行顺序:</strong> 宏任务 → 所有微任务 → 渲染 → 下一个宏任务<br>
+                    <em>requestAnimationFrame 在渲染前执行!</em>
+                </div>
+            </div>
+            <div class="qa-card">
+                <div class="qa-q">Q: 什么导致白屏？如何优化？</div>
+                <div class="qa-a">
+                    <strong>原因:</strong> 同步JS在 <code>&lt;head&gt;</code> 中阻塞解析；CSS文件过大。<br>
+                    <strong>优化:</strong> JS加defer/async，CSS拆分+内联关键样式，骨架屏。
+                </div>
+            </div>
+            <div class="qa-card">
+                <div class="qa-q">Q: 如何减少重排？</div>
+                <div class="qa-a">
+                    • 批量DOM操作用 DocumentFragment<br>
+                    • 读写分离，避免强制同步布局<br>
+                    • 使用 <code>transform</code> 代替 top/left<br>
+                    • 将动画元素脱离文档流 (absolute/fixed)
+                </div>
+            </div>
+            <div class="qa-card">
+                <div class="qa-q">Q: preload vs prefetch vs preconnect?</div>
+                <div class="qa-a">
+                    <strong>preload:</strong> 当前页必需资源，高优先级预加载<br>
+                    <strong>prefetch:</strong> 下一页可能需要，空闲时预取<br>
+                    <strong>preconnect:</strong> 提前建立TCP+TLS连接<br>
+                    <strong>dns-prefetch:</strong> 只做DNS解析
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const visual = document.getElementById('visual');
+        const logContainer = document.getElementById('log-container');
+        let startTime = 0;
+        
+        // Ensure global access
+        window.reset = reset;
+        window.startProcess = startProcess;
+        window.updateOptStatus = updateOptStatus;
+
+        // Update option status display
+        function updateOptStatus() {
+            const dns = document.getElementById('opt-dns').checked;
+            const async = document.getElementById('opt-async').checked;
+            const blockJs = document.getElementById('opt-block-js').checked;
+            const blockCss = document.getElementById('opt-block-css').checked;
+            
+            // Visual feedback: Async makes Blocking JS ineffective
+            const blockJsLabel = document.getElementById('label-block-js');
+            if (async) {
+                blockJsLabel.classList.add('disabled');
+                blockJsLabel.title = 'Async Scripts 已启用，JS不会阻塞';
+            } else {
+                blockJsLabel.classList.remove('disabled');
+                blockJsLabel.title = '';
+            }
+            
+            // Build status text
+            let optimizations = [];
+            let blockings = [];
+            
+            if (dns) optimizations.push('DNS Prefetch');
+            if (async) optimizations.push('Async Scripts');
+            if (blockJs && !async) blockings.push('Blocking JS (+2s)');
+            if (blockJs && async) blockings.push('<s>Blocking JS</s> (被Async覆盖)');
+            if (blockCss) blockings.push('Blocking CSS (+2s)');
+            
+            let status = '当前配置: ';
+            if (optimizations.length > 0) {
+                status += '✅ ' + optimizations.join(', ');
+            }
+            if (blockings.length > 0) {
+                status += (optimizations.length > 0 ? ' | ' : '') + '🛑 ' + blockings.join(', ');
+            }
+            if (optimizations.length === 0 && blockings.length === 0) {
+                status += '默认 (无优化, 无阻塞模拟)';
+            }
+            
+            document.getElementById('opt-status').innerHTML = status;
+        }
+
+        function log(stage, message, type) {
+            const elapsed = Date.now() - startTime;
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            entry.innerHTML = `<span class="log-time">${elapsed}ms</span><span class="log-stage">[${stage}]</span><span class="log-msg">${message}</span>`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function reset() {
+            visual.innerHTML = '<div style="color:#666;">Click "Go" to visualize the Critical Rendering Path</div>';
+            logContainer.innerHTML = '';
+            document.querySelectorAll('.stage').forEach(s => s.classList.remove('active'));
+            document.getElementById('btnStart').disabled = false;
+            ['m-fp', 'm-fcp', 'm-lcp', 'm-tti'].forEach(id => document.getElementById(id).innerText = '-');
+            document.getElementById('progress-bar').style.width = '0%';
+        }
+
+        async function startProcess() {
+            console.log("Starting process...");
+            document.getElementById('btnStart').disabled = true;
+            visual.innerHTML = '';
+            logContainer.innerHTML = '';
+            startTime = Date.now();
+            
+            // Read options
+            const optDns = document.getElementById('opt-dns').checked;
+            const optAsync = document.getElementById('opt-async').checked;
+            const optBlockJs = document.getElementById('opt-block-js').checked;
+            const optBlockCss = document.getElementById('opt-block-css').checked;
+            
+            log('START', '🚀 开始渲染流程...', 'network');
+            
+            // Log current config
+            if (optDns || optAsync || optBlockJs || optBlockCss) {
+                let configMsg = '📋 配置: ';
+                if (optDns) configMsg += '[DNS Prefetch] ';
+                if (optAsync) configMsg += '[Async Scripts] ';
+                if (optBlockJs) configMsg += '[Blocking JS] ';
+                if (optBlockCss) configMsg += '[Blocking CSS] ';
+                log('CONFIG', configMsg, 'network');
+            }
+            
+            // 1. Network
+            await runStage('st-dns', async () => {
+                if (optDns) {
+                    log('Network', '⚡ DNS Prefetch 命中! 跳过DNS查询 (已预解析)', 'network');
+                    visual.innerHTML = '<div style="text-align:center;color:#4caf50;">✅ DNS Prefetch Hit!<br>Skip DNS lookup</div>';
+                    await wait(100);
+                } else {
+                    log('Network', '📡 DNS查询: www.example.com -> 93.184.216.34', 'network');
+                    visual.innerHTML = '<div style="text-align:center;">DNS Lookup...<br>TCP Handshake (SYN, SYN-ACK, ACK)...<br>HTTP GET /index.html</div>';
+                    await wait(400);
+                }
+                log('Network', '🤝 TCP三次握手: SYN -> SYN-ACK -> ACK', 'network');
+                await wait(optDns ? 200 : 400);
+                log('Network', '📥 HTTP GET /index.html (200 OK, 2.3KB)', 'network');
+                visual.innerHTML = '<div style="text-align:center;">Receiving Bytes...<br>1010101010...</div>';
+            }, 16);
+
+
+            // 2. Parsing
+            await runStage('st-parse', async () => {
+                log('Parse', '📄 开始解析HTML文档...', 'parse');
+                visual.innerHTML = '';
+                const domContainer = document.createElement('div');
+                domContainer.style.display = 'flex';
+                domContainer.style.flexDirection = 'column';
+                domContainer.style.alignItems = 'center';
+                
+                // DOM
+                const domTitle = document.createElement('div');
+                domTitle.innerText = "DOM Tree";
+                domTitle.style.color = "#ff9800";
+                domContainer.appendChild(domTitle);
+                
+                const html = createNode('html', 'dom');
+                const body = createNode('body', 'dom');
+                const div = createNode('div', 'dom');
+                
+                log('Parse', '🌳 构建DOM: <html> 节点', 'parse');
+                domContainer.appendChild(html);
+                await wait(200);
+                
+                // Simulate Blocking JS
+                if (optBlockJs) {
+                    if (optAsync) {
+                        // Async script - doesn't block
+                        log('Parse', '📜 遇到 &lt;script async&gt;，不阻塞解析!', 'parse');
+                        const script = createNode('<scr' + 'ipt async>...', 'dom');
+                        script.style.borderColor = '#4caf50';
+                        script.style.background = '#1b5e20';
+                        domContainer.appendChild(script);
+                        visual.appendChild(domContainer);
+                        
+                        const asyncMsg = document.createElement('div');
+                        asyncMsg.innerText = "✅ Async Script: 并行下载，不阻塞解析";
+                        asyncMsg.style.color = "#4caf50";
+                        asyncMsg.style.marginTop = "10px";
+                        asyncMsg.style.fontSize = "1rem";
+                        asyncMsg.style.fontWeight = "bold";
+                        visual.appendChild(asyncMsg);
+                        
+                        await wait(500);
+                        asyncMsg.remove();
+                        log('Parse', '✅ Async脚本后台下载中，HTML解析继续...', 'parse');
+                    } else {
+                        // Sync script - blocks parsing
+                        log('Parse', '⚠️ 遇到同步 &lt;script&gt;，暂停HTML解析!', 'parse');
+                        const script = createNode('<scr' + 'ipt>...', 'dom');
+                        script.style.borderColor = 'red';
+                        domContainer.appendChild(script);
+                        visual.appendChild(domContainer);
+                        
+                        const blockMsg = document.createElement('div');
+                        blockMsg.innerText = "⚠️ Parser Blocked by Sync JS...";
+                        blockMsg.style.color = "red";
+                        blockMsg.style.marginTop = "10px";
+                        blockMsg.style.fontSize = "1.2rem";
+                        blockMsg.style.fontWeight = "bold";
+                        visual.appendChild(blockMsg);
+                        
+                        log('Parse', '⏳ 下载并执行JS中... (+2000ms)', 'parse');
+                        await wait(2000); // Blocking delay
+                        blockMsg.remove();
+                        log('Parse', '✅ JS执行完毕，继续解析', 'parse');
+                    }
+                }
+
+                log('Parse', '🌳 构建DOM: <body> 节点', 'parse');
+                domContainer.appendChild(body);
+                await wait(200);
+                log('Parse', '🌳 构建DOM: <div> 节点', 'parse');
+                domContainer.appendChild(div);
+                
+                visual.innerHTML = ''; // Clear for clean redraw
+                visual.appendChild(domContainer);
+
+                // CSSOM
+                const cssContainer = document.createElement('div');
+                cssContainer.style.display = 'flex';
+                cssContainer.style.flexDirection = 'column';
+                cssContainer.style.alignItems = 'center';
+                cssContainer.style.marginLeft = "50px";
+
+                const cssTitle = document.createElement('div');
+                cssTitle.innerText = "CSSOM Tree";
+                cssTitle.style.color = "#2196f3";
+                cssContainer.appendChild(cssTitle);
+
+                // Simulate Blocking CSS
+                if (optBlockCss) {
+                    log('Parse', '⚠️ 等待CSS下载 (Render Blocking)...', 'parse');
+                    log('Parse', '⏳ CSS是渲染阻塞资源... (+2000ms)', 'parse');
+                    const blockMsg = document.createElement('div');
+                    blockMsg.innerText = "⚠️ Render Blocked by CSS...";
+                    blockMsg.style.color = "red";
+                    blockMsg.style.marginTop = "10px";
+                    blockMsg.style.fontSize = "1.2rem";
+                    blockMsg.style.fontWeight = "bold";
+                    visual.appendChild(blockMsg);
+                    await wait(2000);
+                    blockMsg.remove();
+                    log('Parse', '✅ CSS下载完毕', 'parse');
+                }
+
+                log('Parse', '🎨 构建CSSOM: body { margin: 0 }', 'parse');
+                const rule1 = createNode('body { m:0 }', 'cssom');
+                const rule2 = createNode('div { color:red }', 'cssom');
+
+                cssContainer.appendChild(rule1);
+                await wait(200);
+                log('Parse', '🎨 构建CSSOM: div { color: red }', 'parse');
+                cssContainer.appendChild(rule2);
+                
+                visual.appendChild(cssContainer);
+                log('Parse', '✅ DOM + CSSOM 构建完成', 'parse');
+            }, 32);
+
+            // 3. Render Tree
+            await runStage('st-render', async () => {
+                log('Render', '🌳 开始构建渲染树 (DOM + CSSOM)', 'render');
+                visual.innerHTML = '<div style="margin-bottom:10px; width:100%; text-align:center;">Combining DOM + CSSOM... Excluding "display:none"</div>';
+                const tree = document.createElement('div');
+                tree.style.display = 'flex';
+                tree.style.flexDirection = 'column';
+                tree.style.alignItems = 'center';
+                
+                const rBody = createNode('RenderBody', 'render');
+                const rDiv = createNode('RenderDiv (red)', 'render');
+                
+                log('Render', '➕ 添加可见节点: RenderBody', 'render');
+                tree.appendChild(rBody);
+                await wait(300);
+                log('Render', '➕ 添加可见节点: RenderDiv (含样式)', 'render');
+                tree.appendChild(rDiv);
+                log('Render', '❌ 跳过 display:none 的节点', 'render');
+                
+                visual.appendChild(tree);
+                log('Render', '✅ 渲染树构建完成 (2个可见节点)', 'render');
+            }, 48);
+
+            // 4. Layout
+            await runStage('st-layout', async () => {
+                log('Layout', '📐 开始布局计算 (Reflow)', 'layout');
+                visual.innerHTML = '<div style="position:absolute; top:10px; left:10px;">Calculating Geometry... (x, y, width, height)</div>';
+                
+                const box = document.createElement('div');
+                box.style.border = '2px dashed #fff';
+                box.style.width = '100px';
+                box.style.height = '100px';
+                box.style.position = 'absolute';
+                box.style.top = '50%';
+                box.style.left = '50%';
+                box.style.transform = 'translate(-50%, -50%)';
+                box.innerText = 'Box';
+                box.style.display = 'flex';
+                box.style.alignItems = 'center';
+                box.style.justifyContent = 'center';
+                
+                log('Layout', '📏 计算 body: x=0, y=0, w=100%, h=auto', 'layout');
+                await wait(200);
+                log('Layout', '📏 计算 div: x=center, y=center, w=100px, h=100px', 'layout');
+                
+                visual.appendChild(box);
+                log('Layout', '✅ 布局计算完成', 'layout');
+            }, 64);
+
+            // 5. Paint
+            await runStage('st-paint', async () => {
+                log('Paint', '🎨 开始绘制 (Repaint)', 'paint');
+                const box = visual.lastElementChild; // The box from layout
+                
+                log('Paint', '🖌️ 绘制背景色: #f44336 (red)', 'paint');
+                box.style.border = 'none';
+                box.style.background = '#f44336'; // Red
+                box.style.boxShadow = '0 0 20px rgba(244, 67, 54, 0.5)';
+                box.innerText = 'Painted';
+                
+                log('Paint', '🖌️ 绘制文字: "Painted"', 'paint');
+                log('Paint', '🖌️ 绘制阴影效果', 'paint');
+                
+                // Metrics Update
+                const elapsed = Date.now() - startTime;
+                document.getElementById('m-fp').innerText = (elapsed * 0.6).toFixed(0) + 'ms';
+                document.getElementById('m-fcp').innerText = (elapsed * 0.7).toFixed(0) + 'ms';
+                log('Paint', '📊 FP: ' + (elapsed * 0.6).toFixed(0) + 'ms, FCP: ' + (elapsed * 0.7).toFixed(0) + 'ms', 'paint');
+            }, 80);
+
+            // 6. Composite
+            await runStage('st-comp', async () => {
+                log('Composite', '📑 开始合成图层 (GPU加速)', 'composite');
+                const box = visual.lastElementChild;
+                
+                log('Composite', '🔲 创建独立图层: div (will-change: transform)', 'composite');
+                box.style.transform = 'translate(-50%, -50%) scale(1.2)';
+                box.style.transition = 'transform 0.5s';
+                
+                log('Composite', '🔀 合并图层到帧缓冲区', 'composite');
+                visual.innerHTML += '<div style="position:absolute; bottom:10px; width:100%; text-align:center;">Layers Merged to Screen</div>';
+                
+                const elapsed = Date.now() - startTime;
+                document.getElementById('m-lcp').innerText = elapsed.toFixed(0) + 'ms';
+                document.getElementById('m-tti').innerText = (elapsed + 200).toFixed(0) + 'ms';
+                
+                log('Composite', '📊 LCP: ' + elapsed.toFixed(0) + 'ms, TTI: ' + (elapsed + 200).toFixed(0) + 'ms', 'composite');
+                log('Composite', '🖥️ 输出到屏幕!', 'composite');
+            }, 100);
+            
+            log('DONE', '🎉 渲染完成!', 'network');
+            document.getElementById('btnStart').disabled = false;
+        }
+
+        function createNode(text, type) {
+            const div = document.createElement('div');
+            div.className = 'tree-node ' + type;
+            div.innerText = text;
+            return div;
+        }
+
+        async function runStage(id, action, progressPercent) {
+            document.querySelectorAll('.stage').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.getElementById('progress-bar').style.width = progressPercent + '%';
+            await action();
+            await wait(1000);
+        }
+
+        function wait(ms) {
+            return new Promise(r => setTimeout(r, ms));
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Angular Core Concepts Interactive Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { color: #dd0031; display: flex; align-items: center; gap: 10px; }
+        
+        .container { width: 100%; max-width: 1200px; display: grid; grid-template-columns: 250px 1fr; gap: 20px; }
+        
+        /* Sidebar */
+        .sidebar { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); height: fit-content; }
+        .nav-item { 
+            padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 5px; font-weight: 600; color: #555; 
+            transition: all 0.2s;
+        }
+        .nav-item:hover { background: #ffebee; color: #dd0031; }
+        .nav-item.active { background: #dd0031; color: white; }
+
+        /* Main Content */
+        .content-area { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); min-height: 500px; }
+        .section { display: none; animation: fadeIn 0.3s; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        h2 { color: #1976d2; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        /* Diagram Styles */
+        .diagram-box { 
+            border: 2px solid #ccc; padding: 15px; margin: 10px; border-radius: 6px; position: relative; background: #fafafa;
+            transition: all 0.3s;
+        }
+        .diagram-box.active { border-color: #dd0031; background: #fff0f0; box-shadow: 0 0 10px rgba(221, 0, 49, 0.2); }
+        
+        .comp-tree { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        .comp-node { 
+            width: 120px; padding: 10px; background: #e3f2fd; border: 2px solid #2196f3; border-radius: 4px; 
+            text-align: center; font-weight: bold; position: relative; cursor: pointer;
+        }
+        .comp-node::after { content: '▼'; position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); color: #999; }
+        .comp-node:last-child::after { content: ''; }
+        
+        .cd-flash { animation: flash 0.5s; }
+        @keyframes flash { 0% { background: yellow; } 100% { background: #e3f2fd; } }
+
+        /* Lifecycle Log */
+        .log-panel { background: #2d2d2d; color: #81c784; padding: 15px; font-family: monospace; height: 200px; overflow-y: auto; border-radius: 4px; margin-top: 20px; }
+        
+        /* RxJS Marble */
+        .marble-stream { display: flex; align-items: center; height: 60px; border-bottom: 2px solid #333; position: relative; margin: 30px 0; overflow: hidden; }
+        .marble { 
+            width: 20px; height: 20px; border-radius: 50%; background: #ff4081; position: absolute; right: -20px;
+            display: flex; align-items: center; justify-content: center; color: white; font-size: 10px;
+        }
+
+        /* DI Tree */
+        .di-node { border: 1px dashed #666; padding: 10px; margin: 5px; background: #fff; }
+        .di-provider { background: #e8f5e9; color: #2e7d32; padding: 2px 5px; border-radius: 3px; font-size: 0.8rem; }
+
+        button { background: #1976d2; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-right: 5px; }
+        button:hover { background: #1565c0; }
+        button.secondary { background: #757575; }
+
+        /* Component Cards */
+        .comp-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .comp-card { background: white; border: 2px solid #e0e0e0; border-radius: 8px; padding: 15px; transition: all 0.2s; }
+        .comp-card:hover { border-color: #dd0031; box-shadow: 0 4px 12px rgba(221,0,49,0.15); }
+        .comp-card-title { font-weight: bold; color: #dd0031; font-size: 1.1rem; margin-bottom: 8px; }
+        .comp-card-desc { font-size: 0.85rem; color: #666; margin-bottom: 10px; }
+        .comp-card-use { font-size: 0.8rem; background: #e8f5e9; padding: 8px; border-radius: 4px; }
+        .comp-card-use strong { color: #2e7d32; }
+
+        /* Code Block */
+        .code-block { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.85rem; overflow-x: auto; margin: 15px 0; white-space: pre; line-height: 1.6; }
+        .code-block .keyword { color: #569cd6; }
+        .code-block .string { color: #ce9178; }
+        .code-block .comment { color: #6a9955; }
+        .code-block .function { color: #dcdcaa; }
+        .code-block .operator { color: #d4d4d4; }
+        .code-block .type { color: #4ec9b0; }
+
+        /* Explanation Box */
+        .explain-box { background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-left: 4px solid #ff9800; padding: 15px; margin: 15px 0; border-radius: 0 8px 8px 0; }
+        .explain-title { font-weight: bold; color: #e65100; margin-bottom: 8px; }
+
+        /* Comparison Table */
+        .compare-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.9rem; }
+        .compare-table th { background: #dd0031; color: white; padding: 12px; text-align: left; }
+        .compare-table td { padding: 10px; border: 1px solid #e0e0e0; }
+        .compare-table tr:nth-child(even) { background: #fafafa; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin: 2px; }
+        .tag-green { background: #c8e6c9; color: #2e7d32; }
+        .tag-red { background: #ffcdd2; color: #c62828; }
+        .tag-blue { background: #bbdefb; color: #1565c0; }
+
+    </style>
+</head>
+<body>
+
+    <h1><span style="font-size:1.5em;">🅰️</span> Angular Core Concepts</h1>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="nav-item active" onclick="showSection('arch')">1. Architecture</div>
+            <div class="nav-item" onclick="showSection('lifecycle')">2. Lifecycle Hooks</div>
+            <div class="nav-item" onclick="showSection('cd')">3. Change Detection</div>
+            <div class="nav-item" onclick="showSection('rxjs')">4. RxJS & Observables</div>
+            <div class="nav-item" onclick="showSection('di')">5. Dependency Injection</div>
+            <div class="nav-item" onclick="showSection('qa')">6. Interview Q&A</div>
+        </div>
+
+        <div class="content-area">
+            
+            <!-- 1. Architecture -->
+            <div id="sec-arch" class="section active">
+                <h2>Angular Architecture & Core Building Blocks</h2>
+                <p>Angular apps are modular and component-based. Below are Angular's core building blocks and their use cases:</p>
+                
+                <div class="comp-cards">
+                    <div class="comp-card">
+                        <div class="comp-card-title">📦 NgModule</div>
+                        <div class="comp-card-desc">Module container that organizes related code. Defines compilation context and DI scope.</div>
+                        <div class="comp-card-use"><strong>Use Cases:</strong> Feature modules, Lazy loading, Shared modules</div>
+                    </div>
+                    <div class="comp-card">
+                        <div class="comp-card-title">🎮 Component</div>
+                        <div class="comp-card-desc">Basic building block of views. Contains Template (HTML), Styles (CSS), Logic (TS).</div>
+                        <div class="comp-card-use"><strong>Use Cases:</strong> Pages, Cards, Forms, Navigation bars</div>
+                    </div>
+                    <div class="comp-card">
+                        <div class="comp-card-title">💉 Service</div>
+                        <div class="comp-card-desc">Injectable class that encapsulates business logic, data access, utilities.</div>
+                        <div class="comp-card-use"><strong>Use Cases:</strong> HTTP requests, State management, Logging, Auth</div>
+                    </div>
+                    <div class="comp-card">
+                        <div class="comp-card-title">🎯 Directive</div>
+                        <div class="comp-card-desc">Modifies DOM element behavior or appearance. Structural or Attribute type.</div>
+                        <div class="comp-card-use"><strong>Use Cases:</strong> *ngIf/*ngFor (Structural), Highlight, Drag (Attribute)</div>
+                    </div>
+                    <div class="comp-card">
+                        <div class="comp-card-title">🔄 Pipe</div>
+                        <div class="comp-card-desc">Data transformer in templates. Used for formatting display values.</div>
+                        <div class="comp-card-use"><strong>Use Cases:</strong> date | currency | json | async formatting</div>
+                    </div>
+                    <div class="comp-card">
+                        <div class="comp-card-title">🛡️ Guard</div>
+                        <div class="comp-card-desc">Route guard that controls navigation access permissions.</div>
+                        <div class="comp-card-use"><strong>Use Cases:</strong> Login check, Permission check, Leave confirmation</div>
+                    </div>
+                    <div class="comp-card">
+                        <div class="comp-card-title">🌐 Resolver</div>
+                        <div class="comp-card-desc">Route resolver that pre-fetches data before navigation.</div>
+                        <div class="comp-card-use"><strong>Use Cases:</strong> Fetch required data before page load</div>
+                    </div>
+                    <div class="comp-card">
+                        <div class="comp-card-title">⚙️ Interceptor</div>
+                        <div class="comp-card-desc">HTTP interceptor, middleware for request/response handling.</div>
+                        <div class="comp-card-use"><strong>Use Cases:</strong> Add Token, Error handling, Loading spinner</div>
+                    </div>
+                    <div class="comp-card">
+                        <div class="comp-card-title">📝 Template</div>
+                        <div class="comp-card-desc">HTML with Angular syntax. Bindings, directives, and pipes transform data to DOM.</div>
+                        <div class="comp-card-use"><strong>Key Syntax:</strong> {{ }}, [prop], (event), [(ngModel)]</div>
+                    </div>
+                    <div class="comp-card">
+                        <div class="comp-card-title">📋 Reactive Forms</div>
+                        <div class="comp-card-desc">Model-driven forms. FormControl, FormGroup, FormArray for complex validation.</div>
+                        <div class="comp-card-use"><strong>Use Cases:</strong> Complex forms, Dynamic fields, Custom validators</div>
+                    </div>
+                    <div class="comp-card">
+                        <div class="comp-card-title">🛣️ Router</div>
+                        <div class="comp-card-desc">Enables navigation between views. Supports lazy loading, guards, params.</div>
+                        <div class="comp-card-use"><strong>Key Features:</strong> routerLink, ActivatedRoute, Router.navigate()</div>
+                    </div>
+                    <div class="comp-card">
+                        <div class="comp-card-title">🔌 HttpClient</div>
+                        <div class="comp-card-desc">Angular's HTTP module. Returns Observable, supports interceptors.</div>
+                        <div class="comp-card-use"><strong>Methods:</strong> get(), post(), put(), delete()</div>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:20px; align-items:flex-start; margin-top:20px; flex-wrap:wrap;">
+                    <div class="diagram-box" onclick="highlight('mod')" id="box-mod" style="flex:1; min-width:300px;">
+                        <strong>NgModule Structure</strong>
+                        <div class="code-block" style="margin-top:10px; font-size:0.8rem;">
+<span class="keyword">@NgModule</span>({
+  <span class="property">declarations</span>: [AppComponent],  <span class="comment">// Components/Directives/Pipes</span>
+  <span class="property">imports</span>: [BrowserModule],       <span class="comment">// Import other modules</span>
+  <span class="property">providers</span>: [UserService],      <span class="comment">// Service providers</span>
+  <span class="property">bootstrap</span>: [AppComponent]      <span class="comment">// Root component</span>
+})
+<span class="keyword">export class</span> <span class="type">AppModule</span> { }
+                        </div>
+                    </div>
+                    <div style="font-size:2rem; align-self:center;">→</div>
+                    <div class="diagram-box" onclick="highlight('comp')" id="box-comp" style="flex:1; min-width:300px;">
+                        <strong>Component Structure</strong>
+                        <div class="code-block" style="margin-top:10px; font-size:0.8rem;">
+<span class="keyword">@Component</span>({
+  <span class="property">selector</span>: <span class="string">'app-user'</span>,
+  <span class="property">templateUrl</span>: <span class="string">'./user.html'</span>,
+  <span class="property">styleUrls</span>: [<span class="string">'./user.css'</span>],
+  <span class="property">changeDetection</span>: ChangeDetectionStrategy.OnPush
+})
+<span class="keyword">export class</span> <span class="type">UserComponent</span> { }
+                        </div>
+                    </div>
+                </div>
+                <div id="arch-desc" style="margin-top:20px; padding:10px; background:#e3f2fd; border-radius:4px;">
+                    Click a box above to see details.
+                </div>
+            </div>
+
+            <!-- 2. Lifecycle -->
+            <div id="sec-lifecycle" class="section">
+                <h2>Component Lifecycle</h2>
+                <div class="controls">
+                    <button onclick="lcCreate()">Create Component</button>
+                    <button onclick="lcUpdate()">Update Input</button>
+                    <button onclick="lcDestroy()" class="secondary">Destroy</button>
+                </div>
+                
+                <div style="margin-top:20px; display:flex; gap:20px;">
+                    <div id="lc-comp" style="width:100px; height:100px; background:#ccc; display:flex; align-items:center; justify-content:center; border-radius:8px; transition:all 0.3s;">
+                        Component
+                    </div>
+                    <div class="log-panel" id="lc-log" style="flex:1;"></div>
+                </div>
+                
+                <div style="margin-top:10px; font-size:0.9rem; color:#555;">
+                    <strong>Sequence:</strong> OnChanges ➔ OnInit ➔ DoCheck ➔ AfterContentInit ➔ AfterContentChecked ➔ AfterViewInit ➔ AfterViewChecked ➔ OnDestroy
+                </div>
+            </div>
+
+            <!-- 3. Change Detection -->
+            <div id="sec-cd" class="section">
+                <h2>Change Detection (Zone.js)</h2>
+                <p>Angular uses <strong>Zone.js</strong> to monkey-patch async events.</p>
+
+                <div class="explain-box">
+                    <div class="explain-title">💡 OnPush Strategy Explained ("Check Only on Input Change")</div>
+                    <p style="margin:0; font-size:0.9rem;">
+                        <strong>Default Strategy:</strong> Checks all components on every async event (click/setTimeout/HTTP) <span class="tag tag-red">High Performance Cost</span><br><br>
+                        <strong>OnPush Strategy:</strong> Triggers change detection only in these cases <span class="tag tag-green">Performance Optimized</span>
+                    </p>
+                    <ol style="margin:10px 0 0 20px; font-size:0.85rem;">
+                        <li><strong>@Input() Reference Changes</strong> - Parent passes a NEW object reference (not property mutation!)</li>
+                        <li><strong>Event from Component</strong> - User clicks/types within this component</li>
+                        <li><strong>Async Pipe</strong> - Template uses | async pipe</li>
+                        <li><strong>Manual Trigger</strong> - ChangeDetectorRef.markForCheck() / detectChanges()</li>
+                    </ol>
+                </div>
+
+                <table class="compare-table">
+                    <tr>
+                        <th>Feature</th>
+                        <th>Default</th>
+                        <th>OnPush</th>
+                    </tr>
+                    <tr>
+                        <td>Check Frequency</td>
+                        <td>Every async event triggers check</td>
+                        <td>Only on Input ref change / component events</td>
+                    </tr>
+                    <tr>
+                        <td>Performance</td>
+                        <td><span class="tag tag-red">Lower</span></td>
+                        <td><span class="tag tag-green">Higher</span></td>
+                    </tr>
+                    <tr>
+                        <td>Common Pitfall</td>
+                        <td>None</td>
+                        <td>Object property mutation won't trigger (need new ref)</td>
+                    </tr>
+                    <tr>
+                        <td>Use Case</td>
+                        <td>Small apps / Prototyping</td>
+                        <td><span class="tag tag-green">Recommended!</span> Large apps / Presentational components</td>
+                    </tr>
+                </table>
+
+                <div class="code-block">
+<span class="comment">// OnPush Usage Example</span>
+<span class="keyword">@Component</span>({
+  selector: <span class="string">'app-list'</span>,
+  changeDetection: <span class="type">ChangeDetectionStrategy</span>.<span class="keyword">OnPush</span>  <span class="comment">// Key!</span>
+})
+<span class="keyword">export class</span> <span class="type">ListComponent</span> {
+  <span class="keyword">@Input</span>() items: Item[];  <span class="comment">// Only triggers detection when items ref changes</span>
+  
+  <span class="comment">// ❗ Pitfall: this.items.push(newItem) won't trigger detection!</span>
+  <span class="comment">// ✅ Correct: this.items = [...this.items, newItem]</span>
+}
+                </div>
+                
+                <div class="controls">
+                    <button onclick="triggerEvent()">Simulate Click Event</button>
+                    <button onclick="triggerAsync()">Simulate Async (setTimeout)</button>
+                    <label style="margin-left:10px;"><input type="checkbox" id="chk-onpush" checked> Enable OnPush for List</label>
+                </div>
+
+                <div class="comp-tree" style="margin-top:30px;">
+                    <div class="comp-node" id="cd-root">App Root</div>
+                    <div style="display:flex; gap:40px;">
+                        <div class="comp-tree">
+                            <div class="comp-node" id="cd-child1">Header</div>
+                        </div>
+                        <div class="comp-tree">
+                            <div class="comp-node" id="cd-child2" style="border-style:dashed;">List (OnPush)</div>
+                            <div class="comp-node" id="cd-child3">Item</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top:20px; font-size:0.9rem;">
+                    <strong>Visualization:</strong> Yellow flash = Component Checked (Dirty).<br>
+                    If <strong>OnPush</strong> is enabled, the "List" branch should NOT flash on generic events unless its Input changes.
+                </div>
+            </div>
+
+            <!-- 4. RxJS -->
+            <div id="sec-rxjs" class="section">
+                <h2>RxJS: Reactive Extensions</h2>
+                <p>Handling asynchronous data streams. Think of it as "Lodash for Events".</p>
+                
+                <div class="controls" style="margin-bottom:15px;">
+                    <button onclick="emitValue()">Emit Value</button>
+                    <button onclick="applyOp('map')">Apply map(x => x*2)</button>
+                    <button onclick="applyOp('filter')">Apply filter(x => x>50)</button>
+                    <button onclick="applyOp('debounce')">Apply debounceTime(500ms)</button>
+                    <button onclick="applyOp('scan')">Apply scan(acc+curr)</button>
+                    <button onclick="completeStream()" class="secondary">Complete</button>
+                </div>
+
+                <div style="font-size:0.9rem; margin-bottom:10px; color:#555;">
+                    <strong>Current Operator:</strong> <span id="op-display" style="font-weight:bold; color:#dd0031;">None</span>
+                    <p id="op-desc" style="font-style:italic; color:#666;">Click "Emit Value" to see raw data flow.</p>
+                </div>
+
+                <div class="marble-stream" id="stream">
+                    <div style="position:absolute; left:10px; color:#666;">Stream (Observable)</div>
+                </div>
+                
+                <div id="sub-log" style="padding:10px; background:#f5f5f5; border-radius:4px; min-height:40px;">
+                    Subscriber: Waiting...
+                </div>
+
+                <h3 style="margin-top:30px; color:#1976d2;">📝 RxJS Code Examples (Interview Must-Know)</h3>
+                
+                <div class="code-block">
+<span class="comment">// 1. Basics: Creating Observable and Subscribing</span>
+<span class="keyword">import</span> { Observable, of, from, interval } <span class="keyword">from</span> <span class="string">'rxjs'</span>;
+
+<span class="comment">// Create from of()</span>
+<span class="keyword">const</span> obs$ = <span class="function">of</span>(1, 2, 3);
+obs$.<span class="function">subscribe</span>(x => console.log(x));  <span class="comment">// 1, 2, 3</span>
+
+<span class="comment">// Create from array</span>
+<span class="keyword">const</span> arr$ = <span class="function">from</span>([<span class="string">'a'</span>, <span class="string">'b'</span>, <span class="string">'c'</span>]);
+
+<span class="comment">// Emit on interval</span>
+<span class="keyword">const</span> timer$ = <span class="function">interval</span>(1000);  <span class="comment">// Emits 0, 1, 2... every second</span>
+                </div>
+
+                <div class="code-block">
+<span class="comment">// 2. Common Operators - Transformation</span>
+<span class="keyword">import</span> { map, filter, tap } <span class="keyword">from</span> <span class="string">'rxjs/operators'</span>;
+
+obs$.<span class="function">pipe</span>(
+  <span class="function">filter</span>(x => x > 1),      <span class="comment">// Filter: keep only values > 1</span>
+  <span class="function">map</span>(x => x * 10),        <span class="comment">// Map: multiply each value by 10</span>
+  <span class="function">tap</span>(x => console.log(x)) <span class="comment">// Side effect: debugging/logging</span>
+).<span class="function">subscribe</span>();
+<span class="comment">// Output: 20, 30</span>
+                </div>
+
+                <div class="code-block">
+<span class="comment">// 3. Common Operators - Time-based (Interview Hot Topic!)</span>
+<span class="keyword">import</span> { debounceTime, throttleTime, distinctUntilChanged } <span class="keyword">from</span> <span class="string">'rxjs/operators'</span>;
+
+<span class="comment">// Search box debounce - Wait 300ms after user stops typing</span>
+searchInput$.<span class="function">pipe</span>(
+  <span class="function">debounceTime</span>(300),           <span class="comment">// Debounce: wait for silence then emit</span>
+  <span class="function">distinctUntilChanged</span>(),      <span class="comment">// Dedupe: skip identical consecutive values</span>
+  <span class="function">switchMap</span>(term => api.search(term))  <span class="comment">// Cancel previous request</span>
+).<span class="function">subscribe</span>(results => ...);
+
+<span class="comment">// Button throttle - Max once per second</span>
+buttonClick$.<span class="function">pipe</span>(
+  <span class="function">throttleTime</span>(1000)  <span class="comment">// Throttle: take first within 1 second</span>
+).<span class="function">subscribe</span>(() => ...);
+                </div>
+
+                <div class="code-block">
+<span class="comment">// 4. switchMap vs mergeMap vs concatMap (Interview Must-Ask!)</span>
+<span class="keyword">import</span> { switchMap, mergeMap, concatMap } <span class="keyword">from</span> <span class="string">'rxjs/operators'</span>;
+
+<span class="comment">// switchMap - Cancel previous, keep only latest (Search, Route switch)</span>
+search$.<span class="function">pipe</span>(<span class="function">switchMap</span>(q => http.get(<span class="string">`/search?q=</span>${q}<span class="string">`</span>)));
+
+<span class="comment">// mergeMap - Execute all in parallel (Batch delete, Unordered ops)</span>
+ids$.<span class="function">pipe</span>(<span class="function">mergeMap</span>(id => http.delete(<span class="string">`/item/</span>${id}<span class="string">`</span>)));
+
+<span class="comment">// concatMap - Execute sequentially, preserve order (File upload, Ordered ops)</span>
+files$.<span class="function">pipe</span>(<span class="function">concatMap</span>(file => http.post(<span class="string">'/upload'</span>, file)));
+                </div>
+
+                <div class="code-block">
+<span class="comment">// 5. Subject Types Comparison</span>
+<span class="keyword">import</span> { Subject, BehaviorSubject, ReplaySubject } <span class="keyword">from</span> <span class="string">'rxjs'</span>;
+
+<span class="comment">// Subject - Basic multicast, new subscribers miss past values</span>
+<span class="keyword">const</span> sub = <span class="keyword">new</span> <span class="type">Subject</span>();
+
+<span class="comment">// BehaviorSubject - Has initial value, new subs get latest immediately (State mgmt!)</span>
+<span class="keyword">const</span> state$ = <span class="keyword">new</span> <span class="type">BehaviorSubject</span>(<span class="string">'initial'</span>);
+state$.<span class="function">subscribe</span>(v => ...);  <span class="comment">// Immediately receives 'initial'</span>
+
+<span class="comment">// ReplaySubject - Caches N past values, new subs get replay</span>
+<span class="keyword">const</span> replay$ = <span class="keyword">new</span> <span class="type">ReplaySubject</span>(3);  <span class="comment">// Caches last 3</span>
+                </div>
+
+                <div class="code-block">
+<span class="comment">// 6. Using in Angular Components (Prevent Memory Leak!)</span>
+<span class="keyword">@Component</span>({...})
+<span class="keyword">export class</span> <span class="type">UserComponent</span> <span class="keyword">implements</span> <span class="type">OnDestroy</span> {
+  <span class="keyword">private</span> destroy$ = <span class="keyword">new</span> <span class="type">Subject</span>&lt;<span class="type">void</span>&gt;();
+
+  ngOnInit() {
+    <span class="keyword">this</span>.userService.getUsers().<span class="function">pipe</span>(
+      <span class="function">takeUntil</span>(<span class="keyword">this</span>.destroy$)  <span class="comment">// Auto-unsubscribe!</span>
+    ).<span class="function">subscribe</span>(users => ...);  
+  }
+
+  ngOnDestroy() {
+    <span class="keyword">this</span>.destroy$.<span class="function">next</span>();
+    <span class="keyword">this</span>.destroy$.<span class="function">complete</span>();
+  }
+}
+
+<span class="comment">// Or use async pipe (Recommended!)</span>
+<span class="comment">// template: {{ users$ | async }}</span>
+                </div>
+            </div>
+
+            <!-- 5. DI -->
+            <div id="sec-di" class="section">
+                <h2>Dependency Injection (Hierarchical)</h2>
+                <p>Angular's DI is hierarchical. It searches for a provider starting from the component requesting it, bubbling up to the Root.</p>
+                
+                <div class="di-node" style="border-color:#dd0031; background:#fff0f0;">
+                    <strong>Root Module (AppModule)</strong>
+                    <span class="di-provider">Provider: LoggerService (Global)</span>
+                    
+                    <div class="di-node" style="margin-left:20px; border-color:#1976d2; background:#e3f2fd;">
+                        <strong>UserComponent</strong>
+                        <span class="di-provider">Provider: UserService (Local)</span>
+                        
+                        <div class="di-node" style="margin-left:20px;">
+                            <strong>ChildComponent</strong>
+                            <br>
+                            <button onclick="resolveService()" style="font-size:0.8rem; margin-top:5px;">Inject Services</button>
+                            <div id="di-result" style="margin-top:5px; font-size:0.8rem; color:#333;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. Interview Q&A -->
+            <div id="sec-qa" class="section">
+                <h2>🔥 High Frequency Interview Questions</h2>
+                
+                <h3 style="color:#1976d2; margin-top:20px;">📚 Basic Concepts</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                    <div class="diagram-box">
+                        <strong>Q: What is Zone.js?</strong>
+                        <p style="font-size:0.9rem; color:#555;">A library that monkey-patches global async operations (setTimeout, Promise, DOM events) to notify Angular when to run Change Detection.</p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: Default vs OnPush Strategy?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            <strong>Default:</strong> Checks every component on every event.<br>
+                            <strong>OnPush:</strong> Only checks if Input reference changes, or event originated from within. Performance optimization.
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: Constructor vs ngOnInit?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            <strong>Constructor:</strong> JS engine feature. DI happens here. Inputs NOT ready.<br>
+                            <strong>ngOnInit:</strong> Angular lifecycle. Inputs ARE ready. Best for init logic.
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: What is AOT vs JIT?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            <strong>JIT (Just-in-Time):</strong> Compiles in browser. Slower start.<br>
+                            <strong>AOT (Ahead-of-Time):</strong> Compiles at build time. Faster start, smaller bundle.
+                        </p>
+                    </div>
+                </div>
+
+                <h3 style="color:#1976d2; margin-top:30px;">🔄 RxJS Related (Hot Topic!)</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                    <div class="diagram-box">
+                        <strong>Q: Hot vs Cold Observables?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            <strong>Cold:</strong> Producer created per subscription. Data replay for each subscriber (e.g. HTTP call).<br>
+                            <strong>Hot:</strong> Producer shared. Subscribers get real-time data (e.g. Mouse clicks, WebSocket).
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: switchMap vs mergeMap vs concatMap?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            <strong>switchMap:</strong> Cancels previous (Search autocomplete).<br>
+                            <strong>mergeMap:</strong> Parallel execution (Batch delete).<br>
+                            <strong>concatMap:</strong> Sequential execution (File upload).
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: Subject vs BehaviorSubject?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            <strong>Subject:</strong> No initial value. New subscribers miss past values.<br>
+                            <strong>BehaviorSubject:</strong> Has initial value. New subscribers get latest value immediately. <span class="tag tag-green">State Management</span>
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: How to prevent RxJS memory leaks?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            1. <code>takeUntil(destroy$)</code> + ngOnDestroy<br>
+                            2. <code>| async</code> pipe (auto-unsubscribes)<br>
+                            3. <code>take(1)</code> take only once<br>
+                            4. Manual <code>unsubscribe()</code>
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: debounceTime vs throttleTime?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            <strong>debounce:</strong> Wait N ms of silence before emitting. Use for search boxes.<br>
+                            <strong>throttle:</strong> Emit at most once per N ms. Use for scroll events.
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: forkJoin vs combineLatest?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            <strong>forkJoin:</strong> Wait for all Observables to complete, emit once. (Concurrent HTTP)<br>
+                            <strong>combineLatest:</strong> Emit whenever any Observable changes. (Form sync)
+                        </p>
+                    </div>
+                </div>
+
+                <h3 style="color:#1976d2; margin-top:30px;">🏗️ Architecture & Performance</h3>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                    <div class="diagram-box">
+                        <strong>Q: What is Lazy Loading?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            Load modules on demand, reducing initial bundle size.<br>
+                            <code>loadChildren: () => import(...)</code><br>
+                            <span class="tag tag-green">Essential for First Paint Optimization</span>
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: How do Angular Route Guards work?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            <strong>CanActivate:</strong> Check before entering<br>
+                            <strong>CanDeactivate:</strong> Confirm before leaving<br>
+                            <strong>CanLoad:</strong> Check before lazy loading<br>
+                            <strong>Resolve:</strong> Pre-fetch data before entering
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: What does providedIn: 'root' mean?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            Service registered at root injector, singleton for entire app.<br>
+                            Supports Tree Shaking (unused services not bundled).<br>
+                            <span class="tag tag-green">Angular 6+ Recommended Pattern</span>
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: How to optimize Angular performance?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            1. OnPush change detection strategy<br>
+                            2. Lazy Loading modules<br>
+                            3. trackBy function (ngFor)<br>
+                            4. Pure Pipes<br>
+                            5. Use async pipe<br>
+                            6. runOutsideAngular (skip Zone)
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: ViewChild vs ContentChild?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            <strong>ViewChild:</strong> Query elements/components in component template<br>
+                            <strong>ContentChild:</strong> Query projected content (<code>&lt;ng-content&gt;</code>)<br>
+                            Available after AfterViewInit/AfterContentInit
+                        </p>
+                    </div>
+                    <div class="diagram-box">
+                        <strong>Q: What is ChangeDetectorRef used for?</strong>
+                        <p style="font-size:0.9rem; color:#555;">
+                            <strong>markForCheck():</strong> Mark OnPush component for check<br>
+                            <strong>detectChanges():</strong> Trigger detection immediately<br>
+                            <strong>detach():</strong> Detach from detection tree<br>
+                            <strong>reattach():</strong> Reattach to detection tree
+                        </p>
+                    </div>
+                </div>
+
+                <h3 style="color:#1976d2; margin-top:30px;">📝 Common Code Questions</h3>
+                <div class="code-block">
+<span class="comment">// Q: Implement a debounced search box</span>
+<span class="keyword">@Component</span>({...})
+<span class="keyword">export class</span> <span class="type">SearchComponent</span> {
+  searchControl = <span class="keyword">new</span> <span class="type">FormControl</span>();
+  results$: <span class="type">Observable</span>&lt;<span class="type">any</span>[]&gt;;
+
+  ngOnInit() {
+    <span class="keyword">this</span>.results$ = <span class="keyword">this</span>.searchControl.valueChanges.<span class="function">pipe</span>(
+      <span class="function">debounceTime</span>(300),           <span class="comment">// Debounce 300ms</span>
+      <span class="function">distinctUntilChanged</span>(),      <span class="comment">// Skip if same value</span>
+      <span class="function">filter</span>(term => term.length >= 2),  <span class="comment">// At least 2 chars</span>
+      <span class="function">switchMap</span>(term => <span class="keyword">this</span>.api.search(term))  <span class="comment">// Cancel previous request</span>
+    );
+  }
+}
+
+<span class="comment">// Template: &lt;input [formControl]="searchControl"&gt;</span>
+<span class="comment">//           &lt;div *ngFor="let r of results$ | async"&gt;{{ r }}&lt;/div&gt;</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        function showSection(id) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('sec-' + id).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // 1. Architecture
+        function highlight(type) {
+            document.querySelectorAll('.diagram-box').forEach(b => b.classList.remove('active'));
+            document.getElementById('box-' + type).classList.add('active');
+            const desc = document.getElementById('arch-desc');
+            if(type === 'mod') desc.innerText = "NgModule: The container. Configures the injector and the compiler. Defines the scope of components.";
+            if(type === 'comp') desc.innerText = "Component: The building block. Controls a patch of screen called a view. Defined by a Class and a Template.";
+        }
+
+        // 2. Lifecycle
+        const lcLog = document.getElementById('lc-log');
+        const lcComp = document.getElementById('lc-comp');
+        
+        function logLc(msg) {
+            lcLog.innerHTML += `<div>> ${msg}</div>`;
+            lcLog.scrollTop = lcLog.scrollHeight;
+        }
+
+        function lcCreate() {
+            lcLog.innerHTML = '';
+            lcComp.style.background = '#4caf50';
+            lcComp.innerText = 'Created';
+            logLc("Constructor called");
+            setTimeout(() => logLc("ngOnChanges (First time)"), 300);
+            setTimeout(() => logLc("ngOnInit (Init logic)"), 600);
+            setTimeout(() => logLc("ngDoCheck"), 900);
+            setTimeout(() => logLc("ngAfterContentInit"), 1200);
+            setTimeout(() => logLc("ngAfterContentChecked"), 1500);
+            setTimeout(() => logLc("ngAfterViewInit"), 1800);
+            setTimeout(() => logLc("ngAfterViewChecked"), 2100);
+        }
+
+        function lcUpdate() {
+            lcComp.style.background = '#ff9800';
+            lcComp.innerText = 'Updated';
+            logLc("--- Input Changed ---");
+            setTimeout(() => logLc("ngOnChanges"), 300);
+            setTimeout(() => logLc("ngDoCheck"), 600);
+            setTimeout(() => logLc("ngAfterContentChecked"), 900);
+            setTimeout(() => logLc("ngAfterViewChecked"), 1200);
+        }
+
+        function lcDestroy() {
+            lcComp.style.background = '#f44336';
+            lcComp.innerText = 'Destroyed';
+            lcComp.style.opacity = 0.5;
+            logLc("--- Destroying ---");
+            setTimeout(() => logLc("ngOnDestroy (Cleanup)"), 300);
+        }
+
+        // 3. Change Detection
+        function triggerEvent() {
+            runCD("Click Event");
+        }
+        
+        function triggerAsync() {
+            setTimeout(() => {
+                runCD("Async Callback");
+            }, 1000);
+        }
+
+        function runCD(source) {
+            const nodes = ['cd-root', 'cd-child1', 'cd-child2', 'cd-child3'];
+            const isOnPush = document.getElementById('chk-onpush').checked;
+            
+            // Reset styles
+            nodes.forEach(id => document.getElementById(id).style.opacity = '1');
+
+            let nodesToCheck = nodes;
+            if (isOnPush && source === "Async Callback") {
+                // Simulate OnPush skipping check for async event not originating from it
+                nodesToCheck = ['cd-root', 'cd-child1']; 
+                
+                // Visually dim the skipped branch
+                document.getElementById('cd-child2').style.opacity = '0.3';
+                document.getElementById('cd-child3').style.opacity = '0.3';
+                
+                alert(`Zone.js detected ${source}! OnPush is ON: Skipping List branch (Dimmed).`);
+            } else {
+                alert(`Zone.js detected ${source}! Triggering Application Ref.tick()`);
+            }
+
+            nodesToCheck.forEach((id, idx) => {
+                setTimeout(() => {
+                    const el = document.getElementById(id);
+                    el.classList.add('cd-flash');
+                    // Longer flash
+                    setTimeout(() => el.classList.remove('cd-flash'), 800);
+                }, idx * 300);
+            });
+        }
+
+        // 4. RxJS
+        let currentOp = null;
+        let scanAcc = 0;
+        let debounceTimer = null;
+        
+        function applyOp(op) {
+            currentOp = op;
+            scanAcc = 0; // Reset scan accumulator
+            document.getElementById('op-display').innerText = op;
+            
+            const descMap = {
+                'map': 'Transforms each value: x * 2',
+                'filter': 'Only allows values > 50 to pass',
+                'debounce': 'Waits 500ms silence before emitting latest value (Anti-shake)',
+                'scan': 'Accumulates values over time (like Array.reduce): acc + current'
+            };
+            document.getElementById('op-desc').innerText = descMap[op] || '';
+            document.getElementById('sub-log').innerText = `Operator Applied: ${op}`;
+        }
+
+        function emitValue() {
+            const val = Math.floor(Math.random() * 100);
+            let displayVal = val;
+            let color = '#ff4081';
+            let shouldEmit = true;
+            let logMsg = `Received: ${val}`;
+            
+            // Apply Logic
+            if (currentOp === 'filter') {
+                if (val <= 50) {
+                    document.getElementById('sub-log').innerText = `Filter: Dropped ${val} (<= 50)`;
+                    shouldEmit = false;
+                } else {
+                    logMsg = `Filter: Passed ${val}`;
+                }
+            } else if (currentOp === 'map') {
+                displayVal = val * 2;
+                color = '#7b1fa2';
+                logMsg = `Map: ${val} * 2 = ${displayVal}`;
+            } else if (currentOp === 'scan') {
+                const oldAcc = scanAcc;
+                scanAcc += val;
+                displayVal = scanAcc;
+                color = '#00796b';
+                logMsg = `Scan: ${oldAcc} + ${val} = ${displayVal}`;
+            } else if (currentOp === 'debounce') {
+                // Visualizing debounce is tricky in linear stream, we simulate the delay
+                shouldEmit = false; // Don't emit immediately
+                document.getElementById('sub-log').innerText = `Debounce: Holding ${val}... (Wait 500ms)`;
+                
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    createMarble(val, '#e65100', `Debounced: Emitted ${val} after silence`);
+                }, 500);
+            }
+
+            if (shouldEmit) {
+                createMarble(displayVal, color, logMsg);
+            }
+        }
+
+        function createMarble(val, color, logMsg) {
+            const marble = document.createElement('div');
+            marble.className = 'marble';
+            marble.innerText = val;
+            marble.style.background = color;
+            document.getElementById('stream').appendChild(marble);
+            
+            // Animate
+            let pos = -20;
+            const interval = setInterval(() => {
+                pos += 5;
+                marble.style.right = pos + 'px';
+                if (pos > 600) {
+                    clearInterval(interval);
+                    marble.remove();
+                    document.getElementById('sub-log').innerText = `Subscriber: ${logMsg}`;
+                }
+            }, 20);
+        }
+
+        function completeStream() {
+            const line = document.createElement('div');
+            line.style.position = 'absolute';
+            line.style.right = '-5px';
+            line.style.height = '40px';
+            line.style.width = '4px';
+            line.style.background = '#333';
+            document.getElementById('stream').appendChild(line);
+            
+            let pos = -20;
+            const interval = setInterval(() => {
+                pos += 5;
+                line.style.right = pos + 'px';
+                if (pos > 600) {
+                    clearInterval(interval);
+                    line.remove();
+                    document.getElementById('sub-log').innerText = `Subscriber: Completed`;
+                }
+            }, 20);
+        }
+
+        // 5. DI
+        async function resolveService() {
+            const res = document.getElementById('di-result');
+            res.innerHTML = 'Starting resolution...';
+            
+            // Animate lookup
+            const steps = [
+                { msg: "1. Checking ChildComponent... ❌ Not Found", color: "#999" },
+                { msg: "2. Checking UserComponent... ✅ Found UserService!", color: "green" },
+                { msg: "3. Checking Root Module... ✅ Found LoggerService!", color: "green" }
+            ];
+
+            for (const step of steps) {
+                await new Promise(r => setTimeout(r, 800));
+                res.innerHTML += `<div style="color:${step.color}; margin-top:5px;">${step.msg}</div>`;
+            }
+        }
+
+    </script>
+</body>
+</html>

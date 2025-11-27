@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Engineering & Webpack Demo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        h1, h2, h3 { color: #2c3e50; }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 15px;
+        }
+        .nav-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .nav-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .nav-item:hover { color: #1976d2; background-color: #f5f9ff; }
+        .nav-item.active { color: #1976d2; border-bottom: 3px solid #1976d2; }
+        .section { display: none; animation: fadeIn 0.5s; }
+        .section.active { display: block; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards */
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-color: #90caf9;
+        }
+        .card h4 { margin-top: 0; color: #1976d2; }
+        .card p { font-size: 0.9rem; color: #555; line-height: 1.6; }
+
+        /* Code Block */
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre;
+        }
+        .code-block .comment { color: #6a9955; }
+        .code-block .keyword { color: #569cd6; }
+        .code-block .string { color: #ce9178; }
+        .code-block .property { color: #9cdcfe; }
+
+        /* Optimization Panel */
+        .opt-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        .opt-controls { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
+        .opt-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            user-select: none;
+        }
+        .opt-checkbox.checked { background: #e3f2fd; border-color: #2196f3; color: #1565c0; }
+        .bundle-viz {
+            height: 60px;
+            background: #e0e0e0;
+            border-radius: 30px;
+            overflow: hidden;
+            display: flex;
+            transition: all 0.5s;
+        }
+        .bundle-part {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.8rem;
+            transition: width 0.5s;
+        }
+        .stats { margin-top: 10px; font-weight: bold; text-align: right; }
+
+        /* Q&A */
+        .qa-box { border: 1px solid #eee; border-radius: 8px; margin-bottom: 15px; overflow: hidden; }
+        .qa-header {
+            background: #f9f9f9;
+            padding: 15px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .qa-header:hover { background: #f0f0f0; }
+        .qa-content { padding: 15px; display: none; border-top: 1px solid #eee; background: white; line-height: 1.6; }
+        .qa-content.open { display: block; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 10px; font-weight: normal; }
+        .tag-high { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+        .tag-med { background: #fff3e0; color: #ef6c00; border: 1px solid #ffe0b2; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🛠️ Frontend Engineering & Webpack</h1>
+
+    <div class="nav-tabs">
+        <div class="nav-item active" onclick="switchTab('concepts')">Core Concepts</div>
+        <div class="nav-item" onclick="switchTab('config')">Configuration</div>
+        <div class="nav-item" onclick="switchTab('optimization')">Optimization Lab</div>
+        <div class="nav-item" onclick="switchTab('interview')">Interview Q&A</div>
+    </div>
+
+    <!-- 1. Core Concepts -->
+    <div id="tab-concepts" class="section active">
+        <h3>Webpack Core Concepts</h3>
+        <p>Webpack is a static module bundler for modern JavaScript applications.</p>
+        
+        <div class="concept-grid">
+            <div class="card">
+                <h4>🚪 Entry</h4>
+                <p>The entry point indicates which module webpack should use to begin building out its internal dependency graph.</p>
+                <code style="background:#eee; padding:2px 5px; border-radius:4px;">entry: './src/index.js'</code>
+            </div>
+            <div class="card">
+                <h4>📦 Output</h4>
+                <p>Tells webpack where to emit the bundles it creates and how to name these files.</p>
+                <code style="background:#eee; padding:2px 5px; border-radius:4px;">output: { filename: 'bundle.js' }</code>
+            </div>
+            <div class="card">
+                <h4>🔄 Loaders</h4>
+                <p>Webpack only understands JS and JSON. Loaders allow webpack to process other types of files (CSS, Images, TS).</p>
+                <code style="background:#eee; padding:2px 5px; border-radius:4px;">test: /\.css$/, use: 'css-loader'</code>
+            </div>
+            <div class="card">
+                <h4>🔌 Plugins</h4>
+                <p>Plugins perform a wider range of tasks: bundle optimization, asset management, environment injection.</p>
+                <code style="background:#eee; padding:2px 5px; border-radius:4px;">new HtmlWebpackPlugin()</code>
+            </div>
+            <div class="card">
+                <h4>⚙️ Mode</h4>
+                <p>Set <code>development</code>, <code>production</code> or <code>none</code> to enable webpack's built-in optimizations.</p>
+            </div>
+            <div class="card">
+                <h4>🧩 Module Federation</h4>
+                <p>(Webpack 5+) Allows multiple separate builds to form a single application. Key for <strong>Micro-Frontends</strong>.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Configuration -->
+    <div id="tab-config" class="section">
+        <h3>Standard Webpack Configuration</h3>
+        <p>A typical production-ready configuration structure:</p>
+        
+        <div class="code-block"><span class="comment">// ═══════════════════════════════════════════════════════════════
+// 1. IMPORTS
+// ═══════════════════════════════════════════════════════════════</span>
+<span class="keyword">const</span> path = <span class="keyword">require</span>(<span class="string">'path'</span>);
+<span class="keyword">const</span> HtmlWebpackPlugin = <span class="keyword">require</span>(<span class="string">'html-webpack-plugin'</span>);
+<span class="keyword">const</span> MiniCssExtractPlugin = <span class="keyword">require</span>(<span class="string">'mini-css-extract-plugin'</span>);
+<span class="keyword">const</span> CompressionPlugin = <span class="keyword">require</span>(<span class="string">'compression-webpack-plugin'</span>); <span class="comment">// Gzip</span>
+
+module.exports = {
+<span class="comment">  // ═══════════════════════════════════════════════════════════════
+  // 2. BASIC SETUP
+  // ═══════════════════════════════════════════════════════════════</span>
+  <span class="property">mode</span>: <span class="string">'production'</span>,           <span class="comment">// 'development' | 'production'</span>
+  <span class="property">entry</span>: <span class="string">'./src/index.js'</span>,
+  <span class="property">output</span>: {
+    <span class="property">path</span>: path.resolve(__dirname, <span class="string">'dist'</span>),
+    <span class="property">filename</span>: <span class="string">'[name].[contenthash].js'</span>,  <span class="comment">// Cache busting</span>
+    <span class="property">clean</span>: <span class="keyword">true</span>,
+  },
+
+<span class="comment">  // ═══════════════════════════════════════════════════════════════
+  // 3. MODULE RULES (LOADERS)
+  // ═══════════════════════════════════════════════════════════════</span>
+  <span class="property">module</span>: {
+    <span class="property">rules</span>: [
+      { <span class="property">test</span>: /\.js$/,  <span class="property">exclude</span>: /node_modules/,
+        <span class="property">use</span>: { <span class="property">loader</span>: <span class="string">'babel-loader'</span>, <span class="property">options</span>: { <span class="property">presets</span>: [<span class="string">'@babel/preset-env'</span>] }}
+      },
+      { <span class="property">test</span>: /\.css$/i,
+        <span class="property">use</span>: [MiniCssExtractPlugin.loader, <span class="string">'css-loader'</span>]
+      },
+      { <span class="property">test</span>: /\.(png|svg|jpg|gif)$/i,  <span class="property">type</span>: <span class="string">'asset/resource'</span> },
+    ],
+  },
+
+<span class="comment">  // ═══════════════════════════════════════════════════════════════
+  // 4. PLUGINS
+  // ═══════════════════════════════════════════════════════════════</span>
+  <span class="property">plugins</span>: [
+    <span class="keyword">new</span> HtmlWebpackPlugin({ <span class="property">template</span>: <span class="string">'./src/index.html'</span> }),
+    <span class="keyword">new</span> MiniCssExtractPlugin({ <span class="property">filename</span>: <span class="string">'[name].[contenthash].css'</span> }),
+    <span class="keyword">new</span> CompressionPlugin(),  <span class="comment">// Generates .gz files</span>
+  ],
+
+<span class="comment">  // ═══════════════════════════════════════════════════════════════
+  // 5. OPTIMIZATION (Tree Shaking, Code Splitting)
+  // ═══════════════════════════════════════════════════════════════</span>
+  <span class="property">optimization</span>: {
+    <span class="property">usedExports</span>: <span class="keyword">true</span>,          <span class="comment">// Tree Shaking: mark unused exports</span>
+    <span class="property">splitChunks</span>: { <span class="property">chunks</span>: <span class="string">'all'</span> },  <span class="comment">// Code Splitting: vendor chunk</span>
+  },
+
+<span class="comment">  // ═══════════════════════════════════════════════════════════════
+  // 6. DEV SERVER
+  // ═══════════════════════════════════════════════════════════════</span>
+  <span class="property">devServer</span>: {
+    <span class="property">static</span>: <span class="string">'./dist'</span>,
+    <span class="property">hot</span>: <span class="keyword">true</span>,       <span class="comment">// Hot Module Replacement</span>
+    <span class="property">compress</span>: <span class="keyword">true</span>,  <span class="comment">// Enable gzip compression</span>
+  },
+};</div>
+
+        <h4 style="margin-top:30px;">🧩 Module Federation Configuration (Webpack 5)</h4>
+        <p>For Micro-Frontend architecture - share code between independent builds at runtime:</p>
+        <div class="code-block"><span class="comment">// Host App (shell) - webpack.config.js</span>
+<span class="keyword">const</span> ModuleFederationPlugin = <span class="keyword">require</span>(<span class="string">'webpack/lib/container/ModuleFederationPlugin'</span>);
+
+module.exports = {
+  <span class="property">plugins</span>: [
+    <span class="keyword">new</span> ModuleFederationPlugin({
+      <span class="property">name</span>: <span class="string">'host'</span>,              <span class="comment">// Unique name for this build</span>
+      <span class="property">remotes</span>: {                  <span class="comment">// Import from other apps</span>
+        <span class="property">remoteApp</span>: <span class="string">'remoteApp@http://localhost:3001/remoteEntry.js'</span>,
+      },
+      <span class="property">shared</span>: [<span class="string">'react'</span>, <span class="string">'react-dom'</span>],  <span class="comment">// Shared dependencies (singleton)</span>
+    }),
+  ],
+};
+
+<span class="comment">// ─────────────────────────────────────────────────────────────────</span>
+<span class="comment">// Remote App - webpack.config.js</span>
+module.exports = {
+  <span class="property">plugins</span>: [
+    <span class="keyword">new</span> ModuleFederationPlugin({
+      <span class="property">name</span>: <span class="string">'remoteApp'</span>,
+      <span class="property">filename</span>: <span class="string">'remoteEntry.js'</span>,  <span class="comment">// Entry point for consumers</span>
+      <span class="property">exposes</span>: {                   <span class="comment">// Modules to share</span>
+        <span class="string">'./Button'</span>: <span class="string">'./src/components/Button'</span>,
+        <span class="string">'./Header'</span>: <span class="string">'./src/components/Header'</span>,
+      },
+      <span class="property">shared</span>: {
+        <span class="property">react</span>: { <span class="property">singleton</span>: <span class="keyword">true</span>, <span class="property">requiredVersion</span>: <span class="string">'^18.0.0'</span> },
+        <span class="string">'react-dom'</span>: { <span class="property">singleton</span>: <span class="keyword">true</span> },
+      },
+    }),
+  ],
+};
+
+<span class="comment">// ─────────────────────────────────────────────────────────────────</span>
+<span class="comment">// Usage in Host App:</span>
+<span class="keyword">const</span> RemoteButton = React.lazy(() => <span class="keyword">import</span>(<span class="string">'remoteApp/Button'</span>));
+&lt;Suspense fallback="Loading..."&gt;
+  &lt;RemoteButton /&gt;
+&lt;/Suspense&gt;</div>
+
+        <h4 style="margin-top:30px;">🔍 Configuration Breakdown</h4>
+        <div class="concept-grid">
+            <div class="card">
+                <h4>1. Imports</h4>
+                <p>Import Node.js built-ins (<code>path</code>) and Webpack plugins.</p>
+            </div>
+            <div class="card">
+                <h4>2. Basic Setup</h4>
+                <p><code>mode</code>: Enable built-in optimizations<br>
+                <code>entry</code>: Application entry point<br>
+                <code>output</code>: Bundle location + contenthash for cache busting</p>
+            </div>
+            <div class="card">
+                <h4>3. Module Rules (Loaders)</h4>
+                <p>• <code>babel-loader</code>: ES6+ → ES5<br>
+                • <code>css-loader</code>: CSS imports<br>
+                • <code>asset/resource</code>: Images/Fonts</p>
+            </div>
+            <div class="card">
+                <h4>4. Plugins</h4>
+                <p>• <code>HtmlWebpackPlugin</code>: Generate HTML<br>
+                • <code>MiniCssExtractPlugin</code>: Extract CSS<br>
+                • <code>CompressionPlugin</code>: Gzip compression</p>
+            </div>
+            <div class="card">
+                <h4>5. Optimization</h4>
+                <p><strong>Tree Shaking:</strong> <code>usedExports: true</code> marks unused code for removal (requires ES Modules).<br>
+                <strong>Code Splitting:</strong> <code>splitChunks</code> separates vendor libs.</p>
+            </div>
+            <div class="card">
+                <h4>6. DevServer</h4>
+                <p><code>hot: true</code> enables HMR<br>
+                <code>compress: true</code> enables gzip in dev</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Optimization Lab -->
+    <div id="tab-optimization" class="section">
+        <h3>🚀 Optimization Simulator</h3>
+        <p>Toggle optimizations to see how they affect the bundle size and structure.</p>
+
+        <div class="opt-panel">
+            <div class="opt-controls">
+                <div class="opt-checkbox" id="opt-minify" onclick="toggleOpt('minify')">
+                    <div class="check-box">⬜</div> Minification (Terser)
+                </div>
+                <div class="opt-checkbox" id="opt-split" onclick="toggleOpt('split')">
+                    <div class="check-box">⬜</div> Code Splitting
+                </div>
+                <div class="opt-checkbox" id="opt-tree" onclick="toggleOpt('tree')">
+                    <div class="check-box">⬜</div> Tree Shaking
+                </div>
+                <div class="opt-checkbox" id="opt-gzip" onclick="toggleOpt('gzip')">
+                    <div class="check-box">⬜</div> Gzip Compression
+                </div>
+            </div>
+
+            <h4>Bundle Visualization</h4>
+            <div class="bundle-viz" id="bundle-bar"></div>
+            <div class="stats" id="bundle-stats">Total Size: 1000 KB</div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <h4>Explanation:</h4>
+            <ul style="line-height: 1.8; color: #555;">
+                <li><strong>Minification (Terser):</strong> Removes whitespace, comments, shortens names. ~60% reduction.</li>
+                <li><strong>Code Splitting:</strong> Separates vendor (node_modules) from app code. Better caching.</li>
+                <li><strong>Tree Shaking:</strong> Removes unused exports. Requires ES Modules (import/export).</li>
+                <li><strong>Gzip:</strong> Compresses assets for network transfer. ~70% reduction.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 4. Interview Q&A -->
+    <div id="tab-interview" class="section">
+        <h3>🎤 High Frequency Interview Questions</h3>
+
+        <div class="qa-box">
+            <div class="qa-header" onclick="toggleQa(this)">
+                1. Loader vs Plugin?
+                <span class="tag tag-high">Must Know</span>
+            </div>
+            <div class="qa-content">
+                <p><strong>Loader:</strong> Transforms individual files. Works at module level.<br>
+                Example: <code>babel-loader</code> (JS→JS), <code>css-loader</code> (CSS→JS)</p>
+                <p><strong>Plugin:</strong> Works on the entire compilation lifecycle. Does everything loaders can't.<br>
+                Example: <code>HtmlWebpackPlugin</code>, <code>DefinePlugin</code>, <code>MiniCssExtractPlugin</code></p>
+            </div>
+        </div>
+
+        <div class="qa-box">
+            <div class="qa-header" onclick="toggleQa(this)">
+                2. How to improve Webpack Build Speed?
+                <span class="tag tag-med">Performance</span>
+            </div>
+            <div class="qa-content">
+                <ul>
+                    <li><strong>Update Webpack/Node:</strong> Newer versions are faster.</li>
+                    <li><strong>Loader Scope:</strong> Use <code>include/exclude</code> (skip node_modules).</li>
+                    <li><strong>Caching:</strong> <code>cache: { type: 'filesystem' }</code> (Webpack 5).</li>
+                    <li><strong>Parallelism:</strong> <code>thread-loader</code> for expensive loaders.</li>
+                    <li><strong>Dev vs Prod:</strong> Skip minification/sourcemaps in dev.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="qa-box">
+            <div class="qa-header" onclick="toggleQa(this)">
+                3. How does HMR (Hot Module Replacement) work?
+                <span class="tag tag-med">Principle</span>
+            </div>
+            <div class="qa-content">
+                <p>1. <strong>Webpack Dev Server</strong> watches files, builds in memory.</p>
+                <p>2. On change, WDS sends hash to browser via <strong>WebSocket</strong>.</p>
+                <p>3. Browser runtime requests updated manifest + chunks (JSONP).</p>
+                <p>4. Runtime replaces old module with new one without full reload.</p>
+            </div>
+        </div>
+
+        <div class="qa-box">
+            <div class="qa-header" onclick="toggleQa(this)">
+                4. Webpack vs Vite?
+                <span class="tag tag-high">Trending</span>
+            </div>
+            <div class="qa-content">
+                <p><strong>Webpack:</strong> Bundle-based. Builds entire dependency graph first. Rich ecosystem, complex configs.</p>
+                <p><strong>Vite:</strong> Native ESM in dev (no bundling). Extremely fast cold start and HMR. Uses <strong>Rollup</strong> for production.</p>
+                <p><strong>When to use Vite?</strong> New projects, modern browsers. <strong>Webpack?</strong> Legacy support, complex builds.</p>
+            </div>
+        </div>
+
+        <div class="qa-box">
+            <div class="qa-header" onclick="toggleQa(this)">
+                5. What is Tree Shaking?
+                <span class="tag tag-med">Optimization</span>
+            </div>
+            <div class="qa-content">
+                <p>Dead code elimination based on ES Module static analysis.</p>
+                <p><strong>Requirements:</strong></p>
+                <ul>
+                    <li>Use ES Modules (<code>import/export</code>), not CommonJS (<code>require</code>)</li>
+                    <li>Set <code>mode: 'production'</code></li>
+                    <li>Set <code>sideEffects: false</code> in package.json (or list side-effect files)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="qa-box">
+            <div class="qa-header" onclick="toggleQa(this)">
+                6. What is Module Federation?
+                <span class="tag tag-high">Webpack 5</span>
+            </div>
+            <div class="qa-content">
+                <p>Allows multiple independent builds to share code at runtime.</p>
+                <p><strong>Use Case:</strong> Micro-Frontends - different teams deploy separate apps that compose into one.</p>
+                <p><strong>Key Concepts:</strong></p>
+                <ul>
+                    <li><code>exposes</code>: Modules this build shares</li>
+                    <li><code>remotes</code>: Modules consumed from other builds</li>
+                    <li><code>shared</code>: Common dependencies (React, etc.)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // Tab Switching
+    function switchTab(tabId) {
+        document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + tabId).classList.add('active');
+        
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+
+    // Q&A Toggle
+    function toggleQa(header) {
+        const content = header.nextElementSibling;
+        content.classList.toggle('open');
+    }
+
+    // Optimization Logic
+    const state = { minify: false, split: false, tree: false, gzip: false };
+
+    function toggleOpt(key) {
+        state[key] = !state[key];
+        const el = document.getElementById('opt-' + key);
+        const checkbox = el.querySelector('.check-box');
+        
+        if (state[key]) {
+            el.classList.add('checked');
+            checkbox.innerText = '✅';
+        } else {
+            el.classList.remove('checked');
+            checkbox.innerText = '⬜';
+        }
+        renderBundle();
+    }
+
+    function renderBundle() {
+        const bar = document.getElementById('bundle-bar');
+        const stats = document.getElementById('bundle-stats');
+        
+        let appSize = 500, vendorSize = 400, unusedSize = 100;
+
+        if (state.tree) { unusedSize = 0; appSize -= 20; }
+        if (state.minify) { appSize *= 0.4; vendorSize *= 0.4; unusedSize *= 0.4; }
+        if (state.gzip) { appSize *= 0.3; vendorSize *= 0.3; unusedSize *= 0.3; }
+
+        const total = Math.round(appSize + vendorSize + unusedSize);
+        let html = '';
+        
+        if (state.split) {
+            const appPct = (appSize / total) * 100;
+            const vendorPct = (vendorSize / total) * 100;
+            const unusedPct = (unusedSize / total) * 100;
+            
+            html += '<div class="bundle-part" style="width:' + vendorPct + '%; background:#ff9800;">Vendor (' + Math.round(vendorSize) + 'KB)</div>';
+            html += '<div class="bundle-part" style="width:' + appPct + '%; background:#2196f3;">App (' + Math.round(appSize) + 'KB)</div>';
+            if (unusedSize > 0) {
+                html += '<div class="bundle-part" style="width:' + unusedPct + '%; background:#f44336;">Unused (' + Math.round(unusedSize) + 'KB)</div>';
+            }
+        } else {
+            html += '<div class="bundle-part" style="width:100%; background:#2196f3;">main.bundle.js (' + total + 'KB)</div>';
+        }
+
+        bar.innerHTML = html;
+        stats.innerText = 'Total Size: ' + total + ' KB';
+    }
+
+    renderBundle();
+</script>
+
+</body>
+</html>
