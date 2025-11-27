@@ -284,9 +284,40 @@
                     </div>
                 </div>
 
+                <!-- Q5: AutoConfiguration Principle -->
+                <div class="qa-card">
+                    <div class="qa-q">Q: How does @EnableAutoConfiguration work?</div>
+                    <div class="qa-a">
+                        It uses <code>@Import(AutoConfigurationImportSelector.class)</code> to load configurations listed in <code>META-INF/spring.factories</code> (or <code>META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports</code> in newer versions).
+                    </div>
+                </div>
+
+                <!-- Q6: Runners -->
+                <div class="qa-card">
+                    <div class="qa-q">Q: ApplicationRunner vs CommandLineRunner?</div>
+                    <div class="qa-a">
+                        Both run after startup. 
+                        <br>- <code>CommandLineRunner</code> receives raw <code>String[] args</code>.
+                        <br>- <code>ApplicationRunner</code> receives parsed <code>ApplicationArguments</code> object (easier to access flags like --foo=bar).
+                    </div>
+                </div>
+
+                <!-- Q7: Custom Starter -->
+                <div class="qa-card">
+                    <div class="qa-q">Q: How to create a Custom Starter?</div>
+                    <div class="qa-a">
+                        1. Create a <code>AutoConfiguration</code> class.
+                        <br>2. Add conditional annotations (<code>@ConditionalOnClass</code>).
+                        <br>3. Register it in <code>spring.factories</code>.
+                    </div>
+                </div>
+
             </div>
         </div>
 
+    </div>
+
+        </div>
     </div>
 
     <script>

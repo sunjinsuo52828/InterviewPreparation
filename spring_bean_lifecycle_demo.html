@@ -168,6 +168,39 @@
         </div>
     </div>
 
+    <div class="container" style="margin-top: 30px; grid-template-columns: 1fr;">
+        <div class="code-panel" style="background: #fff3e0; color: #333; border: 1px solid #ffe0b2;">
+            <h3 style="margin-top: 0; color: #e65100;">🎓 Interview Corner: Common Follow-ups</h3>
+            <ul style="line-height: 1.6;">
+                <li>
+                    <strong>Q: What is the difference between BeanFactory and ApplicationContext?</strong><br>
+                    A: BeanFactory is the core container (Lazy Load). ApplicationContext extends it with extra features like AOP, Event Publishing, and Internationalization (Eager Load).
+                </li>
+                <li>
+                    <strong>Q: How does Spring solve Circular Dependency?</strong><br>
+                    A: Using <strong>Three-Level Cache</strong> (Singleton Objects, Early Singleton Objects, Singleton Factories). It only works for Singleton beans with Setter injection. Constructor injection fails. <a href="spring_circular_dependency_demo.html" style="color: #e65100; text-decoration: underline;">See Visualization</a>
+                </li>
+                <li>
+                    <strong>Q: Where is AOP Proxy created?</strong><br>
+                    A: In <code>BeanPostProcessor.postProcessAfterInitialization()</code>. The original bean is replaced by the Proxy object here.
+                </li>
+            </ul>
+            <h4 style="margin-bottom: 5px; color: #e65100;">Code: Custom Lifecycle Callback</h4>
+            <pre style="background: #2d2d2d; color: #ccc; padding: 10px; border-radius: 4px;">
+@Component
+public class MyBean implements InitializingBean, DisposableBean {
+    @Override
+    public void afterPropertiesSet() {
+        // Same as @PostConstruct
+    }
+    @Override
+    public void destroy() {
+        // Same as @PreDestroy
+    }
+}</pre>
+        </div>
+    </div>
+
     <script>
         const log = (msg) => {
             const consoleDiv = document.getElementById('console');

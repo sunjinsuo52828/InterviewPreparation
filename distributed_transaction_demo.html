@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Distributed Transaction Patterns</title>
+    <style>
+        :root {
+            --primary: #3f51b5;
+            --secondary: #f50057;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --bg: #f5f7fa;
+            --card-bg: #ffffff;
+            --text: #333;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: white;
+            border-bottom: 1px solid #ddd;
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+        .brand { font-size: 1.2rem; font-weight: bold; color: var(--primary); }
+        .nav-tabs { display: flex; gap: 20px; height: 100%; }
+        .nav-tab {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .nav-tab:hover { color: var(--primary); }
+        .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        /* Content */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            position: relative;
+        }
+        .view-section { display: none; animation: fadeIn 0.3s; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Concepts Table --- */
+        .concept-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .concept-table th, .concept-table td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        .concept-table th { background: #f0f2f5; font-weight: bold; color: #444; }
+        .tag { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        .tag.strong { background: #e3f2fd; color: #1565c0; }
+        .tag.eventual { background: #fff3e0; color: #ef6c00; }
+        .tag.high { background: #e8f5e9; color: #2e7d32; }
+        .tag.low { background: #ffebee; color: #c62828; }
+
+        /* --- Demo Area --- */
+        .demo-controls {
+            background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+            display: flex; gap: 15px; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        select, button { padding: 8px 12px; border-radius: 4px; border: 1px solid #ddd; font-size: 1rem; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; }
+        button:hover { opacity: 0.9; }
+        button.reset { background: #757575; }
+
+        .system-diagram {
+            display: flex; justify-content: space-around; align-items: flex-start;
+            margin-top: 40px; position: relative;
+        }
+        
+        .service-node {
+            background: white; border: 2px solid #ddd; border-radius: 8px; width: 300px;
+            padding: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 2;
+        }
+        .service-header {
+            background: #f5f5f5; padding: 10px; border-bottom: 1px solid #ddd; font-weight: bold;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .service-body { padding: 15px; min-height: 150px; font-family: monospace; font-size: 0.9rem; }
+        .db-state { margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px; color: #555; }
+        .log-entry { margin-bottom: 5px; padding: 5px; border-radius: 4px; }
+        .log-entry.pending { background: #fff3e0; border-left: 3px solid orange; }
+        .log-entry.committed { background: #e8f5e9; border-left: 3px solid green; }
+        .log-entry.rollback { background: #ffebee; border-left: 3px solid red; }
+
+        /* Animation Arrows */
+        .arrow-container {
+            position: absolute; top: 50px; left: 320px; right: 320px; height: 100px;
+            pointer-events: none; z-index: 1;
+        }
+        .msg-ball {
+            width: 12px; height: 12px; background: var(--secondary); border-radius: 50%;
+            position: absolute; top: 50%; transform: translateY(-50%); opacity: 0;
+            box-shadow: 0 0 5px var(--secondary);
+        }
+        @keyframes moveRight { 0% { left: 0; opacity: 1; } 100% { left: 100%; opacity: 1; } }
+        @keyframes moveLeft { 0% { left: 100%; opacity: 1; } 100% { left: 0; opacity: 1; } }
+
+        .step-desc {
+            text-align: center; margin-top: 20px; font-size: 1.1rem; font-weight: bold; color: var(--primary);
+            min-height: 30px;
+        }
+
+        /* --- Modal Overlay --- */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: #fefefe; margin: 5% auto; padding: 0; border: 1px solid #888;
+            width: 80%; max-width: 900px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            animation: slideDown 0.4s;
+        }
+        @keyframes slideDown { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header { padding: 20px; background: var(--primary); color: white; border-top-left-radius: 12px; border-top-right-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 30px; max-height: 70vh; overflow-y: auto; }
+        .close { color: white; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: #ddd; }
+        .qa-box { margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+        .qa-title { font-size: 1.1rem; font-weight: bold; color: #333; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .qa-tag { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
+        .qa-answer { color: #555; line-height: 1.6; }
+        .qa-answer strong { color: #d84315; }
+
+        /* --- Code Patterns --- */
+        .code-block {
+            background: #282c34; color: #abb2bf; padding: 20px; border-radius: 8px;
+            font-family: 'Consolas', monospace; overflow-x: auto; line-height: 1.5;
+        }
+        .keyword { color: #c678dd; }
+        .function { color: #61afef; }
+        .string { color: #98c379; }
+        .comment { color: #5c6370; font-style: italic; }
+
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="brand">🔗 Distributed Transaction Demo</div>
+        <div class="nav-tabs">
+            <div class="nav-tab active" onclick="switchTab('concepts')">1. Concepts & Comparison</div>
+            <div class="nav-tab" onclick="switchTab('demo')">2. Interactive Simulation</div>
+            <div class="nav-tab" onclick="switchTab('code')">3. Code Patterns</div>
+        </div>
+    </nav>
+
+    <div class="main-content">
+
+        <!-- Interview Modal -->
+        <div id="interview-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 style="margin:0;">🎓 Distributed Transaction Interview Master Class</h2>
+                    <span class="close" onclick="closeInterviewModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    
+                    <div class="qa-box">
+                        <div class="qa-title">
+                            <span class="qa-tag">TCC / Seata</span>
+                            Q1: What are "Null Compensation" (空回滚) and "Hanging" (悬挂)?
+                        </div>
+                        <div class="qa-answer">
+                            <p>These are the two most critical edge cases in TCC/Saga implementation:</p>
+                            <ul>
+                                <li><b>Null Compensation (空回滚)</b>: The <code>Try</code> phase failed or didn't execute (e.g., network packet lost), but the Transaction Manager (TM) still calls <code>Cancel</code>.
+                                    <br>👉 <b>Fix</b>: In <code>Cancel</code>, check if a <code>Try</code> record exists. If not, do nothing (return success).
+                                </li>
+                                <li><b>Hanging (悬挂)</b>: Due to network delay, the <code>Cancel</code> request arrives <i>before</i> the <code>Try</code> request. Later, the delayed <code>Try</code> arrives and executes, leaving a "hanging" resource that will never be committed or rolled back.
+                                    <br>👉 <b>Fix</b>: In <code>Cancel</code>, insert a "Cancel Record". In <code>Try</code>, check if a "Cancel Record" already exists. If yes, reject the <code>Try</code>.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="qa-box">
+                        <div class="qa-title">
+                            <span class="qa-tag">Architecture</span>
+                            Q2: Local Message Table vs. RocketMQ Transactional Message?
+                        </div>
+                        <div class="qa-answer">
+                            <p>Both solve the "Dual Write" problem (DB + MQ atomicity), but differ in implementation:</p>
+                            <ul>
+                                <li><b>Local Message Table</b>:
+                                    <br>✅ <b>Pros</b>: No special MQ required (works with Kafka/Rabbit). Flexible.
+                                    <br>❌ <b>Cons</b>: Coupled with business DB. Requires a background scheduler (polling) which adds load.
+                                </li>
+                                <li><b>RocketMQ Transactional Msg</b>:
+                                    <br>✅ <b>Pros</b>: High performance. Uses "Half Message" mechanism (2-phase commit at MQ level). No polling needed.
+                                    <br>❌ <b>Cons</b>: Vendor lock-in (RocketMQ specific).
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="qa-box">
+                        <div class="qa-title">
+                            <span class="qa-tag">Seata AT</span>
+                            Q3: The "Dirty Write" Problem & Global Locks
+                        </div>
+                        <div class="qa-answer">
+                            <p><b>Scenario</b>: You use Seata AT for Service A, but Service B updates the <i>same table</i> directly (without Seata).</p>
+                            <p><b>Risk</b>: Service A rolls back using its "Before Image", overwriting Service B's update. This is a <b>Dirty Write</b>.</p>
+                            <p><b>Solution</b>: Seata AT requires <b>Global Lock</b> isolation.
+                                <br>👉 Any update to the table MUST check the Seata Global Lock (even if not in a global transaction, use <code>@GlobalLock</code> annotation) to ensure safety.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="qa-box">
+                        <div class="qa-title">
+                            <span class="qa-tag">Best Practice</span>
+                            Q4: The "3-Try" Heuristic (三试原则)
+                        </div>
+                        <div class="qa-answer">
+                            <p>When designing distributed systems, follow this order of preference:</p>
+                            <ol>
+                                <li><b>Try to Avoid</b>: Can we merge services? Can we accept non-transactional behavior?</li>
+                                <li><b>Try Eventual Consistency</b>: Use <b>MQ / Local Message Table</b>. It decouples services and is robust.</li>
+                                <li><b>Try TCC / Seata</b>: Only if strong consistency or synchronous feedback is strictly required (e.g., Inventory deduction).</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <div class="qa-box">
+                        <div class="qa-title">
+                            <span class="qa-tag">Seata AT</span>
+                            Q5: How does Seata AT Mode work internally? (The "Undo Log" Magic)
+                        </div>
+                        <div class="qa-answer">
+                            <p>It relies on a <code>undo_log</code> table in your business database.</p>
+                            <ol>
+                                <li><b>Phase 1</b>: Before executing business SQL, Seata records the data snapshot (<b>Before Image</b>). After execution, it records the result (<b>After Image</b>).</li>
+                                <li><b>Phase 2 (Commit)</b>: Asynchronously deletes the undo log records (Fast).</li>
+                                <li><b>Phase 2 (Rollback)</b>: Uses the <i>Before Image</i> to generate reverse SQL and restore data.</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <div class="qa-box">
+                        <div class="qa-title">
+                            <span class="qa-tag">Implementation</span>
+                            Q6: How to implement Idempotency? (Crucial for TCC/Saga/Msg)
+                        </div>
+                        <div class="qa-answer">
+                            <ul>
+                                <li><b>Unique Constraint (De-duplication)</b>: Create a unique index on `transaction_id`. DB will throw `DuplicateKeyException` on retry.</li>
+                                <li><b>Optimistic Lock / State Machine</b>: <code>UPDATE order SET status='PAID' WHERE id=1 AND status='UNPAID'</code>. If rows affected = 0, it means it's already processed.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="qa-box">
+                        <div class="qa-title">
+                            <span class="qa-tag">Comparison</span>
+                            Q7: Why is 2PC/XA not popular in Microservices?
+                        </div>
+                        <div class="qa-answer">
+                            <p>It is a <b>Blocking Protocol</b>. Database locks are held during the entire transaction (Phase 1 + Phase 2). In a microservice chain, this drastically reduces throughput and availability (CP design).</p>
+                        </div>
+                    </div>
+
+                    <div class="qa-box">
+                        <div class="qa-title">
+                            <span class="qa-tag">Concept</span>
+                            Q8: Distributed Transaction vs. Distributed Lock?
+                        </div>
+                        <div class="qa-answer">
+                            <p><b>Transaction</b> ensures <i>Data Consistency</i> across multiple nodes (All succeed or All fail).</p>
+                            <p><b>Lock</b> ensures <i>Concurrency Control</i> (Only one thread accesses a resource at a time).</p>
+                            <p><i>* They are often used together (e.g., Lock to prevent overselling, Tx to create order).</i></p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 1: CONCEPTS -->
+        <div id="view-concepts" class="view-section active">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="margin-top:0;">1. Core Principles & Thoughts</h2>
+                <button onclick="openInterviewModal()" style="background:#ff9800; font-weight:bold;">🎓 Interview Master Class (面试宝典)</button>
+            </div>
+            <div style="background:white; padding:20px; border-radius:8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 30px;">
+                <ul style="line-height: 1.6; margin: 0; padding-left: 20px;">
+                    <li style="margin-bottom: 10px;"><b>BASE</b> (Basically Available, Soft state, Eventual consistency): <br>
+                        Sacrifices strong consistency for high availability. It is the theoretical foundation for TCC, Saga, and Message-based solutions.
+                    </li>
+                    <li style="margin-bottom: 10px;"><b>CAP Theorem</b>: <br>
+                        A distributed system can only provide two of the three: Consistency, Availability, and Partition Tolerance. (Usually AP or CP).
+                    </li>
+                    <li style="margin-bottom: 10px;"><b>ACID</b> (Atomicity, Consistency, Isolation, Durability): <br>
+                        The standard for traditional database transactions, emphasizing strong consistency. XA/2PC follows this.
+                    </li>
+                    <li style="margin-bottom: 10px;"><b>Eventual Consistency</b>: <br>
+                        The system may be inconsistent for a short time, but will eventually reach a consistent state.
+                    </li>
+                    <li style="margin-bottom: 10px;"><b>Idempotency</b>: <br>
+                        Executing the same operation multiple times yields the same result. Critical for retry mechanisms in TCC/Saga.
+                    </li>
+                </ul>
+                <p style="font-size: 0.9rem; color: #666; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                    💡 <b>Note</b>: BASE/ACID are the <i>principles</i>, while XA/TCC/Saga are the <i>technical implementations</i>.
+                </p>
+            </div>
+
+            <h2>2. Mainstream Solutions Comparison</h2>
+            <table class="concept-table">
+                <thead>
+                    <tr>
+                        <th>Pattern</th>
+                        <th>Basis</th>
+                        <th>Consistency</th>
+                        <th>Performance</th>
+                        <th>Complexity</th>
+                        <th>Best Scenario</th>
+                        <th>Major Risks ⚠️</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><b>2PC / XA</b><br>(Seata XA/AT)</td>
+                        <td><span class="tag strong">ACID</span></td>
+                        <td><span class="tag strong">Strong</span></td>
+                        <td><span class="tag low">Low</span></td>
+                        <td>Low (Framework handles it)</td>
+                        <td><b>Internal DBs Only</b>. Short transactions.<br><span style="color:red; font-size:0.8rem;">* Cannot span to External APIs.</span></td>
+                        <td>Long Locking (Blocking), Deadlocks, Poor Throughput.</td>
+                    </tr>
+                    <tr>
+                        <td><b>TCC</b><br>(Try-Confirm-Cancel)</td>
+                        <td><span class="tag eventual">BASE</span></td>
+                        <td><span class="tag eventual">Eventual</span></td>
+                        <td><span class="tag high">High</span></td>
+                        <td><span class="tag low">High</span> (3 methods per service)</td>
+                        <td>High concurrency, strict resource reservation.</td>
+                        <td>Null Compensation, Hanging, Idempotency bugs.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Saga</b><br>(Long Transaction)</td>
+                        <td><span class="tag eventual">BASE</span></td>
+                        <td><span class="tag eventual">Eventual</span></td>
+                        <td><span class="tag high">Medium</span></td>
+                        <td>Medium (Compensating logic)</td>
+                        <td>Long flows, <b>Cross-Organization</b> calls.</td>
+                        <td>Compensation Failure (needs manual fix), Lack of Isolation.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Local Message Table</b><br>(Reliable Eventual)</td>
+                        <td><span class="tag eventual">BASE</span></td>
+                        <td><span class="tag eventual">Eventual</span></td>
+                        <td><span class="tag high">High</span></td>
+                        <td>Medium</td>
+                        <td>Async notifications, decoupling.</td>
+                        <td>Message Pile-up, Delay in consistency.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="margin-top:20px; background:#fff3e0; padding:15px; border-radius:8px; border:1px solid #ffe0b2;">
+                <h3 style="margin-top:0; color:#e65100;">🚫 Common Pitfalls & Misconceptions</h3>
+                <ul style="margin:0; padding-left:20px; color:#5d4037;">
+                    <li><b>Misconception</b>: "BASE is a protocol." -> <i>No, it's a design philosophy. TCC/Saga are protocols.</i></li>
+                    <li><b>Pitfall</b>: Using XA across Microservices. -> <i>Causes severe performance degradation (Anti-Pattern).</i></li>
+                    <li><b>Pitfall</b>: Ignoring Idempotency in TCC/Saga. -> <i>Will cause data corruption during retries.</i></li>
+                    <li><b>Pitfall</b>: Assuming Saga Compensation always succeeds. -> <i>It might fail! You need a "Manual Intervention" dashboard.</i></li>
+                </ul>
+            </div>
+
+            <div style="margin-top:20px; background:white; padding:15px; border-radius:8px; border:1px solid #ddd;">
+                <h3 style="margin-top:0; color:var(--primary);">🚀 Seata Transaction Modes</h3>
+                <p>You asked about Seata. Besides the popular <b>AT Mode</b>, Seata supports 4 modes in total:</p>
+                <ul style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <li><b>AT Mode (Default)</b>: "Automatic Transaction". Non-intrusive. Uses <b>Undo Logs</b> in DB to auto-generate rollback. (2PC-like but application level).</li>
+                    <li><b>TCC Mode</b>: Invasive. User manually implements <code>prepare</code>, <code>commit</code>, <code>rollback</code>. High performance.</li>
+                    <li><b>Saga Mode</b>: State Machine based. For long transactions or legacy systems without XA support.</li>
+                    <li><b>XA Mode</b>: Wraps standard JDBC XA. Relies on DB locks. No Undo Log needed, but holds locks longer.</li>
+                </ul>
+            </div>
+
+            <h3>🏦 Mainframe Banking Systems (The "Old School" Core)</h3>
+            <div style="background:#f9f9f9; padding:15px; border-left:4px solid #333; border-radius:4px;">
+                <p>While distributed systems use the patterns above, many core banking systems (Ledger, Deposits) still run on <b>Mainframes (IBM Z-Series)</b>.</p>
+                <ul>
+                    <li><b>DB + Batch Processing</b>: This is the heartbeat of banking.
+                        <ul>
+                            <li><b>Online (OLTP)</b>: CICS + DB2 handles real-time user requests (e.g., check balance, transfer) with strict ACID.</li>
+                            <li><b>Batch (OLAP/EOD)</b>: At night, <b>JCL (Job Control Language)</b> scripts run massive batch jobs (COBOL) to calculate interest, generate statements, and perform <b>Clearing & Settlement</b> (e.g., with Central Bank/SWIFT).</li>
+                        </ul>
+                    </li>
+                    <li><b>Reliability</b>: "Five Nines" (99.999%) availability. Hardware redundancy (CPU/Memory mirroring) prevents failure.</li>
+                </ul>
+                <p><i>* Modern banks often use a "Bi-modal" architecture: Distributed Microservices (Channels, Mobile App) for the front-end, calling the Mainframe (Core System) via MQ or API Gateways for the final ledger update.</i></p>
+            </div>
+
+            <!-- New Interview Deep Dives Section -->
+            <div style="margin-top:20px; background:white; padding:15px; border-radius:8px; border:1px solid #ddd; border-left: 5px solid #ff9800; display:none;">
+                <h3 style="margin-top:0; color:#e65100;">🔥 Interview Deep Dives (High Frequency)</h3>
+                
+                <div style="margin-bottom:15px;">
+                    <b>Q1: How does Seata AT Mode work internally? (The "Undo Log" Magic)</b>
+                    <p style="margin:5px 0; font-size:0.9rem; color:#555;">
+                        It relies on a <code>undo_log</code> table in your business database.
+                        <br>1. <b>Phase 1</b>: Before executing business SQL, Seata records the data snapshot (<b>Before Image</b>). After execution, it records the result (<b>After Image</b>).
+                        <br>2. <b>Phase 2 (Commit)</b>: Asynchronously deletes the undo log records (Fast).
+                        <br>3. <b>Phase 2 (Rollback)</b>: Uses the <i>Before Image</i> to generate reverse SQL and restore data.
+                    </p>
+                </div>
+
+                <div style="margin-bottom:15px;">
+                    <b>Q2: How to implement Idempotency? (Crucial for TCC/Saga/Msg)</b>
+                    <ul style="margin:5px 0; padding-left:20px; font-size:0.9rem; color:#555;">
+                        <li><b>Unique Constraint (De-duplication)</b>: Create a unique index on `transaction_id`. DB will throw `DuplicateKeyException` on retry.</li>
+                        <li><b>Optimistic Lock / State Machine</b>: <code>UPDATE order SET status='PAID' WHERE id=1 AND status='UNPAID'</code>. If rows affected = 0, it means it's already processed.</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom:15px;">
+                    <b>Q3: Why is 2PC/XA not popular in Microservices?</b>
+                    <p style="margin:5px 0; font-size:0.9rem; color:#555;">
+                        It is a <b>Blocking Protocol</b>. Database locks are held during the entire transaction (Phase 1 + Phase 2). In a microservice chain, this drastically reduces throughput and availability (CP design).
+                    </p>
+                </div>
+
+                <div>
+                    <b>Q4: Distributed Transaction vs. Distributed Lock?</b>
+                    <p style="margin:5px 0; font-size:0.9rem; color:#555;">
+                        <b>Transaction</b> ensures <i>Data Consistency</i> across multiple nodes (All succeed or All fail).
+                        <br><b>Lock</b> ensures <i>Concurrency Control</i> (Only one thread accesses a resource at a time).
+                        <br><i>* They are often used together (e.g., Lock to prevent overselling, Tx to create order).</i>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: DEMO -->
+        <div id="view-demo" class="view-section">
+            <div class="demo-controls">
+                <label><b>Pattern:</b></label>
+                <select id="pattern-select" onchange="resetDemo()">
+                    <option value="xa">XA / 2PC (Internal Only)</option>
+                    <option value="tcc">TCC (Try-Confirm-Cancel)</option>
+                    <option value="saga">Saga (Happy Path)</option>
+                    <option value="saga_fail">Saga (Rollback/Compensate)</option>
+                    <option value="msg">Local Message Table</option>
+                </select>
+                <button onclick="nextStep()">Next Step</button>
+                <button class="reset" onclick="resetDemo()">Reset</button>
+                <div style="margin-left:auto; font-weight:bold;">Status: <span id="global-status">Ready</span></div>
+            </div>
+
+            <div class="step-desc" id="step-desc">Select a pattern and click "Next Step" to start.</div>
+
+            <!-- Step List Panel -->
+            <div id="step-list-container" style="background:white; padding:10px; margin-bottom:20px; border-radius:8px; border:1px solid #eee; display:none;">
+                <h4 style="margin:0 0 10px 0; color:#555;">Execution Plan:</h4>
+                <ul id="step-list" style="list-style:none; padding:0; margin:0;">
+                    <!-- Steps injected here -->
+                </ul>
+            </div>
+
+            <div class="system-diagram">
+                <!-- Service A -->
+                <div class="service-node">
+                    <div class="service-header">
+                        <span>💳 Credit Card Service</span>
+                        <span id="status-a" style="font-size:0.8rem; color:#666;">Idle</span>
+                    </div>
+                    <div class="service-body">
+                        <div><b>Action Log:</b></div>
+                        <div id="log-a"></div>
+                        <div class="db-state">
+                            <b>DB: Credit_DB</b><br>
+                            Limit: <span id="val-limit">10000</span><br>
+                            Loan: <span id="val-loan">None</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Animation Area -->
+                <div class="arrow-container">
+                    <div id="msg-ball" class="msg-ball"></div>
+                </div>
+
+                <!-- Service B -->
+                <div class="service-node">
+                    <div class="service-header">
+                        <span>🌐 Payment Gateway / 3rd Party</span>
+                        <span id="status-b" style="font-size:0.8rem; color:#666;">Idle</span>
+                    </div>
+                    <div class="service-body">
+                        <div><b>Action Log:</b></div>
+                        <div id="log-b"></div>
+                        <div class="db-state">
+                            <b>Remote System</b><br>
+                            Status: <span id="val-balance">Ready</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: CODE -->
+        <div id="view-code" class="view-section">
+            <div class="demo-controls">
+                <label><b>Show Code For:</b></label>
+                <select id="code-pattern-select" onchange="renderCode()">
+                    <option value="xa">XA / 2PC</option>
+                    <option value="tcc">TCC</option>
+                    <option value="saga">Saga (Happy Path)</option>
+                    <option value="saga_fail">Saga (Rollback)</option>
+                    <option value="msg">Local Message Table</option>
+                    <option disabled>--- Utilities ---</option>
+                    <option value="trace">Trace ID Propagation</option>
+                    <option value="id_gen">Distributed ID (Snowflake)</option>
+                    <option value="retry">Retry & Idempotency</option>
+                </select>
+            </div>
+            <h3>Implementation Logic</h3>
+            <div id="code-display" class="code-block">
+                <!-- Code injected by JS -->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- State Management ---
+        let currentStep = 0;
+        let pattern = 'xa';
+        
+        // Initial DB Values
+        const initialLimit = 10000;
+        const loanAmount = 1000;
+        
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            document.getElementById('view-' + tabId).classList.add('active');
+        }
+
+        function resetDemo() {
+            currentStep = 0;
+            pattern = document.getElementById('pattern-select').value;
+            
+            // Sync Code Tab Dropdown
+            const codeSelect = document.getElementById('code-pattern-select');
+            if(codeSelect) {
+                codeSelect.value = pattern;
+                renderCode();
+            }
+            
+            // Reset UI
+            document.getElementById('log-a').innerHTML = '';
+            document.getElementById('log-b').innerHTML = '';
+            document.getElementById('val-limit').innerText = initialLimit;
+            document.getElementById('val-loan').innerText = 'None';
+            document.getElementById('val-balance').innerText = '0';
+            document.getElementById('status-a').innerText = 'Idle';
+            document.getElementById('status-b').innerText = 'Idle';
+            document.getElementById('global-status').innerText = 'Ready';
+            document.getElementById('step-desc').innerText = 'Ready to start ' + pattern.toUpperCase() + ' transaction.';
+            document.getElementById('msg-ball').style.opacity = 0;
+            document.getElementById('msg-ball').style.animation = 'none';
+
+            // Update Step List
+            const listContainer = document.getElementById('step-list-container');
+            const list = document.getElementById('step-list');
+            listContainer.style.display = 'block';
+            list.innerHTML = '';
+            
+            const flow = flows[pattern];
+            flow.forEach((step, index) => {
+                const li = document.createElement('li');
+                li.id = 'step-item-' + index;
+                li.style.padding = '8px';
+                li.style.borderBottom = '1px solid #f0f0f0';
+                li.style.color = '#888';
+                li.innerText = (index + 1) + '. ' + step.label;
+                list.appendChild(li);
+            });
+        }
+
+        function log(service, msg, type='normal') {
+            const div = document.createElement('div');
+            div.className = 'log-entry ' + type;
+            div.innerText = msg;
+            const container = document.getElementById('log-' + service);
+            container.appendChild(div);
+            // Auto scroll
+            div.scrollIntoView({ behavior: "smooth", block: "end" });
+        }
+
+        function animateMsg(direction, callback) {
+            const ball = document.getElementById('msg-ball');
+            ball.style.animation = 'none';
+            ball.offsetHeight; /* trigger reflow */
+            ball.style.animation = (direction === 'right' ? 'moveRight' : 'moveLeft') + ' 1s forwards';
+            setTimeout(callback, 1000);
+        }
+
+        function nextStep() {
+            const flow = flows[pattern];
+            if (currentStep < flow.length) {
+                // Highlight current step in list
+                document.querySelectorAll('#step-list li').forEach(li => {
+                    li.style.background = 'transparent';
+                    li.style.color = '#888';
+                    li.style.fontWeight = 'normal';
+                });
+                const currentLi = document.getElementById('step-item-' + currentStep);
+                if(currentLi) {
+                    currentLi.style.background = '#e3f2fd';
+                    currentLi.style.color = '#1565c0';
+                    currentLi.style.fontWeight = 'bold';
+                }
+
+                flow[currentStep].action();
+                currentStep++;
+            } else {
+                document.getElementById('step-desc').innerText = 'Transaction Completed.';
+                // Mark all as done
+                 document.querySelectorAll('#step-list li').forEach(li => {
+                    li.style.color = '#4caf50';
+                });
+            }
+        }
+
+        // --- Flows Definition ---
+        const flows = {
+            // XA / 2PC
+            xa: [
+                {
+                    label: 'Phase 1: TM sends Prepare (Internal Only)',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Phase 1: Prepare';
+                        document.getElementById('step-desc').innerText = 'Note: XA is for INTERNAL DBs only. External APIs do not support XA.';
+                        log('a', 'XA START: Exec SQL (Update Limit)', 'pending');
+                        log('b', 'XA START: Exec SQL (Internal Account)', 'pending');
+                        document.getElementById('val-limit').innerText = (initialLimit - loanAmount) + ' (Locked)';
+                        document.getElementById('val-loan').innerText = 'Pending...';
+                        document.getElementById('val-balance').innerText = 'Locked';
+                    }
+                },
+                {
+                    label: 'DBs report Prepare Success',
+                    action: () => {
+                        document.getElementById('step-desc').innerText = 'Both Internal DBs report "Prepare Success".';
+                        document.getElementById('status-a').innerText = 'Prepared';
+                        document.getElementById('status-b').innerText = 'Prepared';
+                    }
+                },
+                {
+                    label: 'Phase 2: TM sends Commit',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Phase 2: Commit';
+                        document.getElementById('step-desc').innerText = 'TM sends XA COMMIT to both.';
+                        log('a', 'XA COMMIT', 'committed');
+                        log('b', 'XA COMMIT', 'committed');
+                        document.getElementById('val-limit').innerText = (initialLimit - loanAmount);
+                        document.getElementById('val-loan').innerText = 'Active';
+                        document.getElementById('val-balance').innerText = 'Success';
+                        document.getElementById('status-a').innerText = 'Committed';
+                        document.getElementById('status-b').innerText = 'Committed';
+                    }
+                }
+            ],
+
+            // TCC
+            tcc: [
+                {
+                    label: 'Phase 1: Try (Credit Service)',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Phase 1: Try';
+                        document.getElementById('step-desc').innerText = 'Credit Service: Reserve resources (Freeze Limit).';
+                        log('a', 'TRY: Freeze 1000 Limit. Status=PENDING', 'pending');
+                        document.getElementById('val-limit').innerText = '9000 (Avail) + 1000 (Frozen)';
+                        document.getElementById('val-loan').innerText = 'Pending';
+                    }
+                },
+                {
+                    label: 'Call External API (Pre-Check)',
+                    action: () => {
+                        document.getElementById('step-desc').innerText = 'Calling External Gateway (Pre-Check)...';
+                        animateMsg('right', nextStep);
+                    }
+                },
+                {
+                    label: 'Phase 1: Try (Gateway)',
+                    action: () => {
+                        document.getElementById('step-desc').innerText = 'Gateway: Check Account Validity / Risk Control.';
+                        log('b', 'API: POST /pre-check (Idempotent)', 'pending');
+                    }
+                },
+                {
+                    label: 'Phase 2: Confirm (Both)',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Phase 2: Confirm';
+                        document.getElementById('step-desc').innerText = 'All Try Success. TM calls Confirm.';
+                        log('a', 'CONFIRM: Deduct Frozen. Status=ACTIVE', 'committed');
+                        log('b', 'API: POST /transfer (Execute)', 'committed');
+                        document.getElementById('val-limit').innerText = '9000';
+                        document.getElementById('val-loan').innerText = 'Active';
+                        document.getElementById('val-balance').innerText = 'Success';
+                    }
+                }
+            ],
+
+            // Saga
+            saga: [
+                {
+                    label: 'Step 1: Anti-Fraud Check (Sync)',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Step 1: Risk Check';
+                        document.getElementById('step-desc').innerText = 'Calling Anti-Fraud Service (Sync HTTP). If risk > threshold, abort.';
+                        log('a', 'RISK: Check User=Safe, Score=95', 'committed');
+                    }
+                },
+                {
+                    label: 'Step 2: Local Tx (Deduct + Audit)',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Step 2: Deduct';
+                        document.getElementById('step-desc').innerText = 'Credit Service: Deduct Limit & Insert Audit Log (Local Tx).';
+                        log('a', 'TX: Limit=9000, Audit="Loan Created"', 'committed');
+                        document.getElementById('val-limit').innerText = '9000';
+                        document.getElementById('val-loan').innerText = 'Active';
+                    }
+                },
+                {
+                    label: 'Trigger Next Saga Step',
+                    action: () => {
+                        document.getElementById('step-desc').innerText = 'Triggering next step in Saga...';
+                        animateMsg('right', nextStep);
+                    }
+                },
+                {
+                    label: 'Step 3: Call External API',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Step 3: External';
+                        document.getElementById('step-desc').innerText = 'Calling External Transfer API (Bank Gateway).';
+                        log('b', 'API: POST /transfer (Idempotent)', 'committed');
+                        document.getElementById('val-balance').innerText = 'Success';
+                    }
+                },
+                {
+                    label: 'Step 4: Notify User (Async)',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Step 4: Notify';
+                        document.getElementById('step-desc').innerText = 'Sending SMS Notification (Fire-and-forget or Async Queue).';
+                        log('a', 'NOTIFY: SMS Sent "Loan Approved"', 'committed');
+                    }
+                },
+                {
+                    label: 'Saga Complete',
+                    action: () => {
+                        document.getElementById('step-desc').innerText = 'Saga Completed Successfully.';
+                    }
+                }
+            ],
+
+            // Saga (Rollback Scenario)
+            saga_fail: [
+                {
+                    label: 'Step 1: Anti-Fraud Check (Sync)',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Step 1: Risk Check';
+                        document.getElementById('step-desc').innerText = 'Calling Anti-Fraud Service... Passed.';
+                        log('a', 'RISK: Check User=Safe', 'committed');
+                    }
+                },
+                {
+                    label: 'Step 2: Local Tx (Deduct + Audit)',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Step 2: Deduct';
+                        document.getElementById('step-desc').innerText = 'Credit Service: Deduct Limit & Insert Audit Log.';
+                        log('a', 'TX: Limit=9000, Audit="Loan Created"', 'committed');
+                        document.getElementById('val-limit').innerText = '9000';
+                        document.getElementById('val-loan').innerText = 'Active';
+                    }
+                },
+                {
+                    label: 'Trigger Next Saga Step',
+                    action: () => {
+                        document.getElementById('step-desc').innerText = 'Triggering next step in Saga...';
+                        animateMsg('right', nextStep);
+                    }
+                },
+                {
+                    label: 'Step 3: Call External API (Fails)',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Step 3: Error';
+                        document.getElementById('step-desc').innerText = 'External API Fails (e.g., Timeout/Reject)! Triggering Compensation.';
+                        log('b', 'API: POST /transfer FAILED (500 Error)', 'failed');
+                        document.getElementById('val-balance').innerText = 'Failed';
+                    }
+                },
+                {
+                    label: 'Trigger Compensation',
+                    action: () => {
+                        document.getElementById('step-desc').innerText = 'Saga Engine triggers Compensation for Step 2...';
+                        animateMsg('left', nextStep);
+                    }
+                },
+                {
+                    label: 'Step 4: Compensate (Refund + Audit)',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Step 4: Rollback';
+                        document.getElementById('step-desc').innerText = 'Credit Service: Refund Limit & Update Audit Log.';
+                        log('a', 'COMPENSATE: Limit=10000, Audit="Cancelled"', 'committed');
+                        document.getElementById('val-limit').innerText = '10000';
+                        document.getElementById('val-loan').innerText = 'Cancelled';
+                    }
+                },
+                {
+                    label: 'Saga Rollback Complete',
+                    action: () => {
+                        document.getElementById('step-desc').innerText = 'Transaction Rolled Back. System Consistent.';
+                    }
+                }
+            ],
+
+            // Local Message
+            msg: [
+                {
+                    label: 'Step 1: Local Tx (Biz + Msg)',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Step 1: Local Tx';
+                        document.getElementById('step-desc').innerText = 'Deduct Limit + Insert Audit + Insert "Transfer" Msg.';
+                        log('a', 'Biz: Deduct Limit, Audit="Created"', 'committed');
+                        log('a', 'Msg: Insert {To:Gateway, State:NEW}', 'pending');
+                        document.getElementById('val-limit').innerText = '9000';
+                        document.getElementById('val-loan').innerText = 'Active';
+                    }
+                },
+                {
+                    label: 'Step 2: Async Worker Polls',
+                    action: () => {
+                        document.getElementById('global-status').innerText = 'Step 2: Async Relay';
+                        document.getElementById('step-desc').innerText = 'Worker polls "NEW" messages and sends to Gateway.';
+                        animateMsg('right', nextStep);
+                    }
+                },
+                {
+                    label: 'Step 3: Gateway Process',
+                    action: () => {
+                        document.getElementById('step-desc').innerText = 'Gateway receives request.';
+                        log('b', 'API: POST /transfer (Idempotent)', 'committed');
+                        document.getElementById('val-balance').innerText = 'Success';
+                    }
+                },
+                {
+                    label: 'Step 4: Ack & Notify',
+                    action: () => {
+                        document.getElementById('step-desc').innerText = 'Gateway Success. Update Msg=SENT. Trigger Notification.';
+                        animateMsg('left', () => {
+                            log('a', 'Msg: Update State=SENT', 'committed');
+                            log('a', 'Event: Publish "LoanSuccess" -> SMS', 'committed');
+                        });
+                    }
+                }
+            ]
+        };
+
+        // --- Code Snippets ---
+        const codeSnippets = {
+            xa: `// Seata AT Mode (Annotation based)
+// Note: Seata also supports TCC, Saga, and XA modes.
+@GlobalTransactional
+public void createLoan(String userId, int amount) {
+    // 1. Call Credit Service (Local DB)
+    creditMapper.deductLimit(userId, amount);
+    creditMapper.createLoan(userId, amount);
+    
+    // 2. Call Internal Account Service (RPC)
+    // Seata propagates XID via headers
+    accountClient.deposit(userId, amount);
+    
+    // If any exception throws here, Seata TM will rollback both.
+}`,
+            tcc: `// TCC Interface Definition
+public interface CreditTccService {
+    @TwoPhaseBusinessAction(name = "prepareLoan", commitMethod = "commit", rollbackMethod = "rollback")
+    void prepare(@BusinessActionContextParameter("uid") String uid, int amount);
+    
+    boolean commit(BusinessActionContext context);
+    boolean rollback(BusinessActionContext context);
+}
+
+// Implementation
+public void prepare(uid, amount) {
+    // Freeze balance, insert 'Pending' record
+}
+public boolean commit(context) {
+    // Real deduct, update record to 'Active'
+    // Must be Idempotent!
+}
+public boolean rollback(context) {
+    // Unfreeze, delete record
+    // Must be Idempotent!
+}`,
+            saga: `// Saga State Machine (Happy Path)
+SagaBuilder saga = SagaBuilder.newSaga("loan-transaction")
+    .activity("anti-fraud-check")
+        .invocation(riskService::checkUser) // Sync HTTP
+        .compensation(riskService::ignore)  // No-op
+    .activity("deduct-credit")
+        .invocation(creditService::createLoanAndAudit) // Local Tx
+        .compensation(creditService::cancelLoanAndAudit) 
+    .activity("deposit-bank")
+        .invocation(bankService::deposit) // External API
+        .compensation(bankService::withdraw)
+    .activity("notify-user")
+        .invocation(notifyService::sendSmsAsync) // Async
+        .compensation(notifyService::ignore)
+    .build();
+
+sagaEngine.run(saga);`,
+            saga_fail: `// Saga State Machine (Rollback Scenario)
+// If 'deposit-bank' fails, the engine automatically calls 'cancelLoan'.
+
+SagaBuilder saga = SagaBuilder.newSaga("loan-transaction")
+    .activity("anti-fraud-check")
+        .invocation(riskService::checkUser)
+        .compensation(riskService::ignore)
+    .activity("deduct-credit")
+        .invocation(creditService::createLoanAndAudit)
+        .compensation(creditService::cancelLoanAndAudit) // <--- Will be called
+    .activity("deposit-bank")
+        .invocation(bankService::deposit)        // <--- Fails here
+        .compensation(bankService::withdraw)
+    .build();
+
+// Engine catches exception and executes compensations in reverse order.
+sagaEngine.run(saga);`,
+            msg: `// 1. Local Transaction (Credit Service)
+@Transactional
+public void createLoan(userId, amount) {
+    // 1. Risk Check (Sync)
+    riskService.checkUser(userId);
+
+    // 2. Business Logic (Deduct + Audit)
+    creditRepo.deductLimit(userId, amount);
+    auditRepo.save(new AuditLog("LOAN_CREATED", userId));
+    
+    // 3. Insert Message (Reliable Eventual Consistency)
+    msgRepo.save(new TransactionMsg("BANK_DEPOSIT", amount, "NEW"));
+}
+
+// 2. Async Worker (Scheduled)
+public void processMessages() {
+    List<Msg> msgs = msgRepo.findByStatus("NEW");
+    for(Msg msg : msgs) {
+        try {
+            // External API must be Idempotent
+            bankClient.deposit(msg.getAmount()); 
+            msg.setStatus("SENT");
+            msgRepo.save(msg);
+            
+            // 3. Trigger Notification (Async)
+            notifyService.sendSmsAsync(msg.getUserId(), "Success");
+        } catch (Exception e) {
+            // Retry later
+        }
+    }
+}`,
+            trace: `// 1. Interceptor to capture Trace ID from HTTP Header
+public boolean preHandle(request, response, handler) {
+    String traceId = request.getHeader("X-Trace-Id");
+    if (traceId == null) traceId = UUID.randomUUID().toString();
+    MDC.put("traceId", traceId); // Put in ThreadLocal (Log4j/Slf4j)
+    return true;
+}
+
+// 2. Feign Client Interceptor (Propagate to next service)
+public void apply(RequestTemplate template) {
+    String traceId = MDC.get("traceId");
+    if (traceId != null) {
+        template.header("X-Trace-Id", traceId);
+    }
+}`,
+            id_gen: `// Snowflake Algorithm (Twitter)
+// Generates 64-bit unique ID: 
+// [1 bit sign] [41 bits timestamp] [10 bits machine ID] [12 bits sequence]
+
+public class SnowflakeIdWorker {
+    private long workerId;
+    private long sequence = 0L;
+    
+    public synchronized long nextId() {
+        long timestamp = timeGen();
+        if (timestamp < lastTimestamp) throw new RuntimeException("Clock moved backwards");
+        
+        if (lastTimestamp == timestamp) {
+            sequence = (sequence + 1) & sequenceMask;
+            if (sequence == 0) timestamp = tilNextMillis(lastTimestamp);
+        } else {
+            sequence = 0L;
+        }
+        
+        lastTimestamp = timestamp;
+        return ((timestamp - twepoch) << timestampLeftShift) | (workerId << workerIdShift) | sequence;
+    }
+}`,
+            retry: `// Spring Retry Example
+@Retryable(
+    value = { RemoteServiceException.class }, 
+    maxAttempts = 3, 
+    backoff = @Backoff(delay = 2000)
+)
+public void callExternalApi(String txId) {
+    // ... call logic ...
+}
+
+@Recover
+public void recover(RemoteServiceException e, String txId) {
+    // Fallback logic after 3 retries fail
+    // e.g., Insert into "Dead Letter Table" for manual review
+    deadLetterRepo.save(new DeadLetter(txId, e.getMessage()));
+}`
+        };
+
+        function renderCode() {
+            const selectedPattern = document.getElementById('code-pattern-select').value;
+            const code = codeSnippets[selectedPattern] || '// No code available';
+            const display = document.getElementById('code-display');
+            
+            // Simple syntax highlighting simulation
+            let html = code
+                .replace(/public|void|int|String|boolean|if|try|catch|return|@\w+/g, '<span class="keyword">$&</span>')
+                .replace(/\/\/.*$/gm, '<span class="comment">$&</span>')
+                .replace(/".*?"/g, '<span class="string">$&</span>');
+            display.innerHTML = '<pre>' + html + '</pre>';
+        }
+
+        // --- Modal Logic ---
+        function openInterviewModal() {
+            document.getElementById('interview-modal').style.display = 'block';
+        }
+        function closeInterviewModal() {
+            document.getElementById('interview-modal').style.display = 'none';
+        }
+        // Close when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('interview-modal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Init
+        resetDemo();
+
+    </script>
+</body>
+</html>

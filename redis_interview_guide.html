@@ -131,6 +131,42 @@
         </ul>
         <p><strong>Why?</strong> The bottleneck was network packet parsing, not CPU execution.</p>
 
+        <!-- 6. Advanced Protection -->
+        <h2>6. Cache Protection Strategies <span class="tag high">High Frequency</span> <a href="redis_cache_problems_demo.html" style="font-size: 0.9rem; color: #d82c20; text-decoration: underline; margin-left: 10px;">See Visualization</a></h2>
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Problem</th>
+                    <th>Description</th>
+                    <th>Solution</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Cache Penetration (穿透)</strong></td>
+                    <td>Querying non-existent keys (bypasses cache, hits DB).</td>
+                    <td>1. Bloom Filter.<br>2. Cache null values (short TTL).</td>
+                </tr>
+                <tr>
+                    <td><strong>Cache Breakdown (击穿)</strong></td>
+                    <td>Hot key expires, massive concurrent requests hit DB.</td>
+                    <td>1. Mutex Lock (setNX).<br>2. Logical Expiration (never expire, async update).</td>
+                </tr>
+                <tr>
+                    <td><strong>Cache Avalanche (雪崩)</strong></td>
+                    <td>Many keys expire at once OR Redis crashes.</td>
+                    <td>1. Randomize TTL.<br>2. Redis Cluster (High Availability).<br>3. Circuit Breaker (Hystrix/Sentinel).</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- 7. High Availability -->
+        <h2>7. High Availability: Sentinel vs Cluster</h2>
+        <ul>
+            <li><strong>Sentinel:</strong> Monitors Master-Slave. Auto-failover. ⚠️ Single write node bottleneck.</li>
+            <li><strong>Cluster:</strong> Sharding (Slot 0-16383). Multi-master. ✅ Horizontal scaling.</li>
+        </ul>
+
     </div>
 
 </body>

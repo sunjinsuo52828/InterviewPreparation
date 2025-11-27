@@ -249,6 +249,33 @@
                 </div>
             </div>
 
+            <div class="interview-q">
+                <h3>7. Isolation Levels & Read Phenomena</h3>
+                <div class="interview-a">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <tr style="background: #f3e5f5;"><th>Level</th><th>Dirty Read</th><th>Non-Repeatable Read</th><th>Phantom Read</th></tr>
+                        <tr><td>Read Uncommitted</td><td>❌ Possible</td><td>❌ Possible</td><td>❌ Possible</td></tr>
+                        <tr><td>Read Committed (RC)</td><td>✅ Prevented</td><td>❌ Possible</td><td>❌ Possible</td></tr>
+                        <tr><td>Repeatable Read (RR)</td><td>✅ Prevented</td><td>✅ Prevented</td><td>✅ Prevented (via Gap Lock)</td></tr>
+                        <tr><td>Serializable</td><td>✅ Prevented</td><td>✅ Prevented</td><td>✅ Prevented</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <h3>8. Snapshot Read vs Current Read</h3>
+                <div class="interview-a">
+                    <ul style="font-size: 0.9rem; line-height: 1.6;">
+                        <li><strong>Snapshot Read (快照读):</strong> Standard <code>SELECT</code>. Uses MVCC (Undo Log). No locks.</li>
+                        <li><strong>Current Read (当前读):</strong> <code>SELECT ... FOR UPDATE</code>, <code>UPDATE</code>, <code>DELETE</code>. Reads latest committed version. Uses <strong>Next-Key Locks</strong> in RR.</li>
+                    </ul>
+                    <div style="background: #eee; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.85rem;">
+                        -- Current Read Example<br>
+                        SELECT * FROM table WHERE id = 1 FOR UPDATE;
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
