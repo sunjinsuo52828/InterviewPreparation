@@ -3,13 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spring Boot Startup Process Visualization</title>
+    <title>Spring Boot Deep Dive</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; margin: 0; padding: 20px; }
-        h1 { color: #6db33f; } /* Spring Green */
+        :root {
+            --primary: #6db33f;
+            --secondary: #34302d;
+            --bg: #f0f2f5;
+            --text: #333;
+        }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: var(--bg); 
+            color: var(--text);
+            margin: 0; 
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
         
-        .container { display: flex; width: 100%; max-width: 1000px; gap: 20px; }
-        
+        /* Navbar */
+        .navbar {
+            background: white;
+            border-bottom: 1px solid #ddd;
+            padding: 0 20px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+        .brand { font-size: 1.2rem; font-weight: bold; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+        .nav-tabs { display: flex; gap: 20px; height: 100%; }
+        .nav-tab {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .nav-tab:hover { color: var(--primary); }
+        .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        /* Content Area */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            position: relative;
+        }
+        .view-section { display: none; animation: fadeIn 0.3s; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Startup Timeline Styles --- */
+        .timeline-container { display: flex; gap: 20px; max-width: 1200px; margin: 0 auto; }
         .timeline { 
             flex: 1; display: flex; flex-direction: column; align-items: center; 
             position: relative; padding: 20px 0;
@@ -17,125 +70,300 @@
         .timeline::before {
             content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 4px; background: #ddd; transform: translateX(-50%); z-index: 0;
         }
-        
         .step {
-            background: white; border: 2px solid #6db33f; border-radius: 8px; padding: 15px; width: 300px;
+            background: white; border: 2px solid var(--primary); border-radius: 8px; padding: 15px; width: 300px;
             margin-bottom: 20px; z-index: 1; text-align: center; cursor: pointer; transition: all 0.3s;
             position: relative;
         }
-        .step.active { background: #6db33f; color: white; transform: scale(1.05); box-shadow: 0 4px 15px rgba(109, 179, 63, 0.4); }
+        .step.active { background: var(--primary); color: white; transform: scale(1.05); box-shadow: 0 4px 15px rgba(109, 179, 63, 0.4); }
         .step.completed { background: #e8f5e9; border-color: #2e7d32; color: #2e7d32; }
         
         .details-panel {
             flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             height: fit-content; position: sticky; top: 20px;
         }
-        .details-panel h2 { margin-top: 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .details-content { font-size: 1rem; line-height: 1.6; color: #555; }
         .code-snippet { background: #2d2d2d; color: #ccc; padding: 10px; border-radius: 4px; font-family: monospace; margin-top: 10px; overflow-x: auto; }
         
-        .controls { margin-bottom: 20px; position: sticky; top: 0; z-index: 100; background: #f0f2f5; padding: 10px; width: 100%; text-align: center; }
-        button { background: #333; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 1rem; }
-        button:hover { background: #555; }
+        .controls { margin-bottom: 20px; text-align: center; }
+        button { background: var(--secondary); color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; margin: 0 5px; }
+        button:hover { opacity: 0.9; }
+
+        /* --- Bean Lifecycle Styles --- */
+        .lifecycle-stage {
+            background: white; padding: 15px; margin-bottom: 15px; border-radius: 6px; border-left: 5px solid #ddd;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: all 0.3s;
+        }
+        .lifecycle-stage:hover { transform: translateX(5px); }
+        .lifecycle-stage.highlight { border-left-color: var(--primary); background: #f1f8e9; }
+        .stage-title { font-weight: bold; color: #333; margin-bottom: 5px; display: flex; justify-content: space-between; }
+        .stage-desc { font-size: 0.9rem; color: #666; }
+        .interface-tag { background: #e0f7fa; color: #006064; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-family: monospace; }
+
+        /* --- Interview & Comparison Styles --- */
+        .qa-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
+        .qa-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 4px solid var(--primary); }
+        .qa-q { font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; color: #2c3e50; }
+        .qa-a { color: #555; line-height: 1.6; }
+        .comparison-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .comparison-table th, .comparison-table td { border: 1px solid #eee; padding: 8px; text-align: left; font-size: 0.9rem; }
+        .comparison-table th { background: #f9f9f9; color: #333; }
 
     </style>
 </head>
 <body>
-    <h1>Spring Boot Startup Process</h1>
-    
-    <div class="controls">
-        <button onclick="prevStep()">Previous</button>
-        <button onclick="nextStep()" id="btn-next">Start / Next</button>
-        <button onclick="reset()">Reset</button>
-    </div>
 
-    <div class="container">
-        <div class="timeline" id="timeline">
-            <!-- Steps generated by JS -->
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="brand">🍃 Spring Boot Master</div>
+        <div class="nav-tabs">
+            <div class="nav-tab active" onclick="switchTab('startup')">1. Startup Process</div>
+            <div class="nav-tab" onclick="switchTab('lifecycle')">2. Bean Lifecycle</div>
+            <div class="nav-tab" onclick="switchTab('interview')">3. Interview & Compare</div>
         </div>
-        <div class="details-panel">
-            <h2 id="detail-title">Welcome</h2>
-            <div id="detail-content" class="details-content">
-                Click "Start" to walk through the `SpringApplication.run()` method execution flow.
+    </nav>
+
+    <div class="main-content">
+        
+        <!-- TAB 1: STARTUP PROCESS -->
+        <div id="view-startup" class="view-section active">
+            <div class="controls">
+                <button onclick="prevStep()">Previous</button>
+                <button onclick="nextStep()">Next Step</button>
+                <button onclick="reset()">Reset</button>
+            </div>
+            <div class="timeline-container">
+                <div class="timeline" id="timeline"></div>
+                <div class="details-panel">
+                    <h2 id="detail-title" style="margin-top:0; color:var(--primary);">Welcome</h2>
+                    <div id="detail-content" style="line-height:1.6; color:#555;">
+                        Click "Next Step" to visualize <code>SpringApplication.run()</code>.
+                    </div>
+                </div>
             </div>
         </div>
+
+        <!-- TAB 2: BEAN LIFECYCLE -->
+        <div id="view-lifecycle" class="view-section">
+            <div style="max-width: 800px; margin: 0 auto;">
+                <h2 style="text-align:center; color:#333;">Spring Bean Lifecycle (Singleton)</h2>
+                <p style="text-align:center; color:#666; margin-bottom:30px;">
+                    Occurs during <code>refresh()</code> -> <code>finishBeanFactoryInitialization()</code>
+                </p>
+
+                <div class="lifecycle-stage highlight">
+                    <div class="stage-title">1. Instantiation <span class="interface-tag">Constructor</span></div>
+                    <div class="stage-desc">Spring creates the bean instance using the constructor (or factory method).</div>
+                </div>
+
+                <div class="lifecycle-stage">
+                    <div class="stage-title">2. Populate Properties <span class="interface-tag">Setter / Field Injection</span></div>
+                    <div class="stage-desc">Spring injects dependencies (@Autowired, @Value) into the bean.</div>
+                </div>
+
+                <div class="lifecycle-stage">
+                    <div class="stage-title">3. Aware Interfaces <span class="interface-tag">BeanNameAware, BeanFactoryAware</span></div>
+                    <div class="stage-desc">If the bean implements Aware interfaces, Spring injects infrastructure objects (ID, Factory, Context).</div>
+                </div>
+
+                <div class="lifecycle-stage" style="border-left-color: #ff9800;">
+                    <div class="stage-title">4. BeanPostProcessor (Before) <span class="interface-tag">postProcessBeforeInitialization</span></div>
+                    <div class="stage-desc"><b>Critical Hook:</b> Modify the bean instance <i>before</i> initialization (e.g., @PostConstruct handling).</div>
+                </div>
+
+                <div class="lifecycle-stage">
+                    <div class="stage-title">5. Initialization <span class="interface-tag">@PostConstruct, InitializingBean</span></div>
+                    <div class="stage-desc">Custom init logic runs here. (1. @PostConstruct, 2. afterPropertiesSet, 3. init-method).</div>
+                </div>
+
+                <div class="lifecycle-stage" style="border-left-color: #ff9800;">
+                    <div class="stage-title">6. BeanPostProcessor (After) <span class="interface-tag">postProcessAfterInitialization</span></div>
+                    <div class="stage-desc"><b>Critical Hook:</b> Create <b>AOP Proxies</b> here. If the bean needs transaction/async, it is wrapped in a Proxy now.</div>
+                </div>
+
+                <div class="lifecycle-stage highlight">
+                    <div class="stage-title">7. Ready to Use</div>
+                    <div class="stage-desc">Bean is fully initialized and stored in the Singleton Cache.</div>
+                </div>
+
+                <div class="lifecycle-stage" style="opacity:0.7;">
+                    <div class="stage-title">8. Destruction <span class="interface-tag">@PreDestroy, DisposableBean</span></div>
+                    <div class="stage-desc">When context closes.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: INTERVIEW & COMPARISON -->
+        <div id="view-interview" class="view-section">
+            <div class="qa-grid">
+                
+                <!-- Q1: Spring Boot Advantages -->
+                <div class="qa-card">
+                    <div class="qa-q">Q: Spring Boot 的核心优势是什么？</div>
+                    <div class="qa-a">
+                        <ul>
+                            <li><b>Auto Configuration (自动配置)</b>: 根据 Classpath 下的 jar 包自动配置 Bean (如发现 H2 则配 DataSource)。</li>
+                            <li><b>Starter Dependencies (起步依赖)</b>: 一站式引入相关库 (如 <code>spring-boot-starter-web</code> 包含 Tomcat, Jackson, MVC)。</li>
+                            <li><b>Embedded Server (内嵌容器)</b>: 直接打成 Jar 包运行 (<code>java -jar</code>)，无需部署到外部 Tomcat。</li>
+                            <li><b>Production Ready (Actuator)</b>: 提供监控、健康检查、Metrics。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Q: Why Enterprise -->
+                <div class="qa-card">
+                    <div class="qa-q">Q: 为什么目前企业级开发首选 Spring Boot？</div>
+                    <div class="qa-a">
+                        <ul>
+                            <li><b>约定优于配置 (Convention over Configuration)</b>: 极大降低了项目搭建复杂度，无需繁琐 XML，开箱即用。</li>
+                            <li><b>强大的生态系统 (Rich Ecosystem)</b>: 背靠 Spring 庞大生态，无缝集成 Spring Cloud (微服务治理), Spring Security (企业级安全), Spring Data (统一数据访问)。</li>
+                            <li><b>依赖管理标准化 (Dependency Management)</b>: 通过 <code>spring-boot-dependencies</code> (BOM) 提供了一套经过验证的依赖版本组合，彻底解决了 "Jar Hell" (依赖冲突) 问题。</li>
+                            <li><b>运维友好 (Ops Friendly)</b>: 内嵌容器 (Tomcat) 简化部署 (One Jar)，Actuator 模块提供开箱即用的生产级监控 (Health, Metrics, Dump)。</li>
+                            <li><b>人才与社区 (Community & Talent)</b>: 市场占有率极高，文档丰富，解决方案成熟，招聘容易。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Q2: Comparison -->
+                <div class="qa-card">
+                    <div class="qa-q">Q: Spring Boot vs 其他微服务框架？</div>
+                    <div class="qa-a">
+                        <table class="comparison-table">
+                            <tr>
+                                <th>Feature</th>
+                                <th>Spring Boot</th>
+                                <th>Quarkus / Micronaut</th>
+                            </tr>
+                            <tr>
+                                <td><b>Startup Time</b></td>
+                                <td>Slower (Reflection based)</td>
+                                <td>Fast (Compile-time processing)</td>
+                            </tr>
+                            <tr>
+                                <td><b>Memory</b></td>
+                                <td>Higher</td>
+                                <td>Lower (Native Image friendly)</td>
+                            </tr>
+                            <tr>
+                                <td><b>Ecosystem</b></td>
+                                <td>Huge, Mature</td>
+                                <td>Growing</td>
+                            </tr>
+                            <tr>
+                                <td><b>Use Case</b></td>
+                                <td>General Enterprise Apps</td>
+                                <td>Serverless, K8s Native</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Q3: Startup & Bean Lifecycle -->
+                <div class="qa-card">
+                    <div class="qa-q">Q: 初始化过程如何反映 Bean 生命周期？</div>
+                    <div class="qa-a">
+                        在 <code>refresh()</code> 方法的第 11 步 <code>finishBeanFactoryInitialization()</code> 中：
+                        <br><br>
+                        1. 遍历所有 BeanDefinition。<br>
+                        2. <b>Instantiation</b>: 反射调用构造器。<br>
+                        3. <b>Population</b>: 注入属性。<br>
+                        4. <b>Initialization</b>: 调用 <code>BeanPostProcessor</code> (AOP 代理产生的地方) 和 <code>init-method</code>。<br>
+                        <br>
+                        <i>* Spring Boot 的自动配置类 (@Configuration) 也是在这个阶段被处理并注册 BeanDefinition 的。</i>
+                    </div>
+                </div>
+
+                <!-- Q4: SPI Mechanism -->
+                <div class="qa-card">
+                    <div class="qa-q">Q: Spring Boot 的 SPI 机制？</div>
+                    <div class="qa-a">
+                        利用 <code>spring.factories</code> (在 META-INF 下) 文件。
+                        <br>
+                        在启动阶段 (<code>getRunListeners</code>, <code>prepareEnvironment</code>) 会加载这些文件定义的类，实现扩展解耦。
+                        <br>
+                        (注: Spring Boot 2.7+ 开始推荐使用 <code>META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports</code>)
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
     </div>
 
     <script>
+        // --- Tab Logic ---
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            document.getElementById('view-' + tabId).classList.add('active');
+        }
+
+        // --- Startup Timeline Logic ---
         const steps = [
             {
-                id: 'start',
                 title: 'SpringApplication.run()',
-                desc: 'The entry point of the application. Static helper that creates an instance of SpringApplication and calls run().',
+                desc: 'Entry point. Creates SpringApplication instance.',
                 code: 'public static ConfigurableApplicationContext run(Class<?>[] primarySources, String[] args) {\n    return new SpringApplication(primarySources).run(args);\n}'
             },
             {
-                id: 'bootstrap',
-                title: '1. Create Bootstrap Context',
-                desc: 'Initializes the bootstrap context (if cloud features are present) and starts the StopWatch to measure startup time.',
+                title: '1. Bootstrap Context',
+                desc: 'Init StopWatch, create BootstrapContext.',
                 code: 'StopWatch stopWatch = new StopWatch();\nstopWatch.start();\nDefaultBootstrapContext bootstrapContext = createBootstrapContext();'
             },
             {
-                id: 'listeners',
-                title: '2. Get Run Listeners',
-                desc: 'Loads `SpringApplicationRunListener`s from `spring.factories`. These listeners hook into various stages of the lifecycle.',
-                code: 'SpringApplicationRunListeners listeners = getRunListeners(args);\nlisteners.starting(bootstrapContext, this.mainApplicationClass);'
+                title: '2. Get Listeners (SPI)',
+                desc: 'Load SpringApplicationRunListeners from spring.factories.',
+                code: 'SpringApplicationRunListeners listeners = getRunListeners(args);\nlisteners.starting(...);'
             },
             {
-                id: 'environment',
                 title: '3. Prepare Environment',
-                desc: 'Creates and configures the `ConfigurableEnvironment`. Loads properties (application.properties, system props, etc.) and binds them.',
+                desc: 'Load application.properties, System env, Profiles.',
                 code: 'ConfigurableEnvironment environment = prepareEnvironment(listeners, bootstrapContext, applicationArguments);'
             },
             {
-                id: 'create-context',
-                title: '4. Create ApplicationContext',
-                desc: 'Instantiates the appropriate ApplicationContext strategy (e.g., `AnnotationConfigServletWebServerApplicationContext` for web apps).',
+                title: '4. Create Context',
+                desc: 'Create AnnotationConfigServletWebServerApplicationContext (for Web).',
                 code: 'context = createApplicationContext();'
             },
             {
-                id: 'prepare-context',
                 title: '5. Prepare Context',
-                desc: 'Applies initializers, loads bean definitions from sources, and notifies listeners that context is prepared but not refreshed.',
-                code: 'prepareContext(context, environment, listeners, applicationArguments, printedBanner);'
+                desc: 'Apply initializers, load BeanDefinitions from Main Class.',
+                code: 'prepareContext(context, environment, listeners, ...);'
             },
             {
-                id: 'refresh',
-                title: '6. Refresh Context (The Core)',
-                desc: 'The heart of Spring. <code>AbstractApplicationContext.refresh()</code> performs these 12 steps:<br>' +
-                      '<ol style="text-align:left; font-size:0.9rem; margin-top:5px;">' +
-                      '<li><b>prepareRefresh()</b>: Set start time, active flag, init property sources.</li>' +
-                      '<li><b>obtainFreshBeanFactory()</b>: Load BeanDefinitions (XML/JavaConfig), create BeanFactory.</li>' +
-                      '<li><b>prepareBeanFactory()</b>: Configure ClassLoader, BPPs, ignore interfaces.</li>' +
-                      '<li><b>postProcessBeanFactory()</b>: Hook for subclasses (e.g., WebContext registers ServletContextAware).</li>' +
-                      '<li><b>invokeBeanFactoryPostProcessors()</b>: Run BFPPs (e.g., scan packages, replace placeholders).</li>' +
-                      '<li><b>registerBeanPostProcessors()</b>: Find and register BPPs (AutowiredAnnotationBPP, etc.).</li>' +
+                title: '6. Refresh Context (Core)',
+                desc: 'The heart of Spring. <code>AbstractApplicationContext.refresh()</code> performs these critical steps:<br>' +
+                      '<ol style="text-align:left; font-size:0.9rem; margin-top:5px; padding-left:20px;">' +
+                      '<li><b>prepareRefresh()</b>: Set start time, active flag.</li>' +
+                      '<li><b>obtainFreshBeanFactory()</b>: Load BeanDefinitions (XML/JavaConfig).</li>' +
+                      '<li><b>prepareBeanFactory()</b>: Configure ClassLoader, standard BPPs.</li>' +
+                      '<li><b>postProcessBeanFactory()</b>: Hook for WebContext (ServletContextAware).</li>' +
+                      '<li><b>invokeBeanFactoryPostProcessors()</b>: <span style="color:#d32f2f">Important!</span> Scan packages, parse @Configuration, replace placeholders.</li>' +
+                      '<li><b>registerBeanPostProcessors()</b>: Register BPPs (AutowiredAnnotationBPP, etc.) for later use.</li>' +
                       '<li><b>initMessageSource()</b>: Setup i18n.</li>' +
                       '<li><b>initApplicationEventMulticaster()</b>: Setup event broadcasting.</li>' +
-                      '<li><b>onRefresh()</b>: Special bean init (e.g., <b>Create Embedded Web Server</b> like Tomcat).</li>' +
+                      '<li><b>onRefresh()</b>: <span style="color:#d32f2f">Important!</span> Create Embedded Web Server (Tomcat/Jetty).</li>' +
                       '<li><b>registerListeners()</b>: Register ApplicationListeners.</li>' +
-                      '<li><b>finishBeanFactoryInitialization()</b>: <b>Instantiate all non-lazy singletons</b>. (DI, AOP proxies created here).</li>' +
-                      '<li><b>finishRefresh()</b>: Publish ContextRefreshedEvent, start LifecycleProcessor.</li>' +
+                      '<li><b>finishBeanFactoryInitialization()</b>: <span style="color:#d32f2f">Critical!</span> Instantiate all non-lazy singletons. (DI, AOP proxies created here).</li>' +
+                      '<li><b>finishRefresh()</b>: Publish ContextRefreshedEvent.</li>' +
                       '</ol>',
-                code: 'public void refresh() throws BeansException, IllegalStateException {\n    synchronized (this.startupShutdownMonitor) {\n        prepareRefresh();\n        ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();\n        prepareBeanFactory(beanFactory);\n        try {\n            postProcessBeanFactory(beanFactory);\n            invokeBeanFactoryPostProcessors(beanFactory);\n            registerBeanPostProcessors(beanFactory);\n            initMessageSource();\n            initApplicationEventMulticaster();\n            onRefresh();\n            registerListeners();\n            finishBeanFactoryInitialization(beanFactory);\n            finishRefresh();\n        } ...\n    }\n}'
+                code: 'refresh(); // -> finishBeanFactoryInitialization(beanFactory);'
             },
             {
-                id: 'runners',
                 title: '7. Call Runners',
-                desc: 'Executes `CommandLineRunner` and `ApplicationRunner` beans after the context is fully started.',
+                desc: 'Execute CommandLineRunner / ApplicationRunner.',
                 code: 'callRunners(context, applicationArguments);'
             },
             {
-                id: 'finish',
                 title: '8. Ready',
-                desc: 'Startup complete. The application is now running and ready to accept requests.',
-                code: 'listeners.running(context);\nreturn context;'
+                desc: 'Application is running.',
+                code: 'listeners.running(context);'
             }
         ];
 
         let currentStepIndex = -1;
 
-        function init() {
+        function initTimeline() {
             const timeline = document.getElementById('timeline');
             timeline.innerHTML = '';
             steps.forEach((step, index) => {
@@ -169,15 +397,10 @@
 
         function reset() {
             currentStepIndex = -1;
-            document.querySelectorAll('.step').forEach(s => {
-                s.classList.remove('active', 'completed');
-            });
-            document.getElementById('detail-title').innerText = 'Welcome';
-            document.getElementById('detail-content').innerHTML = 'Click "Start" to walk through the `SpringApplication.run()` method execution flow.';
+            updateUI();
         }
 
         function updateUI() {
-            // Update Steps
             steps.forEach((step, index) => {
                 const el = document.getElementById('step-' + index);
                 el.classList.remove('active', 'completed');
@@ -185,19 +408,21 @@
                 if (index === currentStepIndex) el.classList.add('active');
             });
 
-            // Update Details
-            const step = steps[currentStepIndex];
-            document.getElementById('detail-title').innerText = step.title;
-            document.getElementById('detail-content').innerHTML = `
-                <p>${step.desc}</p>
-                <div class="code-snippet"><pre>${step.code}</pre></div>
-            `;
-            
-            // Scroll into view
-            document.getElementById('step-' + currentStepIndex).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if(currentStepIndex >= 0) {
+                const step = steps[currentStepIndex];
+                document.getElementById('detail-title').innerText = step.title;
+                document.getElementById('detail-content').innerHTML = `
+                    <p>${step.desc}</p>
+                    <div class="code-snippet"><pre>${step.code}</pre></div>
+                `;
+                document.getElementById('step-' + currentStepIndex).scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                document.getElementById('detail-title').innerText = 'Welcome';
+                document.getElementById('detail-content').innerHTML = 'Click "Next Step" to visualize <code>SpringApplication.run()</code>.';
+            }
         }
 
-        init();
+        initTimeline();
 
     </script>
 </body>
