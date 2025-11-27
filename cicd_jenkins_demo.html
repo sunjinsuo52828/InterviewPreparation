@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jenkins CI/CD & DevOps Demo</title>
+    <style>
+        :root {
+            --primary-color: #D33833; /* Jenkins Red */
+            --secondary-color: #335061; /* Jenkins Dark Blue */
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+            --card-bg: #ffffff;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --error-color: #c0392b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1, h2, h3 {
+            color: var(--secondary-color);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-top: 5px solid var(--primary-color);
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: var(--card-bg);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .pipeline-viz {
+            background: #2c3e50;
+            padding: 30px;
+            border-radius: 10px;
+            color: white;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        .stage {
+            background: var(--card-bg);
+            color: var(--text-color);
+            padding: 15px 25px;
+            border-radius: 6px;
+            font-weight: bold;
+            position: relative;
+            min-width: 100px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .stage.success { border-color: var(--success-color); color: var(--success-color); }
+        .stage.running { border-color: var(--warning-color); color: var(--warning-color); animation: pulse 1.5s infinite; }
+        .stage.failed { border-color: var(--error-color); color: var(--error-color); }
+
+        .arrow {
+            font-size: 24px;
+            color: #7f8c8d;
+            margin: 0 10px;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(243, 156, 18, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0); }
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin-top: 10px;
+            white-space: pre; /* Critical for preserving formatting */
+            line-height: 1.5;
+        }
+
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; }
+        .function { color: #dcdcaa; }
+
+        .interview-q {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        .interview-q h4 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+        .interview-a {
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        button.action-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 0 5px;
+        }
+        
+        button.action-btn:hover {
+            opacity: 0.9;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Jenkins CI/CD & DevOps Architecture</h1>
+        <p>Interactive guide to Jenkins Pipelines, Configuration, and Interview Concepts</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('pipeline')">Pipeline Visualization</button>
+        <button class="tab-btn" onclick="switchTab('config')">Jenkinsfile Config</button>
+        <button class="tab-btn" onclick="switchTab('concepts')">Core Concepts</button>
+        <button class="tab-btn" onclick="switchTab('interview')">Interview Q&A</button>
+    </div>
+
+    <!-- Tab 1: Pipeline Visualization -->
+    <div id="pipeline" class="tab-content active">
+        <div class="card">
+            <h3>Interactive Pipeline Simulator</h3>
+            <p>Click "Run Pipeline" to simulate a typical CI/CD flow.</p>
+            
+            <div class="pipeline-viz" id="pipelineViz">
+                <div class="stage" id="stage-checkout">Checkout SCM</div>
+                <div class="arrow">→</div>
+                <div class="stage" id="stage-build">Build & Install</div>
+                <div class="arrow">→</div>
+                <div class="stage" id="stage-test">Unit Tests</div>
+                <div class="arrow">→</div>
+                <div class="stage" id="stage-scan">SonarQube Scan</div>
+                <div class="arrow">→</div>
+                <div class="stage" id="stage-docker">Docker Build</div>
+                <div class="arrow">→</div>
+                <div class="stage" id="stage-deploy">Deploy (K8s)</div>
+            </div>
+
+            <div class="code-block" id="console-output" style="height: 150px; overflow-y: auto; font-size: 12px;">
+// Console Output will appear here...
+            </div>
+
+            <div class="controls">
+                <button class="action-btn" onclick="runPipeline()">Run Pipeline</button>
+                <button class="action-btn" onclick="resetPipeline()" style="background-color: #7f8c8d;">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 2: Jenkinsfile Configuration -->
+    <div id="config" class="tab-content">
+        <div class="card-grid">
+            <div class="card">
+                <h3>Declarative Pipeline (Recommended)</h3>
+                <p>Modern, structured syntax with better error handling and visualization support.</p>
+                <div class="code-block">
+<span class="keyword">pipeline</span> {
+    <span class="keyword">agent</span> any
+    
+    <span class="keyword">environment</span> {
+        REGISTRY = <span class="string">'docker.io/myrepo'</span>
+        CREDENTIALS_ID = <span class="string">'docker-hub-creds'</span>
+    }
+
+    <span class="keyword">stages</span> {
+        <span class="keyword">stage</span>(<span class="string">'Checkout'</span>) {
+            <span class="keyword">steps</span> {
+                <span class="function">git</span> branch: <span class="string">'main'</span>, url: <span class="string">'https://github.com/user/repo.git'</span>
+            }
+        }
+        
+        <span class="keyword">stage</span>(<span class="string">'Build'</span>) {
+            <span class="keyword">steps</span> {
+                <span class="function">sh</span> <span class="string">'npm install'</span>
+                <span class="function">sh</span> <span class="string">'npm run build'</span>
+            }
+        }
+
+        <span class="keyword">stage</span>(<span class="string">'Test'</span>) {
+            <span class="keyword">steps</span> {
+                <span class="function">sh</span> <span class="string">'npm test'</span>
+                <span class="function">junit</span> <span class="string">'test-results.xml'</span>
+            }
+        }
+
+        <span class="keyword">stage</span>(<span class="string">'SonarQube Analysis'</span>) {
+            <span class="keyword">steps</span> {
+                <span class="function">withSonarQubeEnv</span>(<span class="string">'SonarQube Server'</span>) {
+                    <span class="function">sh</span> <span class="string">'npm run sonar'</span>
+                }
+            }
+        }
+
+        <span class="keyword">stage</span>(<span class="string">'Deploy to DIT'</span>) {
+            <span class="keyword">steps</span> {
+                <span class="function">sh</span> <span class="string">'./deploy.sh --env=dit'</span>
+                <span class="function">echo</span> <span class="string">'Deployed to DIT successfully'</span>
+            }
+        }
+    }
+    
+    <span class="keyword">post</span> {
+        <span class="keyword">always</span> {
+            <span class="function">cleanWs</span>()
+        }
+        <span class="keyword">failure</span> {
+            <span class="function">mail</span> to: <span class="string">'team@example.com'</span>, subject: <span class="string">'Build Failed'</span>
+        }
+    }
+}
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Scripted Pipeline (Legacy/Advanced)</h3>
+                <p>Groovy-based, imperative syntax. More flexible but harder to maintain.</p>
+                <div class="code-block">
+<span class="keyword">node</span> {
+    <span class="keyword">try</span> {
+        <span class="keyword">stage</span>(<span class="string">'Preparation'</span>) {
+            <span class="function">git</span> <span class="string">'https://github.com/user/repo.git'</span>
+        }
+        
+        <span class="keyword">stage</span>(<span class="string">'Build'</span>) {
+            <span class="keyword">if</span> (isUnix()) {
+                <span class="function">sh</span> <span class="string">'./mvnw clean package'</span>
+            } <span class="keyword">else</span> {
+                <span class="function">bat</span> <span class="string">'mvnw.cmd clean package'</span>
+            }
+        }
+    } <span class="keyword">catch</span> (e) {
+        <span class="function">currentBuild.result</span> = <span class="string">'FAILURE'</span>
+        <span class="keyword">throw</span> e
+    }
+}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 3: Core Concepts -->
+    <div id="concepts" class="tab-content">
+        <div class="card-grid">
+            <div class="card">
+                <h3>Master-Slave Architecture</h3>
+                <p><strong>Master (Controller):</strong> Handles scheduling, dispatching builds, monitoring slaves, and recording results. Do NOT run heavy builds here.</p>
+                <p><strong>Slave (Agent):</strong> Executes the actual build tasks. Can be a VM, a physical machine, or a Docker container (Ephemeral Agents).</p>
+            </div>
+            <div class="card">
+                <h3>CI vs CD</h3>
+                <p><strong>Continuous Integration (CI):</strong> Frequent merges to main branch, automated build & test. Goal: Detect errors early.</p>
+                <p><strong>Continuous Delivery (CD):</strong> Automated release to staging/production, but may require manual approval.</p>
+                <p><strong>Continuous Deployment:</strong> Fully automated path to production without human intervention.</p>
+            </div>
+            <div class="card">
+                <h3>Plugins Ecosystem</h3>
+                <p>Jenkins power comes from plugins. Key plugins:</p>
+                <ul>
+                    <li><strong>Blue Ocean:</strong> Modern UI for pipelines.</li>
+                    <li><strong>Git/GitHub:</strong> SCM integration.</li>
+                    <li><strong>Docker Pipeline:</strong> Build/push images.</li>
+                    <li><strong>Kubernetes:</strong> Dynamic agents on K8s.</li>
+                    <li><strong>Credentials Binding:</strong> Secure secret management.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 4: Interview Q&A -->
+    <div id="interview" class="tab-content">
+        <div class="card">
+            <h3>Jenkins & CI/CD Interview Questions</h3>
+            
+            <div class="interview-q">
+                <h4>Q1: What is the difference between Declarative and Scripted Pipelines?</h4>
+                <div class="interview-a">
+                    <strong>Declarative:</strong> Newer, stricter syntax, easier to read, supports "Restart from Stage", visual editor support. Starts with `pipeline {}`.<br>
+                    <strong>Scripted:</strong> Older, full Groovy power, complex logic possible, harder to maintain. Starts with `node {}`.
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <h4>Q2: How do you handle secrets (passwords, API keys) in Jenkins?</h4>
+                <div class="interview-a">
+                    Use the <strong>Credentials Plugin</strong>. Store secrets in Jenkins (Global or Folder scope). Inject them into the pipeline using `withCredentials` block or `credentials()` helper in environment variables. NEVER hardcode secrets in the Jenkinsfile.
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <h4>Q3: What are Shared Libraries?</h4>
+                <div class="interview-a">
+                    A way to share reusable code across multiple pipelines. Defined in a separate Git repo. Structure: `vars/` (global functions), `src/` (Groovy classes), `resources/`. Allows you to define custom steps like `deployToK8s()`.
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <h4>Q4: Explain the "Post" section in Declarative Pipeline.</h4>
+                <div class="interview-a">
+                    Defines actions to run at the end of the pipeline or stage based on the status. Conditions: `always`, `success`, `failure`, `unstable`, `changed`. Useful for notifications (Slack/Email) or cleanup (`cleanWs()`).
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <h4>Q5: How does Jenkins integrate with Kubernetes?</h4>
+                <div class="interview-a">
+                    1. <strong>Deployment target:</strong> Jenkins deploys apps to K8s using `kubectl` or Helm.<br>
+                    2. <strong>Execution environment:</strong> Jenkins uses the Kubernetes plugin to spin up <strong>Ephemeral Agents</strong> (Pods) for each build. The pod dies after the build, ensuring a clean environment every time.
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function switchTab(tabId) {
+        // Hide all contents
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        // Deactivate all buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Activate selected
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    // Pipeline Simulation Logic
+    const stages = ['checkout', 'build', 'test', 'scan', 'docker', 'deploy'];
+    let isRunning = false;
+
+    function log(message) {
+        const consoleOutput = document.getElementById('console-output');
+        const time = new Date().toLocaleTimeString();
+        consoleOutput.innerHTML += `[${time}] ${message}\n`;
+        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+    }
+
+    async function runPipeline() {
+        if (isRunning) return;
+        isRunning = true;
+        resetPipelineUI();
+        log("Pipeline started by user 'admin'...");
+
+        for (const stageId of stages) {
+            const el = document.getElementById(`stage-${stageId}`);
+            el.classList.add('running');
+            log(`Starting stage: ${stageId.toUpperCase()}...`);
+            
+            // Simulate work
+            await new Promise(r => setTimeout(r, 1000 + Math.random() * 1000));
+
+            // Random failure chance (low for demo purposes)
+            if (Math.random() > 0.95) {
+                el.classList.remove('running');
+                el.classList.add('failed');
+                log(`ERROR: Stage ${stageId.toUpperCase()} failed!`);
+                log("Pipeline finished: FAILURE");
+                isRunning = false;
+                return;
+            }
+
+            el.classList.remove('running');
+            el.classList.add('success');
+            log(`Stage ${stageId.toUpperCase()} completed successfully.`);
+        }
+
+        log("Pipeline finished: SUCCESS");
+        isRunning = false;
+    }
+
+    function resetPipeline() {
+        isRunning = false;
+        resetPipelineUI();
+        document.getElementById('console-output').innerHTML = "// Console Output will appear here...\n";
+    }
+
+    function resetPipelineUI() {
+        stages.forEach(id => {
+            const el = document.getElementById(`stage-${id}`);
+            el.classList.remove('running', 'success', 'failed');
+        });
+    }
+</script>
+
+</body>
+</html>

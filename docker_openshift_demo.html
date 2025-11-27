@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker & OpenShift Architecture Demo</title>
+    <style>
+        :root {
+            --docker-blue: #2496ed;
+            --openshift-red: #ee0000;
+            --k8s-blue: #326ce5;
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-top: 5px solid var(--docker-blue);
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: var(--card-bg);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            flex: 1;
+        }
+
+        .tab-btn.active {
+            color: var(--docker-blue);
+            border-bottom-color: var(--docker-blue);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .arch-diagram {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-start;
+            background: #eef2f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .box {
+            background: white;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            min-width: 150px;
+            position: relative;
+            margin: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .box-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: block;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .docker-box { border-color: var(--docker-blue); }
+        .docker-box .box-title { color: var(--docker-blue); }
+        
+        .openshift-box { border-color: var(--openshift-red); }
+        .openshift-box .box-title { color: var(--openshift-red); }
+
+        .connection {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #999;
+            margin: 0 10px;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.5;
+        }
+
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; }
+        .command { color: #dcdcaa; }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .comparison-table th, .comparison-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .comparison-table th {
+            background-color: #f8f9fa;
+            color: var(--text-color);
+        }
+
+        .interview-q {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        .interview-q h4 {
+            color: var(--docker-blue);
+            margin-top: 0;
+        }
+        .interview-a {
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            margin-right: 5px;
+        }
+        .badge-docker { background-color: var(--docker-blue); }
+        .badge-os { background-color: var(--openshift-red); }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Docker & OpenShift Architecture</h1>
+        <p>Containerization vs Orchestration: The Big Picture</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('overview')">The Big Picture</button>
+        <button class="tab-btn" onclick="switchTab('docker')">Docker Deep Dive</button>
+        <button class="tab-btn" onclick="switchTab('openshift')">OpenShift Config</button>
+        <button class="tab-btn" onclick="switchTab('interview')">Interview Q&A</button>
+    </div>
+
+    <!-- Tab 1: Overview -->
+    <div id="overview" class="tab-content active">
+        <div class="card">
+            <h3>What are they?</h3>
+            <p><strong>Docker</strong> is a platform for developing, shipping, and running applications in containers. It solves the "it works on my machine" problem.</p>
+            <p><strong>OpenShift</strong> is an enterprise Kubernetes platform (PaaS) built by Red Hat. It adds developer-friendly features (Source-to-Image, Routes, Web Console) on top of raw Kubernetes.</p>
+            
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Docker (Engine)</th>
+                        <th>Kubernetes (K8s)</th>
+                        <th>OpenShift (OCP)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Role</strong></td>
+                        <td>Container Runtime & Packaging</td>
+                        <td>Container Orchestration</td>
+                        <td>Enterprise PaaS (K8s + Dev Tools)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Unit</strong></td>
+                        <td>Container</td>
+                        <td>Pod</td>
+                        <td>Pod</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Networking</strong></td>
+                        <td>Bridge, Host, Overlay</td>
+                        <td>Service, Ingress</td>
+                        <td>Service, <strong>Route</strong> (HAProxy)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Builds</strong></td>
+                        <td>docker build</td>
+                        <td>External (CI tools)</td>
+                        <td><strong>Source-to-Image (S2I)</strong>, BuildConfig</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Security</strong></td>
+                        <td>Root by default (often)</td>
+                        <td>RBAC</td>
+                        <td><strong>SCC (Security Context Constraints)</strong>, stricter by default</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h3>Architecture Visualization</h3>
+            <h4>Docker Architecture</h4>
+            <div class="arch-diagram">
+                <div class="box docker-box">
+                    <span class="box-title">Client (CLI)</span>
+                    <div>docker build<br>docker pull<br>docker run</div>
+                </div>
+                <div class="connection">→ REST API →</div>
+                <div class="box docker-box" style="min-width: 250px;">
+                    <span class="box-title">Docker Host (Daemon)</span>
+                    <div style="border: 1px dashed #ccc; padding: 5px; margin: 5px;">
+                        <strong>Images</strong><br>
+                        (Read-only Templates)
+                    </div>
+                    <div style="border: 1px solid #2496ed; padding: 5px; margin: 5px; background: #e1f5fe;">
+                        <strong>Containers</strong><br>
+                        (Running Instances)
+                    </div>
+                </div>
+                <div class="connection">↔</div>
+                <div class="box docker-box">
+                    <span class="box-title">Registry</span>
+                    <div>Docker Hub<br>Private Registry</div>
+                </div>
+            </div>
+
+            <h4>OpenShift Architecture</h4>
+            <div class="arch-diagram">
+                <div class="box openshift-box">
+                    <span class="box-title">Master Nodes</span>
+                    <div>API Server<br>Controller Manager<br>Scheduler<br>etcd (State)</div>
+                </div>
+                <div class="connection">⬇ Control Plane</div>
+                <div class="box openshift-box" style="min-width: 300px;">
+                    <span class="box-title">Worker Nodes</span>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <div style="border: 1px solid #ccc; padding: 5px;">
+                            <strong>Pod A</strong><br>Container
+                        </div>
+                        <div style="border: 1px solid #ccc; padding: 5px;">
+                            <strong>Pod B</strong><br>Container
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; border-top: 1px dashed #999; padding-top: 5px;">
+                        Kubelet / Proxy
+                    </div>
+                </div>
+                <div class="connection">⬅ Traffic</div>
+                <div class="box openshift-box">
+                    <span class="box-title">Routing Layer</span>
+                    <div>HAProxy Router<br>(Ingress)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 2: Docker -->
+    <div id="docker" class="tab-content">
+        <div class="card">
+            <h3>The Dockerfile</h3>
+            <p>The blueprint for building a Docker image.</p>
+            <div class="code-block">
+<span class="comment"># 1. Base Image</span>
+<span class="keyword">FROM</span> node:14-alpine
+
+<span class="comment"># 2. Working Directory</span>
+<span class="keyword">WORKDIR</span> /app
+
+<span class="comment"># 3. Copy Dependencies</span>
+<span class="keyword">COPY</span> package*.json ./
+
+<span class="comment"># 4. Install Dependencies</span>
+<span class="keyword">RUN</span> npm install --production
+
+<span class="comment"># 5. Copy Source Code</span>
+<span class="keyword">COPY</span> . .
+
+<span class="comment"># 6. Expose Port</span>
+<span class="keyword">EXPOSE</span> 3000
+
+<span class="comment"># 7. Start Command</span>
+<span class="keyword">CMD</span> ["node", "server.js"]
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Key Commands</h3>
+            <ul>
+                <li><code>docker build -t myapp:v1 .</code> - Build an image from Dockerfile.</li>
+                <li><code>docker run -d -p 8080:3000 myapp:v1</code> - Run container in background, map port 8080 to 3000.</li>
+                <li><code>docker ps</code> - List running containers.</li>
+                <li><code>docker exec -it &lt;id&gt; sh</code> - Enter a running container.</li>
+                <li><code>docker logs &lt;id&gt;</code> - View container logs.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tab 3: OpenShift -->
+    <div id="openshift" class="tab-content">
+        <div class="card">
+            <h3>OpenShift Objects (YAML)</h3>
+            <p>OpenShift uses Kubernetes objects (Deployment, Service) plus its own (Route, DeploymentConfig, BuildConfig).</p>
+            
+            <h4>1. Deployment (How to run)</h4>
+            <div class="code-block">
+<span class="keyword">apiVersion</span>: apps/v1
+<span class="keyword">kind</span>: Deployment
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: frontend
+<span class="keyword">spec</span>:
+  <span class="keyword">replicas</span>: 3
+  <span class="keyword">selector</span>:
+    <span class="keyword">matchLabels</span>:
+      <span class="keyword">app</span>: frontend
+  <span class="keyword">template</span>:
+    <span class="keyword">metadata</span>:
+      <span class="keyword">labels</span>:
+        <span class="keyword">app</span>: frontend
+    <span class="keyword">spec</span>:
+      <span class="keyword">containers</span>:
+      - <span class="keyword">name</span>: nginx
+        <span class="keyword">image</span>: nginx:1.14.2
+        <span class="keyword">ports</span>:
+        - <span class="keyword">containerPort</span>: 80
+            </div>
+
+            <h4>2. Service (Internal Networking)</h4>
+            <div class="code-block">
+<span class="keyword">apiVersion</span>: v1
+<span class="keyword">kind</span>: Service
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: frontend-svc
+<span class="keyword">spec</span>:
+  <span class="keyword">selector</span>:
+    <span class="keyword">app</span>: frontend
+  <span class="keyword">ports</span>:
+    - <span class="keyword">protocol</span>: TCP
+      <span class="keyword">port</span>: 80
+      <span class="keyword">targetPort</span>: 80
+            </div>
+
+            <h4>3. Route (External Access - OpenShift Specific)</h4>
+            <div class="code-block">
+<span class="keyword">apiVersion</span>: route.openshift.io/v1
+<span class="keyword">kind</span>: Route
+<span class="keyword">metadata</span>:
+  <span class="keyword">name</span>: frontend-route
+<span class="keyword">spec</span>:
+  <span class="keyword">host</span>: www.example.com
+  <span class="keyword">to</span>:
+    <span class="keyword">kind</span>: Service
+    <span class="keyword">name</span>: frontend-svc
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Request Flow: From Browser to Pod</h3>
+            <p>How an external request reaches your microservice.</p>
+            <style>
+                .interactive-viz {
+                    position: relative;
+                    background: #f8f9fa;
+                    padding: 40px 20px;
+                    border-radius: 8px;
+                    border: 1px solid #ddd;
+                    overflow: hidden;
+                    min-height: 250px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                }
+                
+                .viz-col {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 20px;
+                    z-index: 2;
+                }
+            
+                .viz-box {
+                    width: 120px;
+                    padding: 15px;
+                    background: white;
+                    border: 2px solid #333;
+                    border-radius: 8px;
+                    text-align: center;
+                    font-weight: bold;
+                    position: relative;
+                    transition: all 0.3s;
+                    cursor: pointer;
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                }
+            
+                .viz-box.client { border-color: #333; background: #eee; }
+                .viz-box.route { border-color: var(--openshift-red); color: var(--openshift-red); }
+                .viz-box.service { border-color: var(--k8s-blue); color: var(--k8s-blue); }
+                .viz-box.pod { border-color: #27ae60; color: #27ae60; }
+                .viz-box.pod.dead { border-color: #c0392b; color: #c0392b; background: #fadbd8; text-decoration: line-through; opacity: 0.7; }
+            
+                .packet {
+                    width: 20px;
+                    height: 20px;
+                    background: #f39c12;
+                    border-radius: 50%;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    z-index: 10;
+                    display: none;
+                    box-shadow: 0 0 5px rgba(0,0,0,0.3);
+                    pointer-events: none;
+                }
+            
+                .endpoints-display {
+                    font-size: 11px;
+                    color: #666;
+                    margin-top: 5px;
+                    background: #fff;
+                    padding: 2px 5px;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    width: 100%;
+                    box-sizing: border-box;
+                }
+                
+                .viz-controls {
+                    text-align: center;
+                    padding: 15px;
+                    background: #eef2f5;
+                    border-radius: 5px;
+                    margin-bottom: 20px;
+                }
+            </style>
+            
+            <div class="interactive-viz" id="viz-container">
+                <div class="packet" id="packet"></div>
+            
+                <div class="viz-col">
+                    <div class="viz-box client" id="v-client">Client<br><small>Browser</small></div>
+                </div>
+            
+                <div class="viz-col">
+                    <div class="viz-box route" id="v-route">Route<br><small>api.example.com</small></div>
+                </div>
+            
+                <div class="viz-col">
+                    <div class="viz-box service" id="v-service">
+                        Service
+                        <div class="endpoints-display" id="v-endpoints">EP: P1, P2, P3</div>
+                    </div>
+                </div>
+            
+                <div class="viz-col">
+                    <div class="viz-box pod" id="v-pod1" onclick="togglePod(1)">Pod 1</div>
+                    <div class="viz-box pod" id="v-pod2" onclick="togglePod(2)">Pod 2</div>
+                    <div class="viz-box pod" id="v-pod3" onclick="togglePod(3)">Pod 3</div>
+                </div>
+            </div>
+            
+            <div class="viz-controls">
+                <button class="action-btn" onclick="animateRequest()">▶ Send Request</button>
+                <span style="margin-left: 15px; font-size: 14px; color: #555;">💡 Tip: Click on a <strong>Pod</strong> box above to kill/restart it and watch the Service Endpoints update!</span>
+            </div>
+
+            <script>
+                const pods = {
+                    1: { active: true, el: 'v-pod1' },
+                    2: { active: true, el: 'v-pod2' },
+                    3: { active: true, el: 'v-pod3' }
+                };
+            
+                function updateEndpoints() {
+                    const active = Object.keys(pods).filter(k => pods[k].active).map(k => 'P'+k);
+                    const text = active.length ? active.join(', ') : 'None';
+                    document.getElementById('v-endpoints').innerText = 'EP: ' + text;
+                    document.getElementById('v-endpoints').style.color = active.length ? '#666' : 'red';
+                }
+            
+                function togglePod(id) {
+                    pods[id].active = !pods[id].active;
+                    const el = document.getElementById(pods[id].el);
+                    if (pods[id].active) {
+                        el.classList.remove('dead');
+                        el.innerHTML = 'Pod ' + id;
+                    } else {
+                        el.classList.add('dead');
+                        el.innerHTML = 'Pod ' + id + '<br><small>(Dead)</small>';
+                    }
+                    updateEndpoints();
+                }
+            
+                function animateRequest() {
+                    const packet = document.getElementById('packet');
+                    const container = document.getElementById('viz-container').getBoundingClientRect();
+                    
+                    // Helper to get center position relative to container
+                    const getPos = (id) => {
+                        const rect = document.getElementById(id).getBoundingClientRect();
+                        return {
+                            left: rect.left - container.left + rect.width/2 - 10, // 10 is half packet size
+                            top: rect.top - container.top + rect.height/2 - 10
+                        };
+                    };
+            
+                    // 1. Start at Client
+                    const start = getPos('v-client');
+                    packet.style.display = 'block';
+                    packet.style.transition = 'none';
+                    packet.style.left = start.left + 'px';
+                    packet.style.top = start.top + 'px';
+            
+                    // Force reflow
+                    packet.offsetHeight;
+            
+                    // 2. Move to Route
+                    setTimeout(() => {
+                        const route = getPos('v-route');
+                        packet.style.transition = 'all 0.6s ease-in-out';
+                        packet.style.left = route.left + 'px';
+                        packet.style.top = route.top + 'px';
+                    }, 50);
+            
+                    // 3. Move to Service
+                    setTimeout(() => {
+                        const service = getPos('v-service');
+                        packet.style.left = service.left + 'px';
+                        packet.style.top = service.top + 'px';
+                    }, 700);
+            
+                    // 4. Move to Pod
+                    setTimeout(() => {
+                        const activeIds = Object.keys(pods).filter(k => pods[k].active);
+                        if (activeIds.length === 0) {
+                            alert("❌ 503 Service Unavailable: No healthy pods found in Endpoints list!");
+                            packet.style.display = 'none';
+                            return;
+                        }
+                        const randomId = activeIds[Math.floor(Math.random() * activeIds.length)];
+                        const pod = getPos(pods[randomId].el);
+                        packet.style.left = pod.left + 'px';
+                        packet.style.top = pod.top + 'px';
+                    }, 1350);
+            
+                    // 5. Finish
+                    setTimeout(() => {
+                        packet.style.display = 'none';
+                    }, 2000);
+                }
+            </script>
+            <p><strong>Step-by-Step:</strong></p>
+            <ol>
+                <li><strong>Route:</strong> Accepts traffic for a specific hostname (e.g., <code>www.example.com</code>) and forwards it to the associated Service.</li>
+                <li><strong>Service:</strong> Acts as an internal load balancer. It tracks the IP addresses of all healthy Pods matching its selector.</li>
+                <li><strong>Pod:</strong> The actual container processing the request.</li>
+            </ol>
+
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                <h3>Deep Dive: Under the Hood</h3>
+                
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 300px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
+                        <h4 style="color: var(--openshift-red); margin-top: 0;">1. How Router maps Host to Service</h4>
+                        <p>The OpenShift Router is typically a container running <strong>HAProxy</strong>.</p>
+                        <ul style="font-size: 0.9em; padding-left: 20px;">
+                            <li><strong>Watch:</strong> The Router watches the API Server for <code>Route</code> objects.</li>
+                            <li><strong>Config Update:</strong> When you create a Route (<code>api.example.com</code>), the Router detects this event.</li>
+                            <li><strong>Map File:</strong> It updates its internal HAProxy map file:
+                                <div class="code-block" style="padding: 5px; margin: 5px 0; background: #333; color: #fff;">api.example.com  be_frontend_svc</div>
+                            </li>
+                            <li><strong>Direct to Pods:</strong> For performance, the Router usually bypasses the Service ClusterIP and load balances <strong>directly</strong> to the Pod IPs listed in the Service's Endpoints.</li>
+                        </ul>
+                    </div>
+            
+                    <div style="flex: 1; min-width: 300px; background: #f9f9f9; padding: 15px; border-radius: 8px;">
+                        <h4 style="color: var(--k8s-blue); margin-top: 0;">2. How Controller Manager updates IPs</h4>
+                        <p>The <strong>Endpoints Controller</strong> is the brain here.</p>
+                        <div style="display: flex; flex-direction: column; align-items: center; padding: 10px; background: white; border-radius: 5px; border: 1px solid #ddd;">
+                            <div style="border: 1px solid #666; padding: 5px; width: 80%; text-align: center; border-radius: 4px; background: #eee;">API Server (State)</div>
+                            <div style="font-size: 20px; line-height: 1;">⬆⬇</div>
+                            <div style="border: 2px solid #d35400; padding: 10px; width: 90%; text-align: center; background: white; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <strong>Endpoints Controller</strong><br>
+                                <span style="font-size: 0.8em; color: #666;">Infinite Loop</span>
+                            </div>
+                            <div style="text-align: left; width: 100%; font-size: 0.85em; margin-top: 10px; padding-left: 10px;">
+                                1. <strong>Watch</strong> Pods with label <code>app=frontend</code>.<br>
+                                2. <strong>Check</strong> <code>readinessProbe</code> status.<br>
+                                3. <strong>Update</strong> <code>Endpoints</code> object with IPs of ready Pods.<br>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: #e8f4f8; padding: 15px; border-radius: 5px; margin-top: 15px; border-left: 4px solid #2980b9;">
+                    <strong>Q: What if a Pod dies and restarts? Does it notify the Service?</strong>
+                    <p>No, the Pod does not notify anyone. Instead, the <strong>Kubernetes Control Plane</strong> (Endpoints Controller) is constantly watching.</p>
+                    <ol>
+                        <li><strong>Pod Dies:</strong> The Controller detects the Pod is gone or not "Ready". It immediately <strong>removes</strong> the Pod's IP from the Service's <code>Endpoints</code> list. Traffic stops going there.</li>
+                        <li><strong>Pod Restarts:</strong> A new Pod is created with a <strong>new IP</strong>.</li>
+                        <li><strong>Readiness Probe:</strong> K8s waits for the <code>readinessProbe</code> to pass (e.g., `GET /health` returns 200).</li>
+                        <li><strong>Update:</strong> Once Ready, the Controller <strong>adds</strong> the new IP to the <code>Endpoints</code> list. The Service (via iptables) now routes traffic to the new Pod.</li>
+                    </ol>
+                    <p><em>This is "Service Discovery" in action: The Service abstraction ensures clients don't care about Pod IPs changing.</em></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>The `oc` CLI</h3>
+            <p>Similar to `kubectl`, but with extra commands for OpenShift features.</p>
+            <ul>
+                <li><code>oc login</code> - Authenticate to the cluster.</li>
+                <li><code>oc new-project my-project</code> - Create a new namespace/project.</li>
+                <li><code>oc new-app nodejs~https://github.com/user/repo</code> - <strong>Magic command:</strong> Creates BuildConfig, DeploymentConfig, Service, and ImageStream from source.</li>
+                <li><code>oc get pods</code> - List pods.</li>
+                <li><code>oc rsh &lt;pod&gt;</code> - Remote shell into a pod (like docker exec).</li>
+                <li><code>oc expose svc/frontend-svc</code> - Create a Route for a service.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tab 4: Interview Q&A -->
+    <div id="interview" class="tab-content">
+        <div class="card">
+            <h3>Interview Questions</h3>
+
+            <div class="interview-q">
+                <h4><span class="badge badge-docker">Docker</span> Q1: Docker Image vs Container?</h4>
+                <div class="interview-a">
+                    An <strong>Image</strong> is a read-only template with instructions for creating a container (like a Class). A <strong>Container</strong> is a runnable instance of an image (like an Object). Images are built from layers.
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <h4><span class="badge badge-os">OpenShift</span> Q2: What is a Pod?</h4>
+                <div class="interview-a">
+                    The smallest deployable unit in Kubernetes/OpenShift. A Pod represents a single instance of a running process. It can contain one or more containers that share storage (volumes) and network (IP address).
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <h4><span class="badge badge-os">OpenShift</span> Q3: Route vs Ingress?</h4>
+                <div class="interview-a">
+                    <strong>Route</strong> is an OpenShift-native concept created before Kubernetes Ingress existed. It exposes a Service to the outside world via a hostname. <strong>Ingress</strong> is the standard Kubernetes equivalent. OpenShift supports both, but Routes are easier to use in OCP.
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <h4><span class="badge badge-os">OpenShift</span> Q4: What is Source-to-Image (S2I)?</h4>
+                <div class="interview-a">
+                    A toolkit in OpenShift that allows you to build reproducible Docker images from source code. You don't need to write a Dockerfile; S2I combines your source code with a "Builder Image" (e.g., Node.js builder) to create the final app image.
+                </div>
+            </div>
+
+            <div class="interview-q">
+                <h4><span class="badge badge-docker">Docker</span> Q5: Explain Docker Layers & Caching.</h4>
+                <div class="interview-a">
+                    Each instruction in a Dockerfile (RUN, COPY) creates a layer. Layers are cached. If you change a line, that layer and all subsequent layers must be rebuilt. <strong>Optimization tip:</strong> Copy `package.json` and run `npm install` <em>before</em> copying the rest of the source code to cache dependencies.
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+</script>
+
+</body>
+</html>

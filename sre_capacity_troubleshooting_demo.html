@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SRE: Capacity Planning & Troubleshooting</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #e67e22;
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-top: 5px solid var(--accent-color);
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            background: var(--card-bg);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            flex: 1;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-color);
+            border-bottom-color: var(--accent-color);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .box {
+            background: white;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            min-width: 120px;
+            position: relative;
+            margin: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .connection {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #999;
+            margin: 0 5px;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.5;
+        }
+
+        h1, h2, h3, h4 { color: var(--primary-color); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>SRE: Capacity Planning & Troubleshooting</h1>
+        <p>Site Reliability Engineering Best Practices, Resource Estimation, and Incident Response</p>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('capacity')">Capacity Planning</button>
+        <button class="tab-btn" onclick="switchTab('readiness')">Production Readiness</button>
+        <button class="tab-btn" onclick="switchTab('troubleshooting')">Troubleshooting Toolkit</button>
+        <button class="tab-btn" onclick="switchTab('interview')">SRE Concepts & Interview</button>
+    </div>
+
+    <!-- Tab 1: Capacity Planning -->
+    <div id="capacity" class="tab-content active">
+        <div class="card">
+            <h3>System Capacity Estimation (High Traffic Scenario)</h3>
+            <p><strong>Scenario:</strong> 10M Total Users, <strong>3M Peak DAU</strong> (Daily Active Users).</p>
+            
+            <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
+                <h4 style="text-align: center; color: #555;">1. Traffic Analysis (QPS)</h4>
+                <div style="display: flex; justify-content: space-around; text-align: center; margin-bottom: 20px; flex-wrap: wrap;">
+                    <div class="box" style="border-color: #9b59b6;">
+                        <strong>Peak DAU</strong><br>3,000,000
+                    </div>
+                    <div class="connection">× 10 Req/User</div>
+                    <div class="box" style="border-color: #9b59b6;">
+                        <strong>Daily Requests</strong><br>30,000,000
+                    </div>
+                    <div class="connection">÷ 4h Peak</div>
+                    <div class="box" style="border-color: #e74c3c; background: #fdedec;">
+                        <strong>Peak QPS</strong><br>~2,100
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-grid">
+                <div class="card" style="border-left-color: #27ae60;">
+                    <h4>2. Pods & CPU (Web Server)</h4>
+                    <p><strong>Formula:</strong> <code>QPS / Single_Pod_Capacity</code></p>
+                    <ul>
+                        <li><strong>Target QPS:</strong> 2,100</li>
+                        <li><strong>Single Pod Capacity:</strong> Assume 250 QPS (2 Core, 4GB)</li>
+                        <li><strong>Pods Needed:</strong> 2100 / 250 ≈ <strong>9 Pods</strong></li>
+                        <li><strong>Buffer (30%):</strong> 9 * 1.3 ≈ <strong>12 Pods</strong></li>
+                    </ul>
+                    <div class="code-block" style="margin-top: 10px;">
+replicas: 12
+resources:
+  limits:
+    cpu: "2"
+    memory: "4Gi"
+                    </div>
+                </div>
+
+                <div class="card" style="border-left-color: #f39c12;">
+                    <h4>3. Thread Pool (Tomcat)</h4>
+                    <p><strong>Formula:</strong> <code>(CPU_Time + Wait_Time) / CPU_Time * Cores</code></p>
+                    <ul>
+                        <li><strong>Avg Response Time:</strong> 200ms</li>
+                        <li><strong>CPU Time:</strong> 10ms (Processing)</li>
+                        <li><strong>Wait Time:</strong> 190ms (DB/IO)</li>
+                        <li><strong>Threads:</strong> (200/10) * 2 Cores = 40 Threads</li>
+                    </ul>
+                    <p><em>Default 200 is safe. Don't set too high (Context Switch).</em></p>
+                    <div class="code-block">
+server.tomcat.max-threads: 200
+server.tomcat.min-spare-threads: 20
+                    </div>
+                </div>
+
+                <div class="card" style="border-left-color: #3498db;">
+                    <h4>4. DB Connection Pool (HikariCP)</h4>
+                    <p><strong>Formula:</strong> <code>Total_QPS * DB_Time_per_Req</code></p>
+                    <ul>
+                        <li><strong>Total QPS:</strong> 2,100</li>
+                        <li><strong>DB Query Time:</strong> 10ms (0.01s)</li>
+                        <li><strong>Active Connections:</strong> 2100 * 0.01 = 21</li>
+                        <li><strong>Per Pod (12 Pods):</strong> 21 / 12 ≈ 2 conns</li>
+                    </ul>
+                    <p><em>Set higher for bursts.</em></p>
+                    <div class="code-block">
+spring.datasource.hikari.maximum-pool-size: 10
+spring.datasource.hikari.minimum-idle: 5
+                    </div>
+                </div>
+
+                <div class="card" style="border-left-color: #8e44ad;">
+                    <h4>5. External HTTP Pool</h4>
+                    <p><strong>Formula:</strong> <code>Total_QPS * Ext_Call_Time</code></p>
+                    <ul>
+                        <li><strong>Scenario:</strong> Calling Payment Gateway</li>
+                        <li><strong>Latency:</strong> 500ms (0.5s) - Slow!</li>
+                        <li><strong>Active Connections:</strong> 2100 * 0.5 = <strong>1,050</strong></li>
+                        <li><strong>Per Pod (12 Pods):</strong> 1050 / 12 ≈ <strong>88</strong></li>
+                    </ul>
+                    <p><em>Needs large pool due to high latency!</em></p>
+                    <div class="code-block">
+http.client.max-total: 200
+http.client.max-per-route: 100
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 2: Production Readiness -->
+    <div id="readiness" class="tab-content">
+        <div class="card">
+            <h3>🚀 Production Readiness Checklist (Best Practices)</h3>
+            <p>Static capacity planning is just the start. For a robust production system, you need these advanced configurations:</p>
+            
+            <div class="card-grid">
+                <div class="card">
+                    <h4>1. JVM Container Awareness</h4>
+                    <p>Don't hardcode Heap Size (e.g., `-Xmx4g`). Use percentages so it adapts to the container limit.</p>
+                    <div class="code-block">
+# Dockerfile / Entrypoint
+java -XX:+UseContainerSupport \
+     -XX:MaxRAMPercentage=75.0 \
+     -jar app.jar
+                    </div>
+                    <p><small><em>Why? If Container Limit is 4GB, JVM gets 3GB Heap. OS gets 1GB for Metaspace, Threads, etc. Prevents OOMKill.</em></small></p>
+                </div>
+
+                <div class="card">
+                    <h4>2. Health Probes (The Lifeline)</h4>
+                    <p>Crucial for self-healing and zero-downtime deployments.</p>
+                    <ul>
+                        <li><strong>Liveness Probe:</strong> "Am I dead?" (Deadlock, OOM). Action: <strong>Restart Pod</strong>.</li>
+                        <li><strong>Readiness Probe:</strong> "Can I serve traffic?" (DB connected, Cache warmed). Action: <strong>Add/Remove IP from Service</strong>.</li>
+                    </ul>
+                    <div class="code-block">
+livenessProbe:
+  httpGet: { path: /actuator/health/liveness, port: 8080 }
+readinessProbe:
+  httpGet: { path: /actuator/health/readiness, port: 8080 }
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>3. Resource QoS (Quality of Service)</h4>
+                    <p><strong>Best Practice:</strong> Set <code>requests</code> = <code>limits</code> for critical production apps (Guaranteed QoS).</p>
+                    <div class="code-block">
+resources:
+  requests:
+    cpu: "2"
+    memory: "4Gi"
+  limits:
+    cpu: "2"   # Prevents CPU throttling
+    memory: "4Gi" # Deterministic OOM behavior
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>4. Horizontal Pod Autoscaler (HPA)</h4>
+                    <p>Don't rely on static "12 Pods". Let K8s scale for you based on real load.</p>
+                    <div class="code-block">
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+spec:
+  minReplicas: 10  # Baseline
+  maxReplicas: 50  # Burst limit
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70 # Scale up if CPU > 70%
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>5. GC Tuning (Garbage Collection)</h4>
+                    <p>Default GC might not be optimal for containers. Choose based on your specs.</p>
+                    <ul>
+                        <li><strong>G1GC (Default for >2 Cores):</strong> Balanced throughput/latency. Good for heaps > 4GB.</li>
+                        <li><strong>SerialGC (Small Containers):</strong> Use if Limit < 2 Cores or < 1GB RAM. Low overhead.</li>
+                        <li><strong>ZGC / Shenandoah:</strong> For ultra-low latency (Java 11/17+).</li>
+                    </ul>
+                    <div class="code-block">
+# For small pods (1 Core, 512MB)
+-XX:+UseSerialGC
+
+# For standard pods (2+ Cores, 4GB+)
+-XX:+UseG1GC -XX:MaxGCPauseMillis=200
+
+# Always enable GC Logging!
+-Xlog:gc*:file=/var/log/gc.log:time,tags
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 3: Troubleshooting -->
+    <div id="troubleshooting" class="tab-content">
+        <div class="card">
+            <h3>🚑 Extreme Issue Diagnosis (SRE Toolkit)</h3>
+            <p>When production is on fire, use these tools to find the root cause.</p>
+
+            <div class="card-grid">
+                <div class="card" style="border-left-color: #e74c3c;">
+                    <h4>1. CPU Spike (100% Usage)</h4>
+                    <p><strong>Symptom:</strong> App is slow, timeouts.</p>
+                    <div class="code-block">
+# 1. Find the PID consuming CPU
+top -c
+
+# 2. Find the specific Thread ID (TID)
+top -H -p &lt;PID&gt;
+
+# 3. Convert TID to Hex
+printf "%x\n" &lt;TID&gt;  # e.g., 1a2b
+
+# 4. Dump Stack & Grep (The "Smoking Gun")
+jstack &lt;PID&gt; | grep -A 20 0x1a2b
+                    </div>
+                    <p><small><em>Look for: Infinite loops, heavy calculation, or frequent GC (GC threads).</em></small></p>
+                </div>
+
+                <div class="card" style="border-left-color: #f39c12;">
+                    <h4>2. Memory Leak (OOM)</h4>
+                    <p><strong>Symptom:</strong> Frequent Full GC, eventually Crash.</p>
+                    <div class="code-block">
+# 1. Quick Histogram (Live objects only)
+jmap -histo:live &lt;PID&gt; | head -n 20
+
+# 2. Dump Heap (Binary)
+jmap -dump:format=b,file=heap.bin &lt;PID&gt;
+
+# 3. Analyze
+# Download heap.bin and use Eclipse MAT (Memory Analyzer Tool).
+# Look for "Dominator Tree".
+                    </div>
+                </div>
+
+                <div class="card" style="border-left-color: #3498db;">
+                    <h4>3. Network / Connection Issues</h4>
+                    <p><strong>Symptom:</strong> Connection Refused, Latency.</p>
+                    <div class="code-block">
+# 1. Check TCP States (Too many TIME_WAIT?)
+netstat -n | awk '/^tcp/ {++S[$NF]} END {for(a in S) print a, S[a]}'
+
+# 2. Capture Traffic (Wireshark compatible)
+tcpdump -i eth0 port 8080 -w capture.pcap
+
+# 3. Check DNS
+nslookup api.example.com
+                    </div>
+                </div>
+
+                <div class="card" style="border-left-color: #9b59b6;">
+                    <h4>4. Container/K8s Specific</h4>
+                    <p><strong>Symptom:</strong> Pod crashing, can't exec into it.</p>
+                    <div class="code-block">
+# 1. Check Previous Logs (If crashed)
+kubectl logs &lt;pod&gt; --previous
+
+# 2. Describe (Events: OOMKilled? Probe Failed?)
+kubectl describe pod &lt;pod&gt;
+
+# 3. Ephemeral Debug Container (If shell is missing)
+kubectl debug -it &lt;pod&gt; --image=busybox:1.28 --target=&lt;container&gt;
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 20px; background: #fff3cd; padding: 15px; border-radius: 5px; border: 1px solid #ffeeba;">
+                <strong>💡 Pro Tip: Arthas (Alibaba)</strong>
+                <p>If you can install tools, use <strong>Arthas</strong>. It combines all above.</p>
+                <ul>
+                    <li><code>dashboard</code>: Real-time dashboard.</li>
+                    <li><code>thread -n 3</code>: Print top 3 busiest threads.</li>
+                    <li><code>trace com.example.Class method</code>: Trace method execution time (find slow SQL/Call).</li>
+                </ul>
+            </div>
+
+            <div style="margin-top: 20px; background: #e8f4f8; padding: 15px; border-radius: 5px; border: 1px solid #b8dbe8;">
+                <strong>🏢 Enterprise APM: AppDynamics / Dynatrace</strong>
+                <p>For large-scale distributed systems, manual CLI tools are too slow. Use APM agents for:</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <strong>1. Flow Maps</strong>
+                        <p style="font-size: 0.9em; margin: 5px 0;">Auto-discovery of service dependencies (Service A -> Service B -> DB). Visualizes latency between hops.</p>
+                    </div>
+                    <div>
+                        <strong>2. Business Transactions (BT)</strong>
+                        <p style="font-size: 0.9em; margin: 5px 0;">Monitors specific user actions (e.g., "Checkout") rather than just generic "CPU usage".</p>
+                    </div>
+                    <div>
+                        <strong>3. Automatic Snapshots</strong>
+                        <p style="font-size: 0.9em; margin: 5px 0;"><strong>Killer Feature:</strong> Automatically captures a "Snapshot" (Stack Trace + SQL) when a request is slow or errors. No need to SSH and run `jstack`!</p>
+                    </div>
+                    <div>
+                        <strong>4. Dynamic Baselines</strong>
+                        <p style="font-size: 0.9em; margin: 5px 0;">Alerts based on "Deviation from Normal" (e.g., 2x slower than last Tuesday) rather than static thresholds.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 4: SRE Concepts & Interview -->
+    <div id="interview" class="tab-content">
+        <div class="card">
+            <h3>📚 SRE Core Concepts & Interview Guide</h3>
+            
+            <div class="card-grid">
+                <!-- SLI/SLO/SLA -->
+                <div class="card" style="border-left-color: #2c3e50;">
+                    <h4>1. The SRE Trinity: SLI, SLO, SLA</h4>
+                    <table class="comparison-table" style="width:100%; font-size:0.9em; border-collapse: collapse;">
+                        <tr style="background:#f8f9fa; border-bottom:1px solid #ddd;">
+                            <th style="padding:8px;">Term</th>
+                            <th style="padding:8px;">Definition</th>
+                            <th style="padding:8px;">Example</th>
+                        </tr>
+                        <tr>
+                            <td style="padding:8px;"><strong>SLI</strong><br>(Indicator)</td>
+                            <td style="padding:8px;">What you measure (The metric).</td>
+                            <td style="padding:8px;">Request Latency < 200ms</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:8px;"><strong>SLO</strong><br>(Objective)</td>
+                            <td style="padding:8px;">The internal goal (Target).</td>
+                            <td style="padding:8px;">99.9% of requests < 200ms</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:8px;"><strong>SLA</strong><br>(Agreement)</td>
+                            <td style="padding:8px;">The contract with users (Penalty).</td>
+                            <td style="padding:8px;">If < 99%, we refund 10%.</td>
+                        </tr>
+                    </table>
+                    <p style="margin-top:10px; font-size:0.9em;"><em>Interview Tip: "SLA is for lawyers, SLO is for engineers."</em></p>
+                </div>
+
+                <!-- Observability Pillars -->
+                <div class="card" style="border-left-color: #8e44ad;">
+                    <h4>2. The 3 Pillars of Observability</h4>
+                    <ul style="font-size: 0.95em;">
+                        <li><strong>Metrics (Prometheus):</strong> "Is there a problem?" (Aggregatable, cheap). <br><em>Ex: CPU = 90%, QPS = 500.</em></li>
+                        <li><strong>Logging (ELK/Splunk):</strong> "Why is there a problem?" (Detailed events). <br><em>Ex: NullPointerException at line 42.</em></li>
+                        <li><strong>Tracing (Jaeger/Zipkin):</strong> "Where is the problem?" (Request flow). <br><em>Ex: Service A (10ms) -> Service B (2000ms).</em></li>
+                    </ul>
+                </div>
+
+                <!-- Alerting Strategy -->
+                <div class="card" style="border-left-color: #e67e22;">
+                    <h4>3. Alerting Strategy (Google SRE Book)</h4>
+                    <p><strong>The 4 Golden Signals:</strong></p>
+                    <ol style="font-size: 0.95em;">
+                        <li><strong>Latency:</strong> Time to serve a request.</li>
+                        <li><strong>Traffic:</strong> Demand (QPS).</li>
+                        <li><strong>Errors:</strong> Rate of failed requests (5xx).</li>
+                        <li><strong>Saturation:</strong> How "full" is the service (Queue depth, Memory).</li>
+                    </ol>
+                    <p><strong>Anti-Pattern:</strong> "Alert Fatigue". Don't alert on every CPU spike. Alert on <strong>Symptoms</strong> (User Pain), not Causes.</p>
+                </div>
+
+                <!-- DORA Metrics -->
+                <div class="card" style="border-left-color: #d35400;">
+                    <h4>4. DORA Metrics (DevOps Performance)</h4>
+                    <p>The gold standard for measuring software delivery performance (Velocity vs Stability).</p>
+                    <ul style="font-size: 0.95em;">
+                        <li><strong>Deployment Frequency:</strong> How often code is deployed. <br><span style="color:#27ae60; font-size:0.85em;">Elite: On-demand (multiple/day)</span></li>
+                        <li><strong>Lead Time for Changes:</strong> Time from commit to production. <br><span style="color:#27ae60; font-size:0.85em;">Elite: < 1 hour</span></li>
+                        <li><strong>Change Failure Rate:</strong> % of deployments causing failure. <br><span style="color:#27ae60; font-size:0.85em;">Elite: 0-15%</span></li>
+                        <li><strong>Time to Restore (MTTR):</strong> Time to recover from failure. <br><span style="color:#27ae60; font-size:0.85em;">Elite: < 1 hour</span></li>
+                    </ul>
+                </div>
+
+                <!-- Chaos Engineering -->
+                <div class="card" style="border-left-color: #c0392b;">
+                    <h4>5. Chaos Engineering (混沌工程)</h4>
+                    <p><strong>"Break it before it breaks you."</strong> Proactive testing of system resilience.</p>
+                    <ul style="font-size: 0.95em;">
+                        <li><strong>Core Idea:</strong> Inject failures (kill pods, add latency) in production to verify the system recovers automatically.</li>
+                        <li><strong>Famous Tool:</strong> <span style="color:#c0392b;">Netflix Chaos Monkey</span> (Randomly terminates instances).</li>
+                        <li><strong>Goal:</strong> Move from "hoping" it works to "proving" it works.</li>
+                    </ul>
+                </div>
+
+                <!-- GitOps -->
+                <div class="card" style="border-left-color: #16a085;">
+                    <h4>6. GitOps (Modern CD)</h4>
+                    <p><strong>"Git is the Single Source of Truth."</strong></p>
+                    <ul style="font-size: 0.95em;">
+                        <li><strong>Workflow:</strong> You don't run `kubectl apply`. You commit YAML to Git. An agent (e.g., <strong>ArgoCD</strong>) syncs the cluster to match Git.</li>
+                        <li><strong>Benefits:</strong>
+                            <ul>
+                                <li><strong>Audit Trail:</strong> Git history shows who changed what and when.</li>
+                                <li><strong>Rollback:</strong> Just `git revert`.</li>
+                                <li><strong>Drift Detection:</strong> Alerts if someone manually changes the cluster.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <div style="background:#e8f6f3; padding:10px; border-radius:5px; margin-top:10px; font-size:0.9em;">
+                        <strong>🤔 GitOps vs. Config Center (Nacos/Spring Cloud):</strong>
+                        <p style="margin:5px 0;">You described <em>Config Center</em> (Hot Reload). GitOps is broader:</p>
+                        <ul style="margin:5px 0; padding-left:20px;">
+                            <li><strong>Config Center:</strong> Manages <em>App Properties</em> (e.g., timeouts). Can hot-reload <strong>inside</strong> the running app.</li>
+                            <li><strong>GitOps (ArgoCD):</strong> Manages <em>K8s Resources</em> (e.g., Image version, Replicas). Usually triggers a <strong>Rolling Restart</strong> (Pod replacement) to apply changes.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Interview Q&A -->
+                <div class="card" style="border-left-color: #27ae60;">
+                    <h4>7. High-Frequency Interview Q&A</h4>
+                    
+                    <div class="interview-q" style="margin-bottom:15px;">
+                        <strong style="color:#c0392b;">Q: CPU is low, Memory is low, but App is slow?</strong>
+                        <p style="font-size:0.9em; margin:5px 0;"><strong>A:</strong> Likely waiting on I/O or Locks.</p>
+                        <ul style="font-size:0.9em; margin-top:0;">
+                            <li><strong>DB/Network:</strong> Connection pool exhausted? Slow queries?</li>
+                            <li><strong>Locks:</strong> Deadlock or heavy contention (check `jstack`).</li>
+                            <li><strong>Dependencies:</strong> Downstream service timeout.</li>
+                        </ul>
+                    </div>
+
+                    <div class="interview-q">
+                        <strong style="color:#c0392b;">Q: How to handle "Alert Storms"?</strong>
+                        <p style="font-size:0.9em; margin:5px 0;"><strong>A:</strong></p>
+                        <ul style="font-size:0.9em; margin-top:0;">
+                            <li><strong>Grouping:</strong> Group alerts by cluster/service.</li>
+                            <li><strong>Inhibition:</strong> If "Switch Down" fires, suppress "Server Unreachable" alerts.</li>
+                            <li><strong>Root Cause Analysis:</strong> Use AIOps to correlate events.</li>
+                        </ul>
+                    </div>
+
+                    <div class="interview-q">
+                        <strong style="color:#c0392b;">Q: How does Config Hot Reload work? (e.g., @RefreshScope)</strong>
+                        <p style="font-size:0.9em; margin:5px 0;"><strong>A:</strong> It relies on <strong>Proxies</strong> and <strong>Lazy Loading</strong>.</p>
+                        <ol style="font-size:0.9em; margin-top:0;">
+                            <li><strong>Detection:</strong> Client polls Config Server (or receives Push) -> Updates Spring `Environment`.</li>
+                            <li><strong>Invalidation:</strong> Spring clears the cache of beans marked with `@RefreshScope`.</li>
+                            <li><strong>Re-creation:</strong> These beans are <em>Proxies</em>. On the <strong>next method call</strong>, the proxy detects the cache is empty, creates a <strong>new instance</strong> of the real bean, and injects the <em>new</em> values.</li>
+                        </ol>
+                    </div>
+
+                    <div class="interview-q">
+                        <strong style="color:#c0392b;">Q: What is the "Config Center" in OpenShift?</strong>
+                        <p style="font-size:0.9em; margin:5px 0;"><strong>A:</strong> OpenShift uses <strong>ConfigMaps</strong> (Plain) and <strong>Secrets</strong> (Encrypted).</p>
+                        <ul style="font-size:0.9em; margin-top:0;">
+                            <li><strong>Native K8s:</strong> Configs are injected as <em>Env Vars</em> (Static, requires restart) or <em>Mounted Files</em> (Dynamic updates).</li>
+                            <li><strong>Spring Integration:</strong> <code>spring-cloud-starter-kubernetes</code> reads ConfigMaps directly. It watches the K8s API for changes and triggers the Hot Reload (RefreshScope) automatically, replacing Nacos/Config Server.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+</script>
+
+</body>
+</html>
