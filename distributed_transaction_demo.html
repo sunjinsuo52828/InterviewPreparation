@@ -294,6 +294,26 @@
                         </div>
                     </div>
 
+                    <div class="qa-box">
+                        <div class="qa-title">
+                            <span class="qa-tag">Distributed ID</span>
+                            Q9: What are common distributed ID generation algorithms? (分布式ID生成方案)
+                        </div>
+                        <div class="qa-answer">
+                            <ul>
+                                <li><b>UUID (Random/Hash-based)</b>: Simple, globally unique, but not ordered and relatively long (36 chars).</li>
+                                <li><b>Database Auto-Increment</b>: Use a central DB (MySQL) sequence. Simple but has single point and performance bottleneck.</li>
+                                <li><b>Segment/Leaf (号段模式)</b>: DB allocates a range (e.g., 1000~1999) to each service, service generates IDs in memory. High performance, low DB pressure.</li>
+                                <li><b>Snowflake (Twitter)</b>: 64-bit long, includes timestamp, machine ID, sequence. Trend-increasing, high concurrency, no central bottleneck. <br><code>[timestamp][datacenter][worker][sequence]</code></li>
+                                <li><b>Redis/Incr</b>: Use Redis atomic increment. Simple, high performance, but Redis is SPOF unless clustered.</li>
+                                <li><b>Other</b>: MongoDB ObjectId, Zookeeper-based, etc.</li>
+                            </ul>
+                            <p style="font-size:0.9em; color:#888; margin-top:5px;">
+                                <b>面试Tips：</b>实际生产推荐 <b>Snowflake</b> 或 <b>号段模式</b>，兼顾有序、性能和分布式唯一性。
+                            </p>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
