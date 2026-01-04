@@ -22,6 +22,12 @@
     3.  **ACL:** 新老系统之间加防腐层，隔离旧模型与脏数据。
     4.  **Release 改善:** Canary/灰度 + 自动化回归 + 回滚预案，做到“小步快跑”。
 
+**English (spoken):**
+- **H:** “Bottom line: we modernized without a big-bang rewrite, and we reduced release risk step by step.”
+- **E:** “It mattered because releases were slow and fragile—one change could impact the whole platform.”
+- **R:** “A full rewrite is high-risk and long-cycle, so I used a strangler approach to keep delivery moving while shrinking the blast radius.”
+- **O:** “We started with low-coupling edge modules, put an anti-corruption layer between old and new, improved release practices like canary and rollback, and gradually carved out services by business capability.”
+
 ### Tech-02: 生产环境性能瓶颈 (Performance Spike)
 **场景:** "During a market volatility event (e.g., Non-Farm Payrolls), our trading system latency spiked to 5 seconds. Traders are furious."
 *   **H (Headline):** 先止血把延迟拉回可用区间，再定位根因并做结构性修复。
@@ -32,6 +38,12 @@
     2.  **Evidence:** 用 OpenTelemetry 拆分时间，区分 DB 锁/连接池耗尽/GC/下游慢。
     3.  **Backpressure:** 对下游慢依赖加背压、超时、熔断与队列上限，防止级联。
     4.  **Hotspot:** Redis 缓存热点数据或预计算，减少高峰 DB 压力。
+
+**English (spoken):**
+- **H:** “First we stabilized latency; then we fixed the root cause with evidence.”
+- **E:** “In a volatility event, seconds of latency directly hurt traders and business confidence.”
+- **R:** “I don’t guess under pressure—mitigate first, then use traces and metrics to isolate whether it’s DB locks, GC, or a slow downstream.”
+- **O:** “We turned off non-critical features, used tracing to pinpoint the bottleneck, added backpressure/timeouts/circuit breakers, and cached hotspots to protect the database during peaks.”
 
 ### Tech-03: 跨国数据合规 (Data Residency)
 **场景:** "We need to deploy a feature for Singapore users, but the data cannot leave Singapore. Our servers are in Hong Kong."
@@ -57,6 +69,12 @@
     2.  **RCA:** 复盘近 5 次事故，抽象出共性模式（例如缺集成/契约测试、环境差异）。
     3.  **Capacity:** 每个 Sprint 固定 20% 用于补齐核心链路自动化与稳定性改造。
 
+**English (spoken):**
+- **H:** “We stopped the weekly firefighting loop by enforcing quality gates and paying down the right tech debt.”
+- **E:** “That reduced production incidents and made delivery predictable again.”
+- **R:** “If you keep shipping without a threshold, defects will keep escaping. A small short-term slowdown makes delivery faster long-term.”
+- **O:** “We introduced merge gates for critical paths, ran RCAs to find patterns, and reserved a fixed capacity slice each sprint to build automation on core flows.”
+
 ### Tech-06: 紧急安全漏洞 (Security Blocker)
 **场景:** "One day before the big launch, a Pen Test reveals a critical security vulnerability. Fixing it requires a major refactor. Business says 'Go Live' is non-negotiable."
 *   **H (Headline):** 安全红线问题不带病上线；要么修复，要么正式风险接受。
@@ -67,6 +85,12 @@
     2.  **Mitigation:** 看是否可用 WAF/网络隔离/配置降权临时降低风险。
     3.  **Fix vs Delay:** 能修就修并补测；不能修就推动延期。
     4.  **Risk Acceptance:** 若业务坚持，要求 Business Head/风险负责人签署风险接受与补救计划（含截止日期与证据）。
+
+**English (spoken):**
+- **H:** “We do not go live with a critical security finding—either we fix it, or we formally accept the risk with proper sign-off.”
+- **E:** “Because in a bank, that’s a license-and-reputation level risk.”
+- **R:** “IT shouldn’t silently absorb the risk. The decision must be auditable, with clear accountability.”
+- **O:** “We triaged severity and exposure, applied temporary mitigations like WAF/network isolation where possible, and if we still couldn’t close the risk, we escalated for delay or required formal risk acceptance with a remediation plan and deadline.”
 
 ### Tech-07: 线上事故排查与止血 (Incident Debugging)
 **场景:** "After a release, one market (e.g., AU) reports the feature is broken, but other markets look fine. Test data is hard to create, and business wants an immediate fix."
@@ -116,6 +140,11 @@
     3.  **风险闭环:** 审计发现（如传输未加密）立刻拉齐 TISO/Infra/Vendor 评估方案，选可落地且可审计的方案。
 *   **Result:** 在 deadline 前按时上线，确保合规；可补充：项目获得认可/奖项（如 Platinum Award）。
 
+**English (spoken):**
+- “Bottom line: I treat approvals as the critical path and run a reverse plan against committee windows.”
+- “It matters because one missed window can break the entire deadline in a regulated delivery.”
+- “I align Security/Legal/Brand early with a one-shot pack, keep a tight RAID log, escalate fast, and make sure evidence is audit-ready.”
+
 ### Biz-06: 需求蔓延与变更治理 (Scope Creep & Change Control)
 **场景:** "We are in UAT/final phase, but the Business keeps requesting 'small changes'. The deadline is fixed and risk is rising."
 *   **H (Headline):** 进入 UAT 后执行变更冻结：只做 bugfix，需求走 CR 并由业务做取舍。
@@ -125,6 +154,12 @@
     1.  **Freeze:** Code Freeze 只收 bugfix；所有新需求进入 CR 队列。
     2.  **Impact:** 每个 CR 标准化影响评估（dev/test/security/cutover/rollback）。
     3.  **One-in-One-out:** 新增必须对应 de-scope/phase2；必要时上升到 Steering/CAB。
+
+**English (spoken):**
+- **H:** “In UAT, we freeze scope: bug fixes only. Everything else goes through CR with explicit trade-offs.”
+- **E:** “That protects cutover success and prevents late-stage regression risk from exploding.”
+- **R:** “Many ‘small changes’ add up and make testing and rollback unpredictable—trade-offs must be owned by the business.”
+- **O:** “We used a standard impact assessment (dev/test/security/cutover/rollback), one-in-one-out de-scope, and escalated via governance when needed.”
 
 ### Biz-07: Settlement/Validation 思路（不装懂也能打）
 **场景:** "Explain how you understand settlement operation model and the validation process."
@@ -190,6 +225,12 @@
     3.  **Governance:** 达不成一致就走 Steering/CAB 决策并记录原因。
     4.  **Sustainability:** 不用“隐性加班”解决问题；若要加速则谈资源或 de-scope。
 
+**English (spoken):**
+- **H:** “I don’t pick winners emotionally—I make the trade-off transparent and let the business decide with data.”
+- **E:** “That reduces politics and keeps delivery sustainable.”
+- **R:** “Trying to deliver both usually means delivering neither. Trade-offs must be explicit.”
+- **O:** “I quantify value, regulatory impact, operational risk, complexity and delivery confidence; present 2–3 viable options; and use steering/CAB if alignment is still not possible.”
+
 ### Gov-07: 预算与成本（Budget Process）
 **场景:** "You are involved in project budgeting. How do you run the budget process and keep control?"
 *   **Action:**
@@ -221,6 +262,11 @@
     1.  **不直接说 No:** "我理解这个日期的重要性。"
     2.  **展示数据:** "基于目前的团队速率 (Velocity) 和范围 (Scope)，这是我们的燃尽图 (Burndown Chart)。"
     3.  **提供权衡 (Trade-off):** "要达到这个日期，我们需要：A) 增加 3 个高级人力；或者 B) 砍掉 40% 的非核心功能。您怎么选？"
+
+**English (spoken):**
+- “I don’t just say ‘no’. I acknowledge the importance, then I bring data: velocity, scope, and a realistic plan.”
+- “I offer clear options: add senior capacity, de-scope non-critical items, or shift the date—with the risk and impact spelled out.”
+- “If needed, I document the decision and escalate through the right governance channel to protect delivery credibility.”
 
 ### Lead-04: 员工激励与辅导 (Coaching & Motivation)
 **场景:** "You have a junior dev who is eager but buggy, and a senior dev who is capable but disengaged (hard to find)."
@@ -277,6 +323,12 @@
     2.  **Re-org:** 拆清 dev 与 test-support 职责，建立“关键专家”二线支持。
     3.  **Shift-left:** 测试前置，daily standup 聚焦 blocker 清除与优先级。
 *   **Result:** 一周内恢复节奏，升级减少，最终按期交付。
+
+**English (spoken):**
+- **H:** “We moved from burnout mode to a sustainable delivery rhythm, and escalations dropped quickly.”
+- **E:** “It mattered because constant escalations destroy morale and stakeholder trust.”
+- **R:** “Rescue work is not ‘work harder’. It’s rebuild the system: clear ownership, early testing, visible blockers.”
+- **O:** “I reset the operating model, clarified dev vs test-support roles, set a sustainable cadence, shifted testing left, and ran daily blocker-clearing. Within about a week, the team stabilized and delivered on schedule.”
 
 ### Lead-10: 业务方管理（数据驱动的变更决策）
 **场景:** "Business requests a last-minute change or asks to restore a deprecated feature during go-live."
