@@ -13,19 +13,25 @@
 
 ### Tech-01: 遗留系统改造 (Legacy Modernization)
 **场景:** "We have a monolithic Java application that is 10 years old. It's fragile and hard to deploy. Business wants new features fast. How do you handle this?"
-*   **Situation:** 核心业务跑在脆弱的单体应用上，部署周期长，风险高。
-*   **Action:**
-    1.  **拒绝重写 (No Big Bang):** 明确表示重写风险不可控。
-    2.  **绞杀者模式 (Strangler Fig):** 识别边缘模块，用微服务逐步剥离。
-    3.  **防腐层 (ACL):** 在新老系统间建立防腐层，防止老系统的烂模型污染新系统。
-*   **Result:** 逐步降低单体复杂度，同时不中断业务交付。
+*   **H (Headline):** 用渐进式改造替代重写，把发布风险拆小。
+*   **E (Effect):** 缩短发布周期、降低 blast radius，同时不影响业务持续交付。
+*   **R (Rationale):** 单体重写=长周期+高不确定性；选择绞杀者模式，先从低耦合边缘模块开始，逐步替换。
+*   **O (Operations):**
+    1.  **No Big Bang:** 明确重写风险不可控，先做可观测与发布流程基线。
+    2.  **Strangler Fig:** 识别边缘模块，按业务能力拆分为微服务，分阶段上线。
+    3.  **ACL:** 新老系统之间加防腐层，隔离旧模型与脏数据。
+    4.  **Release 改善:** Canary/灰度 + 自动化回归 + 回滚预案，做到“小步快跑”。
 
 ### Tech-02: 生产环境性能瓶颈 (Performance Spike)
 **场景:** "During a market volatility event (e.g., Non-Farm Payrolls), our trading system latency spiked to 5 seconds. Traders are furious."
-*   **Action:**
-    1.  **止血 (Mitigation):** 立即启用**降级开关 (Feature Toggles)**，关闭非核心功能（如实时报表）。
-    2.  **排查 (Investigation):** 使用 **OpenTelemetry** 查看 Trace，定位是数据库锁还是 GC 停顿。
-    3.  **根治 (Fix):** 引入 **Backpressure (背压)** 机制，保护下游不被压垮；引入 **Redis 缓存** 热点数据。
+*   **H (Headline):** 先止血把延迟拉回可用区间，再定位根因并做结构性修复。
+*   **E (Effect):** 保障交易链路可用（SLA/客户体验），避免波动期间扩大损失。
+*   **R (Rationale):** 高波动下先恢复服务能力；根因必须用证据（trace/metrics）而不是猜测。
+*   **O (Operations):**
+    1.  **Mitigation:** 启用降级开关/限流，关闭非核心功能（如实时报表）。
+    2.  **Evidence:** 用 OpenTelemetry 拆分时间，区分 DB 锁/连接池耗尽/GC/下游慢。
+    3.  **Backpressure:** 对下游慢依赖加背压、超时、熔断与队列上限，防止级联。
+    4.  **Hotspot:** Redis 缓存热点数据或预计算，减少高峰 DB 压力。
 
 ### Tech-03: 跨国数据合规 (Data Residency)
 **场景:** "We need to deploy a feature for Singapore users, but the data cannot leave Singapore. Our servers are in Hong Kong."
@@ -43,17 +49,24 @@
 
 ### Tech-05: 线上故障频发 (Quality Crisis)
 **场景:** "The team is stuck in a 'fire-fighting' mode. Production bugs happen every week, and there is no time to write automated tests."
-*   **Action:**
-    1.  **停止止血 (Stop the Bleeding):** 实施 **"Quality Gate"**，没有测试覆盖的代码严禁合并。短期内可能会降低交付速度，但必须坚持。
-    2.  **根本原因分析 (RCA):** 对最近 5 次故障进行深度复盘，发现共同模式（如：缺乏集成测试）。
-    3.  **技术债偿还周:** 每个 Sprint 拨出 20% 时间专门补全核心链路的自动化测试，而不是只做新功能。
+*   **H (Headline):** 用质量闸门 + 技术债配额，停止“每周救火”的循环。
+*   **E (Effect):** 降低 defect leakage、减少生产事故、恢复交付确定性。
+*   **R (Rationale):** 不设门槛=持续累债；短期“快”换来长期更慢，必须先把质量变成交付系统的一部分。
+*   **O (Operations):**
+    1.  **Quality Gate:** 关键路径必须有测试/检查才能合并（分层做，不是一刀切全覆盖）。
+    2.  **RCA:** 复盘近 5 次事故，抽象出共性模式（例如缺集成/契约测试、环境差异）。
+    3.  **Capacity:** 每个 Sprint 固定 20% 用于补齐核心链路自动化与稳定性改造。
 
 ### Tech-06: 紧急安全漏洞 (Security Blocker)
 **场景:** "One day before the big launch, a Pen Test reveals a critical security vulnerability. Fixing it requires a major refactor. Business says 'Go Live' is non-negotiable."
-*   **Action:**
-    1.  **红线原则:** 明确告知 "Security is non-negotiable"。带着漏洞上线可能导致牌照吊销或巨额罚款。
-    2.  **寻找规避方案 (Mitigation):** 是否可以通过 WAF (Web Application Firewall) 规则或网络隔离来暂时规避风险，而不是改代码？
-    3.  **风险接受函 (Risk Acceptance):** 如果业务坚持，必须由 Business Head 签署正式的风险接受函 (Risk Acceptance Form)，将责任转移给业务方（通常他们签的时候就会怂）。
+*   **H (Headline):** 安全红线问题不带病上线；要么修复，要么正式风险接受。
+*   **E (Effect):** 避免重大合规/监管风险与声誉损失，保护牌照与客户信任。
+*   **R (Rationale):** 风险不可由 IT 单方面承担；必须用控制与证据让决策可审计。
+*   **O (Operations):**
+    1.  **Triage:** 明确漏洞等级与攻击面，评估是否影响核心交易链路。
+    2.  **Mitigation:** 看是否可用 WAF/网络隔离/配置降权临时降低风险。
+    3.  **Fix vs Delay:** 能修就修并补测；不能修就推动延期。
+    4.  **Risk Acceptance:** 若业务坚持，要求 Business Head/风险负责人签署风险接受与补救计划（含截止日期与证据）。
 
 ### Tech-07: 线上事故排查与止血 (Incident Debugging)
 **场景:** "After a release, one market (e.g., AU) reports the feature is broken, but other markets look fine. Test data is hard to create, and business wants an immediate fix."
@@ -105,10 +118,13 @@
 
 ### Biz-06: 需求蔓延与变更治理 (Scope Creep & Change Control)
 **场景:** "We are in UAT/final phase, but the Business keeps requesting 'small changes'. The deadline is fixed and risk is rising."
-*   **Action:**
-    1.  **冻结策略:** 进入 Code Freeze：只收 Bugfix；新需求一律走 CR。
-    2.  **影响评估:** 每个 CR 给出清晰 trade-off：开发/测试/安全/上线风险/回滚复杂度。
-    3.  **一进一出:** 用 One-in-One-out 或 De-scope 机制，让业务自己做取舍。
+*   **H (Headline):** 进入 UAT 后执行变更冻结：只做 bugfix，需求走 CR 并由业务做取舍。
+*   **E (Effect):** 防止上线风险失控，保证 cutover 成功率与时间窗口。
+*   **R (Rationale):** “小改动”叠加会显著拉高回归与回滚复杂度；取舍权必须回到业务侧。
+*   **O (Operations):**
+    1.  **Freeze:** Code Freeze 只收 bugfix；所有新需求进入 CR 队列。
+    2.  **Impact:** 每个 CR 标准化影响评估（dev/test/security/cutover/rollback）。
+    3.  **One-in-One-out:** 新增必须对应 de-scope/phase2；必要时上升到 Steering/CAB。
 
 ### Biz-07: Settlement/Validation 思路（不装懂也能打）
 **场景:** "Explain how you understand settlement operation model and the validation process."
@@ -165,10 +181,14 @@
 
 ### Gov-06: 资源受限下的取舍 (2 Features but Only 1 Capacity)
 **场景:** "Business wants two features, but you only have capacity for one in the given timeline. What do you do?"
-*   **Action:**
-    1.  **不替业务拍板:** 用数据把选择权还给业务：收益、风险、监管影响、客户影响。
-    2.  **提供 2-3 个可选方案:** A 做 Feature1 全量；B 做 Feature2 全量；C 两个都做 MVP（明确 scope）。
-    3.  **保护团队节奏:** 明确不可无限加班；如需加速，谈资源（借人/外包/延后 scope）。
+*   **H (Headline):** 我不替业务拍板，用数据把决策透明化并给出可落地选项。
+*   **E (Effect):** 降低政治成本与反复拉扯，确保交付可预测且团队可持续。
+*   **R (Rationale):** “两个都要”会导致两个都交付不了；必须把 trade-off 显性化。
+*   **O (Operations):**
+    1.  **Quantify:** 统一量化维度：收益、监管影响、运营风险、客户影响、复杂度、交付信心。
+    2.  **Options:** A 全量做 1；B 全量做 2；C 两个 MVP（明确 scope 与风险）。
+    3.  **Governance:** 达不成一致就走 Steering/CAB 决策并记录原因。
+    4.  **Sustainability:** 不用“隐性加班”解决问题；若要加速则谈资源或 de-scope。
 
 ### Gov-07: 预算与成本（Budget Process）
 **场景:** "You are involved in project budgeting. How do you run the budget process and keep control?"
@@ -249,10 +269,13 @@
 
 ### Lead-09: 救火项目恢复节奏 (Project Rescue)
 **场景:** "A project is close to failure. New hires, new tech stack, overtime 7x16, morale collapsed, escalations every day. You're asked to rescue it."
-*   **Action:**
-    1.  **先稳心态:** 先恢复可持续节奏（例如承诺并做到周日不加班）。
-    2.  **组织重构:** 拆清职责（dev vs test-support），培养关键技术专家提供技术后援。
-    3.  **前置测试与清障:** 把测试前置，daily standup 只盯 blocker 清除。
+*   **H (Headline):** 先把团队从 7x16 的崩溃节奏拉回可持续交付，并快速降级 escalations。
+*   **E (Effect):** 稳住士气与交付节奏，避免持续升级影响客户与管理层信任。
+*   **R (Rationale):** 救火不是更拼命，而是重建系统：职责清晰、测试前置、blocker 透明。
+*   **O (Operations):**
+    1.  **Reset rhythm:** 明确边界与节奏（例如承诺周日不加班），先止住 burnout。
+    2.  **Re-org:** 拆清 dev 与 test-support 职责，建立“关键专家”二线支持。
+    3.  **Shift-left:** 测试前置，daily standup 聚焦 blocker 清除与优先级。
 *   **Result:** 一周内恢复节奏，升级减少，最终按期交付。
 
 ### Lead-10: 业务方管理（数据驱动的变更决策）

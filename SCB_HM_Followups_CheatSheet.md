@@ -2,6 +2,16 @@
 
 > 目标：每题准备 2-3 个要点 + 1 个数字 + 1 个 trade-off。
 
+## Recommended Answer Structure: HERO (Default) + STAR (Proof)
+Use **HERO** for leadership / governance / trade-off questions.
+Switch to **STAR** only when the interviewer asks for timeline-level details.
+
+- **H — Headline:** One-sentence outcome + 1 metric (hook).
+- **E — Effect:** Why it mattered (business impact / risk reduction / team health).
+- **R — Rationale:** Options considered + trade-offs + why this choice (judgment).
+- **O — Operations:** Concrete execution (process, controls, tools, cadence).
+- **Proof (optional):** 1-2 STAR facts if asked (what you personally did + results).
+
 ## 1) Delivery / Execution
 - How did you ensure the plan was realistic?
 - What did you *stop* doing to regain control?
