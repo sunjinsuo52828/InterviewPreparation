@@ -5,6 +5,9 @@
 ## Card 1 — Project Rescue (Delivery Under Pressure)
 **Theme:** Turnaround, execution, team rhythm, stakeholder management
 
+**English (spoken, 30–45s):**
+“I was brought into a project that was close to failure—daily escalations, a new team on a new stack, and an unsustainable 7×16 rhythm. My first priority was to restore control and predictability without burning people out. I reset the operating model—clear ownership, a daily blocker-clearing cadence, and a single definition of release readiness—then shifted testing earlier so we stopped discovering issues at the end. With the right safeguards and a sustainable cadence, escalations dropped within about a week and we got the project back on track and delivered on time.”
+
 **S (Situation):** A project was near failure: new hires + new tech stack, working 7×16, daily escalations, morale dropping. I was brought in to stabilize and deliver.
 
 **T (Task):** Restore a sustainable delivery rhythm quickly, reduce escalations, and get the project back to an on-time trajectory without compromising quality.
@@ -28,6 +31,9 @@
 
 ## Card 2 — Compliance Go-Live in 45 Days (Cross-Committee Delivery)
 **Theme:** Governance, controls, planning against approval windows, risk closure
+
+**English (spoken, 30–45s):**
+“This was a compliance-driven go-live with a hard 45‑day deadline and fixed approval windows across Security, Legal, Brand and global committees. I treated approvals as the critical path and reverse-planned from the committee calendar, with clear owners for every artifact and decision. I prepared one-shot packs to avoid ping‑pong, ran a tight RAID loop with early escalation, and made sure mitigation and evidence were audit‑ready. We hit the deadline with sign‑offs in place and reduced control risk rather than creating follow‑up findings.”
 
 **S (Situation):** A compliance-driven project had a hard deadline of 45 days. Multiple approvals (Security/Legal/Brand/global committees) had fixed weekly windows—missing one window could fail the deadline.
 
@@ -53,6 +59,9 @@
 ## Card 3 — Platform Upgrade Driven by CAP/Audit (Structured Risk Reduction)
 **Theme:** Controls, audit remediation, platform modernization, stakeholder alignment
 
+**English (spoken, 30–45s):**
+“We had a platform upgrade driven by CAP/audit findings—business wanted new features, but risk needed closure and stability. I framed it as a control-and-stability program: every finding mapped to an owner, due date, and evidence, with a phased release plan and risk‑based testing. I enforced change governance so feature work couldn’t derail the upgrade, and improved observability to catch regressions fast. The outcome was a clean control posture with fewer findings and better stability, and we shortened diagnosis time when issues did occur.”
+
 **S (Situation):** A core platform needed an upgrade (e.g., 8→9) with multiple CAP findings/audit observations. Business wanted features; risk teams wanted closure.
 
 **T (Task):** Upgrade safely, reduce findings, and avoid production instability.
@@ -77,6 +86,9 @@
 ## Card 4 — Building a Delivery Site (0 → 90+)
 **Theme:** Leadership, hiring, onboarding, productivity ramp, operating model
 
+**English (spoken, 30–45s):**
+“I built a delivery site from zero to 90+ by scaling in controlled waves rather than hiring everyone at once. I started with a core spine—tech leads, QA, DevOps and BA—then expanded teams with a standardized onboarding pipeline, buddy/mentor model, and a short training camp that translated quickly into real delivery. In parallel, I put the operating model in place: cadence, written status, dependency management and clear escalation paths. The result was multiple squads that could deliver independently with consistent governance and predictable outcomes.”
+
 **S (Situation):** Needed to build a new delivery site/team from scratch and make it productive quickly.
 
 **T (Task):** Scale sustainably with clear roles, onboarding pipeline, and predictable delivery.
@@ -100,6 +112,9 @@
 ## Card 5 — Stakeholder Conflict & Priority Trade-offs
 **Theme:** Business partnering, prioritization, negotiation, transparency
 
+**English (spoken, 30–45s):**
+“Two business units both wanted P0 delivery on a shared platform, but capacity was limited. I didn’t play ‘judge’; I made the trade‑offs explicit and decision-ready. I translated each request into comparable dimensions—value, regulatory impact, operational risk, complexity and delivery confidence—and proposed options: full A, full B, or MVPs with clear scope and risk. I also protected the team from ‘hidden overtime’ as a delivery strategy. We reached a transparent decision with shared ownership and avoided late-stage conflict.”
+
 **S (Situation):** Multiple business units needed urgent features, but capacity was limited and the timeline fixed.
 
 **T (Task):** Enable an explicit decision with minimum politics and maximum transparency.
@@ -116,4 +131,5 @@
 - What data did you use?
 - How did you handle an escalation to your boss?
 - What did you do when stakeholders disagreed?
+
 
