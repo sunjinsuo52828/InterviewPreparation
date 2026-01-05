@@ -9,6 +9,49 @@
 > - 技术深挖 3 题：Tech-05（质量危机）、Tech-06（安全红线）、Tech-07（性能/排查）
 > - 业务流程 2 题：Biz-07（Settlement/Validation 思路）、Biz-08（Trade control/controls）
 
+## 0. 开场与综合 (Opening & General)
+
+### Open-01: 自我介绍 (Introduction)
+**场景:** "Tell me about yourself."
+*   **Script:**
+    "Hi, I’m Jinsuo—Jason. I spent 19 years at Citi, and most recently I was a VP with two responsibilities: Engineering Delivery Lead and Dalian Site Manager in digital banking.
+
+    What I really focus on is **safe, predictable delivery** in a highly regulated and complex organization—keeping production stable, following a solid SDLC, and making sure controls are in place, while still delivering business outcomes. I led cross‑region teams across China, Singapore, and India, delivering capabilities across 16+ markets for 10M+ users. One of the projects I drove to deliver within 45 days won the top quarterly prize.
+
+    On **governance**, I put in place clear go‑live checks, tight change control, and a clean audit trail—so we can ship confidently, not just quickly. I also drove Safety & Soundness work, closing audit and vulnerability gaps and reducing high‑risk vulnerabilities by about 70%.
+
+    On **architecture modernization**, I led the move from a legacy monolith to microservices with a full CI/CD pipeline, which improved release speed while lowering risk.
+
+    As **site manager**, I built the team from scratch up to 90 staff. I setup the hiring, onboarding, training process, and also continuously improved the whole team delivery maturity level.
+
+    Now I'm looking to bring the same delivery leadership, control mindset, and team management to this SCB position—especially closer to the Financial Markets value stream, where operational risk and controls are really critical."
+
+### Open-02: 为什么申请这个职位 (Why this role?)
+**场景:** "How do you feel about this position, and why do you want to apply for it?"
+*   **Script:**
+    "From what I understand, this role is a delivery leadership position in Financial Markets, where the priority is to deliver critical capabilities with strong governance, controls, and operational resilience—because the cost of failure is high.
+
+    I want to apply for it for three reasons:
+    1.  **Fit:** It’s the kind of work I’m best at: safe, predictable delivery in complex, regulated environments.
+    2.  **Interest:** I’m excited to move closer to the Markets value stream—trade control, validation, and settlement—where control discipline and execution quality really matter.
+    3.  **Impact:** I think my experience leading cross‑region teams, improving SDLC governance, and modernizing platforms without disrupting production can help SCB deliver faster with lower risk.
+
+    So overall, it’s a strong match between what the role needs and what I’ve been doing at scale."
+
+### Open-03: 优势与劣势 (Strengths & Weaknesses)
+**场景:** "What are your greatest strengths and weaknesses?"
+*   **Script:**
+    "My biggest **strength** is safe, predictable delivery in regulated environments. I’m strong at setting clear governance—go/no‑go checks, change control, and audit trail—while aligning multiple stakeholders across regions to get things shipped. I also stay hands-on enough to challenge technical decisions and remove delivery bottlenecks.
+
+    (Optional Weakness if asked: Sometimes I can be overly cautious with risk, double-checking everything, but I've learned to balance this by automating checks so it doesn't slow down the team.)"
+
+### Open-04: 零售 vs 金融市场 (Consumer vs Financial Markets)
+**场景:** "Compare the consumer and financial markets domains."
+*   **Script:**
+    "**Business-wise**, retail banking is customer-journey and high-volume, so we prioritize availability and reliable service at scale. Markets is trade-lifecycle and control-driven, so correctness and stability are critical—validation, cut-offs, exceptions, settlement and recon.
+
+    **System-wise**, retail is API- and channel-heavy with traffic spikes, so the architecture prioritizes scalability, edge resilience, and graceful degradation. Markets is workflow and integration-heavy, so the focus shifts to end-to-end stability: data integrity, idempotency, sequencing, and strong observability and audit trail."
+
 ## 1. 技术架构与稳定性 (Tech)
 
 ### Tech-01: 遗留系统改造 (Legacy Modernization)

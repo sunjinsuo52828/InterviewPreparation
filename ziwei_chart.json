@@ -1,0 +1,112 @@
+{
+  "name": "ziwei_chart.json",
+  "palaces": [
+    {
+      "name": "命宫",
+      "branch": "己亥",
+      "main_stars": [
+        {"name": "武曲", "status": "平", "self_out": "禄"},
+        {"name": "破军", "status": "平", "self_in": "禄"}
+      ],
+      "assist_stars": [
+        {"name": "天马", "status": "平"}
+      ],
+      "minor_stars": [
+        {"name": "封诰"},
+        {"name": "孤辰", "status": "陷"},
+        {"name": "蜚廉"}
+      ],
+      "shen_sha": {
+        "sui_qian": "丧门",
+        "jiang_qian": "岁驿",
+        "chang_sheng": "绝",
+        "tai_sui_sha_lu": "伏兵"
+      },
+      "da_xian": "62~71虚岁",
+      "xiao_xian": [5,17,29,41,53],
+      "liu_nian": [3,15,27,39,51]
+    },
+    {
+      "name": "身宫",
+      "branch": "庚子",
+      "main_stars": [
+        {"name": "武曲", "status": "平", "self_out": "禄"},
+        {"name": "破军", "status": "平", "self_in": "禄"}
+      ],
+      "assist_stars": [
+        {"name": "天马", "status": "平"}
+      ],
+      "minor_stars": [
+        {"name": "封诰"},
+        {"name": "孤辰", "status": "陷"},
+        {"name": "蜚廉"}
+      ],
+      "shen_sha": {
+        "sui_qian": "丧门",
+        "jiang_qian": "岁驿",
+        "chang_sheng": "绝",
+        "tai_sui_sha_lu": "伏兵"
+      },
+      "da_xian": "62~71虚岁",
+      "xiao_xian": [5,17,29,41,53],
+      "liu_nian": [3,15,27,39,51]
+    },
+    {
+      "name": "迁移宫",
+      "branch": "己亥",
+      "main_stars": [
+        {"name": "武曲", "status": "平", "self_out": "禄"},
+        {"name": "破军", "status": "平", "self_in": "禄"}
+      ],
+      "assist_stars": [
+        {"name": "天马", "status": "平"}
+      ],
+      "minor_stars": [
+        {"name": "封诰"},
+        {"name": "孤辰", "status": "陷"},
+        {"name": "蜚廉"}
+      ],
+      "shen_sha": {
+        "sui_qian": "丧门",
+        "jiang_qian": "岁驿",
+        "chang_sheng": "绝",
+        "tai_sui_sha_lu": "伏兵"
+      },
+      "da_xian": "62~71虚岁",
+      "xiao_xian": [5,17,29,41,53],
+      "liu_nian": [3,15,27,39,51]
+    }
+  ],
+  "verified_timeline": [
+    {
+      "year": 1998,
+      "age": 18,
+      "event": "考上211大学",
+      "stars": "天梁化禄(流官), 左右化科(大限/流年), 陀罗(复读应期)"
+    },
+    {
+      "year": 2010,
+      "age": 30,
+      "event": "结婚",
+      "stars": "太阳化禄(夫星), 太阴入命(妻星), 寅申冲(冲开孤寡陀罗)"
+    },
+    {
+      "year": 2016,
+      "age": 36,
+      "event": "生子(阳历2017年初)",
+      "stars": "天同化禄(子女星), 丙申年(猴年)"
+    },
+    {
+      "year": 2018,
+      "age": 38,
+      "event": "升职",
+      "stars": "太阴化权(掌权), 贪狼化禄(机遇), 天机化忌(操心)"
+    }
+  ],
+  "analysis_calibration": {
+    "key_benefactor_star": "太阴",
+    "life_pattern": "大器晚成，好事多磨(陀罗影响)",
+    "sensitive_trigger": "化禄即应"
+  },
+  "remark": "定盘确认：酉时无误。命主对太阴、天梁、化禄极其敏感。陀罗星导致学业与婚姻延后。"
+}

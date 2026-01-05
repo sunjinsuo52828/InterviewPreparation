@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>高知特应用支持岗位学习计划</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        .slide-container {
+            width: 1280px;
+            height: 720px;
+            display: flex;
+            position: relative;
+            background-color: #ffffff;
+            overflow: hidden;
+        }
+        .novartis-blue {
+            color: #0460a9;
+        }
+        .bg-novartis-blue {
+            background-color: #0460a9;
+        }
+        .novartis-orange {
+            color: #e74a21;
+        }
+        .bg-novartis-orange {
+            background-color: #e74a21;
+        }
+        .accent-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: #0460a9;
+            z-index: 20;
+        }
+        .accent-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 20%;
+            height: 100%;
+            background: #e74a21;
+        }
+        .hero-image-container {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 45%;
+            overflow: hidden;
+            clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%);
+        }
+        .hero-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(4, 96, 169, 0.15); 
+        }
+        .content-wrapper {
+            width: 60%;
+            height: 100%;
+            padding: 60px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            z-index: 10;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-left: 6px solid #e74a21;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+</head>
+<body>
+<div class="slide-container">
+<!-- Top Accent Bar -->
+<div class="accent-bar"></div>
+<!-- Right Side Image -->
+<div class="hero-image-container">
+<img alt="Medical Science Technology" class="hero-image" src="https://page.gensparksite.com/slides_images/9ed94a0f1f358e256469212601f7b8ed.webp"/>
+<div class="overlay"></div>
+</div>
+<!-- Left Content -->
+<div class="content-wrapper">
+<!-- Header/Logo Area -->
+<div class="mb-8 flex items-center">
+<i class="fas fa-dna novartis-blue text-4xl mr-3"></i>
+<div class="text-xl font-bold tracking-widest text-gray-500 uppercase">Learning Plan</div>
+</div>
+<!-- Main Title -->
+<div class="mb-10">
+<h1 class="text-6xl font-black novartis-blue leading-tight mb-4">
+                    高知特<br/>应用支持岗位<br/>学习计划
+                </h1>
+<p class="text-2xl text-gray-600 font-light flex items-center">
+<span class="w-12 h-1 bg-novartis-orange mr-4 inline-block"></span>
+                    敏捷融入 · 全景掌控 · 无缝接管
+                </p>
+</div>
+<!-- Info Cards -->
+<div class="grid grid-cols-2 gap-6 mb-10">
+<div class="glass-card p-5 rounded-r-lg">
+<p class="text-sm text-gray-500 uppercase tracking-wide font-bold mb-1">应聘者 Candidate</p>
+<p class="text-2xl font-bold text-gray-800">孙金锁 (Jason)</p>
+</div>
+<div class="glass-card p-5 rounded-r-lg" style="border-left-color: #0460a9;">
+<p class="text-sm text-gray-500 uppercase tracking-wide font-bold mb-1">周期 Duration</p>
+<p class="text-2xl font-bold text-gray-800">4 - 6 周</p>
+</div>
+</div>
+<!-- Target Position & Goal -->
+<div class="bg-white rounded-lg shadow-lg p-6 border border-gray-100 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-gray-50 rounded-full -mr-10 -mt-10 z-0"></div>
+<div class="relative z-10">
+<div class="flex items-start mb-3">
+<div class="bg-novartis-blue text-white p-2 rounded mr-3 mt-1">
+<i class="fas fa-briefcase"></i>
+</div>
+<div>
+<p class="text-xs text-gray-500 font-bold uppercase">目标岗位 Target Position</p>
+<p class="text-xl font-bold novartis-blue">Delivery Manager - Application Support</p>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-gray-100">
+<p class="text-xs text-gray-500 font-bold uppercase mb-2">核心目标 Core Objective</p>
+<p class="text-gray-700 leading-relaxed text-lg">
+                            以<span class="font-bold novartis-blue">合规</span>为基石，快速融入诺华系统生态；通过<span class="font-bold novartis-blue">全景掌控</span>与卓越运维，实现业务连续性的<span class="font-bold novartis-orange">无缝接管</span>。
+                        </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom decorative elements -->
+<div class="absolute bottom-6 left-12 text-gray-400 text-xs font-mono">
+            Dec 2025
+        </div>
+</div>
+</body>
+</html>

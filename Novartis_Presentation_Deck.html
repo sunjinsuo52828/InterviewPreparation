@@ -1,0 +1,1970 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Novartis Presentation Deck</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+    /* Global Reset & Print Styles */
+    body {
+        font-family: 'Noto Sans SC', sans-serif;
+        background-color: #555;
+        margin: 0;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 40px;
+        overflow-y: auto;
+    }
+    
+    /* Common Slide Container Styles */
+    .slide-container {
+        width: 1280px;
+        height: 720px;
+        background-color: #ffffff;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        flex-shrink: 0;
+    }
+
+    @media print {
+        body {
+            background-color: white;
+            padding: 0;
+            margin: 0;
+            display: block;
+        }
+        .slide-container {
+            box-shadow: none;
+            page-break-after: always;
+            margin: 0;
+            width: 100%;
+            height: 100%;
+        }
+    }
+
+    /* Extracted and Scoped Styles */
+    
+/* CSS from Novartis_Learning_Plan_Slide.html */
+#slide-0 { 
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+         }
+#slide-0 { 
+            width: 1280px;
+            height: 720px;
+            display: flex;
+            position: relative;
+            background-color: #ffffff;
+            overflow: hidden;
+         }
+#slide-0 .novartis-blue { 
+            color: #0460a9;
+         }
+#slide-0 .bg-novartis-blue { 
+            background-color: #0460a9;
+         }
+#slide-0 .novartis-orange { 
+            color: #e74a21;
+         }
+#slide-0 .bg-novartis-orange { 
+            background-color: #e74a21;
+         }
+#slide-0 .accent-bar { 
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: #0460a9;
+            z-index: 20;
+         }
+#slide-0 .accent-bar::after { 
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 20%;
+            height: 100%;
+            background: #e74a21;
+         }
+#slide-0 .hero-image-container { 
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 45%;
+            overflow: hidden;
+            clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%);
+         }
+#slide-0 .hero-image { 
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+         }
+#slide-0 .overlay { 
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(4, 96, 169, 0.15); 
+         }
+#slide-0 .content-wrapper { 
+            width: 60%;
+            height: 100%;
+            padding: 60px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            z-index: 10;
+         }
+#slide-0 .glass-card { 
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-left: 6px solid #e74a21;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+         }
+
+
+/* CSS from Novartis_Gap_Analysis_Slide.html */
+#slide-1 { 
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+         }
+#slide-1 { 
+            width: 1280px;
+            height: 720px;
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+            overflow: hidden;
+            position: relative;
+         }
+#slide-1 .novartis-blue {  color: #0460a9;  }
+#slide-1 .bg-novartis-blue {  background-color: #0460a9;  }
+#slide-1 .novartis-orange {  color: #e74a21;  }
+#slide-1 .bg-novartis-orange {  background-color: #e74a21;  }
+#slide-1 /* Header Styles */
+        .header { 
+            padding: 40px 60px 20px 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid #f1f5f9;
+         }
+#slide-1 /* Content Styles */
+        .content-wrapper { 
+            flex: 1;
+            padding: 30px 50px;
+            display: flex;
+            gap: 30px;
+            align-items: stretch;
+         }
+#slide-1 /* Column Card Styles */
+        .gap-column { 
+            flex: 1;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            background: white;
+            transition: transform 0.3s ease;
+            position: relative;
+         }
+#slide-1 .gap-column:hover { 
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+         }
+#slide-1 /* High Gap Style */
+        .gap-high .header-band { 
+            background-color: #e74a21; /* Orange for high attention */
+            color: white;
+         }
+#slide-1 .gap-high .gap-badge { 
+            background-color: #fff1f0;
+            color: #cf1322;
+            border: 1px solid #ffa39e;
+         }
+#slide-1 .gap-high .icon-circle { 
+            background-color: rgba(231, 74, 33, 0.1);
+            color: #e74a21;
+         }
+#slide-1 /* Medium Gap Style */
+        .gap-medium .header-band { 
+            background-color: #faad14; /* Yellow/Amber for medium */
+            color: white;
+         }
+#slide-1 .gap-medium .gap-badge { 
+            background-color: #fffbe6;
+            color: #d48806;
+            border: 1px solid #ffe58f;
+         }
+#slide-1 .gap-medium .icon-circle { 
+            background-color: rgba(250, 173, 20, 0.1);
+            color: #faad14;
+         }
+#slide-1 /* Low/Info Gap Style (Blue - Using Novartis Blue) */
+        .gap-info .header-band { 
+            background-color: #0460a9;
+            color: white;
+         }
+#slide-1 .gap-info .gap-badge { 
+            background-color: #e6f7ff;
+            color: #0050b3;
+            border: 1px solid #91d5ff;
+         }
+#slide-1 .gap-info .icon-circle { 
+            background-color: rgba(4, 96, 169, 0.1);
+            color: #0460a9;
+         }
+#slide-1 .header-band { 
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+         }
+#slide-1 .column-content { 
+            padding: 25px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+         }
+#slide-1 .gap-badge { 
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+         }
+#slide-1 .list-item { 
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-start;
+         }
+#slide-1 .list-item:last-child { 
+            margin-bottom: 0;
+         }
+#slide-1 .check-icon { 
+            margin-top: 4px;
+            margin-right: 12px;
+            font-size: 0.9rem;
+         }
+#slide-1 .gap-high .check-icon {  color: #e74a21;  }
+#slide-1 .gap-medium .check-icon {  color: #faad14;  }
+#slide-1 .gap-info .check-icon {  color: #0460a9;  }
+#slide-1 .progress-bar-bg { 
+            height: 6px;
+            background-color: #f0f0f0;
+            border-radius: 3px;
+            margin-top: auto;
+            margin-bottom: 10px;
+            position: relative;
+         }
+#slide-1 .progress-bar-fill { 
+            height: 100%;
+            border-radius: 3px;
+         }
+#slide-1 .gap-high .progress-bar-fill {  background-color: #e74a21; width: 20%;  }
+#slide-1 /* Low knowledge = High Gap */
+        .gap-medium .progress-bar-fill {  background-color: #faad14; width: 50%;  }
+#slide-1 .gap-info .progress-bar-fill {  background-color: #0460a9; width: 80%;  }
+#slide-1 .icon-circle { 
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+         }
+
+
+/* CSS from Novartis_Gap1_Slide.html */
+#slide-2 { 
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+         }
+#slide-2 { 
+            width: 1280px;
+            height: 720px;
+            display: flex;
+            background-color: #ffffff;
+            overflow: hidden;
+            position: relative;
+         }
+#slide-2 .novartis-blue {  color: #0460a9;  }
+#slide-2 .bg-novartis-blue {  background-color: #0460a9;  }
+#slide-2 .novartis-orange {  color: #e74a21;  }
+#slide-2 .bg-novartis-orange {  background-color: #e74a21;  }
+#slide-2 .border-novartis-blue {  border-color: #0460a9;  }
+#slide-2 .border-novartis-orange {  border-color: #e74a21;  }
+#slide-2 /* Sidebar Styles */
+        .sidebar { 
+            width: 320px;
+            background-color: #0460a9;
+            color: white;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            z-index: 10;
+         }
+#slide-2 .sidebar::before { 
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background-color: #e74a21; /* Solid color instead of gradient */
+         }
+#slide-2 .sidebar-bg-icon { 
+            position: absolute;
+            bottom: -50px;
+            right: -50px;
+            font-size: 300px;
+            opacity: 0.05;
+            color: white;
+            transform: rotate(-15deg);
+            pointer-events: none;
+         }
+#slide-2 /* Content Area Styles */
+        .content-area { 
+            flex: 1;
+            padding: 30px 40px;
+            background-color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+         }
+#slide-2 .grid-container { 
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            height: 100%;
+         }
+#slide-2 .info-card { 
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-top: 4px solid transparent;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+         }
+#slide-2 .info-card:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+         }
+#slide-2 .info-card.primary {  border-top-color: #0460a9;  }
+#slide-2 .info-card.accent {  border-top-color: #e74a21;  }
+#slide-2 .card-header { 
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f1f5f9;
+         }
+#slide-2 .icon-box { 
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 1rem;
+         }
+#slide-2 .primary .icon-box {  background-color: rgba(4, 96, 169, 0.1); color: #0460a9;  }
+#slide-2 .accent .icon-box {  background-color: rgba(231, 74, 33, 0.1); color: #e74a21;  }
+#slide-2 .list-item { 
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+            color: #475569;
+            line-height: 1.4;
+         }
+#slide-2 .list-item::before { 
+            content: '•';
+            color: #cbd5e1;
+            font-weight: bold;
+            margin-right: 8px;
+            flex-shrink: 0;
+         }
+#slide-2 .highlight-text { 
+            color: #0460a9;
+            font-weight: 600;
+         }
+#slide-2 .accent-text { 
+            color: #e74a21;
+            font-weight: 600;
+         }
+
+
+/* CSS from Novartis_Gap2_Slide.html */
+#slide-3 { 
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+         }
+#slide-3 { 
+            width: 1280px;
+            height: 720px;
+            display: flex;
+            background-color: #ffffff;
+            overflow: hidden;
+            position: relative;
+         }
+#slide-3 .novartis-blue {  color: #0460a9;  }
+#slide-3 .bg-novartis-blue {  background-color: #0460a9;  }
+#slide-3 .novartis-orange {  color: #e74a21;  }
+#slide-3 .bg-novartis-orange {  background-color: #e74a21;  }
+#slide-3 .border-novartis-blue {  border-color: #0460a9;  }
+#slide-3 .border-novartis-orange {  border-color: #e74a21;  }
+#slide-3 /* Sidebar Styles */
+        .sidebar { 
+            width: 320px;
+            background-color: #0460a9;
+            color: white;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            z-index: 10;
+         }
+#slide-3 .sidebar::before { 
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background-color: #e74a21;
+         }
+#slide-3 .sidebar-bg-icon { 
+            position: absolute;
+            bottom: -50px;
+            right: -50px;
+            font-size: 300px;
+            opacity: 0.05;
+            color: white;
+            transform: rotate(-15deg);
+            pointer-events: none;
+         }
+#slide-3 /* Content Area Styles */
+        .content-area { 
+            flex: 1;
+            padding: 40px 50px;
+            background-color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+         }
+#slide-3 .grid-container { 
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            height: 100%;
+         }
+#slide-3 .info-card { 
+            background: white;
+            border-radius: 8px;
+            padding: 16px 20px; /* Adjusted padding for denser content */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-top: 4px solid transparent;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+         }
+#slide-3 .info-card:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+         }
+#slide-3 .info-card.primary {  border-top-color: #0460a9;  }
+#slide-3 .info-card.accent {  border-top-color: #e74a21;  }
+#slide-3 .card-header { 
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f1f5f9;
+         }
+#slide-3 .icon-box { 
+            width: 32px; /* Slightly smaller */
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 1rem;
+         }
+#slide-3 .primary .icon-box {  background-color: rgba(4, 96, 169, 0.1); color: #0460a9;  }
+#slide-3 .accent .icon-box {  background-color: rgba(231, 74, 33, 0.1); color: #e74a21;  }
+#slide-3 .list-item { 
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 6px;
+            font-size: 0.85rem; /* Slightly smaller font for more content */
+            color: #475569;
+            line-height: 1.4;
+         }
+#slide-3 .list-item::before { 
+            content: '•';
+            color: #cbd5e1;
+            font-weight: bold;
+            margin-right: 8px;
+         }
+#slide-3 .highlight-text { 
+            color: #0460a9;
+            font-weight: 600;
+         }
+
+
+/* CSS from Novartis_Gap3_Slide.html */
+#slide-4 { 
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+         }
+#slide-4 { 
+            width: 1280px;
+            height: 720px;
+            display: flex;
+            background-color: #ffffff;
+            overflow: hidden;
+            position: relative;
+         }
+#slide-4 .novartis-blue {  color: #0460a9;  }
+#slide-4 .bg-novartis-blue {  background-color: #0460a9;  }
+#slide-4 .novartis-orange {  color: #e74a21;  }
+#slide-4 .bg-novartis-orange {  background-color: #e74a21;  }
+#slide-4 .border-novartis-blue {  border-color: #0460a9;  }
+#slide-4 .border-novartis-orange {  border-color: #e74a21;  }
+#slide-4 /* Sidebar Styles */
+        .sidebar { 
+            width: 320px;
+            background-color: #0460a9;
+            color: white;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            z-index: 10;
+         }
+#slide-4 .sidebar::before { 
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background-color: #e74a21;
+         }
+#slide-4 .sidebar-bg-icon { 
+            position: absolute;
+            bottom: -50px;
+            right: -50px;
+            font-size: 300px;
+            opacity: 0.05;
+            color: white;
+            transform: rotate(-15deg);
+            pointer-events: none;
+         }
+#slide-4 /* Content Area Styles */
+        .content-area { 
+            flex: 1;
+            padding: 30px 40px;
+            background-color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+         }
+#slide-4 .grid-container { 
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            height: 100%;
+         }
+#slide-4 .info-card { 
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-top: 4px solid transparent;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+         }
+#slide-4 .info-card:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+         }
+#slide-4 .info-card.primary {  border-top-color: #0460a9;  }
+#slide-4 .info-card.accent {  border-top-color: #e74a21;  }
+#slide-4 .card-header { 
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f1f5f9;
+         }
+#slide-4 .icon-box { 
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 1rem;
+         }
+#slide-4 .primary .icon-box {  background-color: rgba(4, 96, 169, 0.1); color: #0460a9;  }
+#slide-4 .accent .icon-box {  background-color: rgba(231, 74, 33, 0.1); color: #e74a21;  }
+#slide-4 .list-item { 
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+            color: #475569;
+            line-height: 1.4;
+         }
+#slide-4 .list-item::before { 
+            content: '•';
+            color: #cbd5e1;
+            font-weight: bold;
+            margin-right: 8px;
+         }
+#slide-4 .highlight-text { 
+            color: #0460a9;
+            font-weight: 600;
+         }
+
+
+/* CSS from Novartis_PreOnboarding_Slide.html */
+#slide-5 { 
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+         }
+#slide-5 { 
+            width: 1280px;
+            height: 720px;
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+            position: relative;
+            overflow: hidden;
+         }
+#slide-5 .novartis-blue {  color: #0460a9;  }
+#slide-5 .bg-novartis-blue {  background-color: #0460a9;  }
+#slide-5 .novartis-orange {  color: #e74a21;  }
+#slide-5 .bg-novartis-orange {  background-color: #e74a21;  }
+#slide-5 /* Header */
+        .header-section { 
+            padding: 30px 50px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            background-color: #fff;
+            z-index: 10;
+         }
+#slide-5 /* Timeline Container */
+        .timeline-wrapper { 
+            flex: 1;
+            padding: 20px 50px;
+            display: flex;
+            gap: 30px;
+            align-items: stretch;
+            position: relative;
+         }
+#slide-5 /* Central Line */
+        .timeline-connector { 
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+            width: 50px;
+            height: 50px;
+            background-color: #fff;
+            border-radius: 50%;
+            border: 4px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #cbd5e1;
+         }
+#slide-5 /* Card Styles */
+        .phase-card { 
+            flex: 1;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #f1f5f9;
+            transition: transform 0.3s ease;
+            position: relative;
+            z-index: 1;
+         }
+#slide-5 .phase-card:hover { 
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+         }
+#slide-5 .card-header { 
+            padding: 20px 25px;
+            position: relative;
+         }
+#slide-5 .week-badge { 
+            position: absolute;
+            top: 20px;
+            right: 25px;
+            font-size: 2.5rem;
+            font-weight: 900;
+            opacity: 0.1;
+            line-height: 1;
+         }
+#slide-5 .card-.SLIDEROOT { 
+            padding: 0 25px 25px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+         }
+#slide-5 .task-list { 
+            margin-top: 15px;
+            flex: 1;
+         }
+#slide-5 .task-item { 
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid transparent;
+         }
+#slide-5 .task-item.blue-border {  border-left-color: #0460a9;  }
+#slide-5 .task-item.orange-border {  border-left-color: #e74a21;  }
+#slide-5 .task-icon { 
+            width: 24px;
+            margin-right: 12px;
+            text-align: center;
+            margin-top: 2px;
+         }
+#slide-5 .deliverable-box { 
+            margin-top: auto;
+            background-color: #fff7f5; /* Light orange tint */
+            border: 1px dashed #e74a21;
+            border-radius: 12px;
+            padding: 15px;
+         }
+#slide-5 .deliverable-title { 
+            color: #e74a21;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+         }
+#slide-5 .pill-tag { 
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-right: 8px;
+            margin-bottom: 4px;
+         }
+#slide-5 .pill-blue {  background-color: #e6f7ff; color: #0050b3;  }
+#slide-5 .pill-orange {  background-color: #fff2e8; color: #d4380d;  }
+
+
+/* CSS from Novartis_PostOnboarding_Slide.html */
+#slide-6 { 
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+         }
+#slide-6 { 
+            width: 1280px;
+            height: 720px;
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+            position: relative;
+            overflow: hidden;
+         }
+#slide-6 .novartis-blue {  color: #0460a9;  }
+#slide-6 .bg-novartis-blue {  background-color: #0460a9;  }
+#slide-6 .novartis-orange {  color: #e74a21;  }
+#slide-6 .bg-novartis-orange {  background-color: #e74a21;  }
+#slide-6 .text-novartis-blue {  color: #0460a9;  }
+#slide-6 .text-novartis-orange {  color: #e74a21;  }
+#slide-6 /* Header */
+        .header-section { 
+            padding: 30px 60px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            background-color: #fff;
+            z-index: 10;
+            flex-shrink: 0;
+         }
+#slide-6 /* Timeline Container */
+        .timeline-wrapper { 
+            flex: 1;
+            padding: 30px 60px;
+            display: flex;
+            gap: 24px; /* Reduced gap for 3 cards */
+            align-items: stretch;
+            position: relative;
+            height: 100%;
+         }
+#slide-6 /* Connecting Line (Behind cards) */
+        .timeline-line { 
+            position: absolute;
+            top: 50%;
+            left: 60px;
+            right: 60px;
+            height: 4px;
+            background: #e2e8f0;
+            z-index: 0;
+            transform: translateY(-50%);
+            border-radius: 2px;
+         }
+#slide-6 /* Card Styles */
+        .phase-card { 
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #f1f5f9;
+            transition: transform 0.3s ease;
+            position: relative;
+            z-index: 1;
+         }
+#slide-6 .phase-card:hover { 
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+         }
+#slide-6 .card-header { 
+            padding: 20px 24px;
+            position: relative;
+            border-bottom: 1px solid #f1f5f9;
+         }
+#slide-6 .week-badge { 
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 2.5rem;
+            font-weight: 900;
+            opacity: 0.08;
+            line-height: 1;
+            color: #000;
+         }
+#slide-6 .card-.SLIDEROOT { 
+            padding: 0 24px 24px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+         }
+#slide-6 .task-list { 
+            margin-top: 16px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+         }
+#slide-6 .task-item { 
+            display: flex;
+            align-items: flex-start;
+            padding: 10px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border-left: 3px solid transparent;
+         }
+#slide-6 .task-item.blue-border {  border-left-color: #0460a9;  }
+#slide-6 .task-item.orange-border {  border-left-color: #e74a21;  }
+#slide-6 .task-icon { 
+            width: 20px;
+            margin-right: 10px;
+            text-align: center;
+            margin-top: 3px;
+            font-size: 0.9rem;
+         }
+#slide-6 .deliverable-box { 
+            margin-top: auto;
+            border-radius: 10px;
+            padding: 16px;
+            font-size: 0.85rem;
+         }
+#slide-6 .deliverable-box.blue {  background-color: #f0f9ff; border: 1px dashed #0460a9;  }
+#slide-6 .deliverable-box.orange {  background-color: #fff7f5; border: 1px dashed #e74a21;  }
+#slide-6 .deliverable-title { 
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+         }
+#slide-6 .pill-tag { 
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-right: 6px;
+            margin-bottom: 4px;
+            white-space: nowrap;
+         }
+#slide-6 .pill-blue {  background-color: #e6f7ff; color: #0050b3;  }
+#slide-6 .pill-orange {  background-color: #fff2e8; color: #d4380d;  }
+
+
+/* CSS from Novartis_Summary_Slide.html */
+#slide-7 { 
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+         }
+#slide-7 { 
+            width: 1280px;
+            height: 720px;
+            display: flex;
+            flex-direction: column;
+            background-color: #ffffff;
+            position: relative;
+            overflow: hidden;
+         }
+#slide-7 .novartis-blue {  color: #0460a9;  }
+#slide-7 .bg-novartis-blue {  background-color: #0460a9;  }
+#slide-7 .novartis-orange {  color: #e74a21;  }
+#slide-7 .bg-novartis-orange {  background-color: #e74a21;  }
+#slide-7 /* Header */
+        .header-section { 
+            padding: 40px 60px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            background-color: #fff;
+            z-index: 10;
+         }
+#slide-7 /* Main Content */
+        .content-wrapper { 
+            flex: 1;
+            padding: 40px 60px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* Changed to 3 columns */
+            gap: 30px;
+            align-content: center;
+         }
+#slide-7 .summary-card { 
+            background: white;
+            border-radius: 16px;
+            padding: 30px 25px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            border-top: 6px solid transparent;
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+         }
+#slide-7 .summary-card:hover { 
+            transform: translateY(-8px);
+            box-shadow: 0 20px 30px -5px rgba(0, 0, 0, 0.15);
+         }
+#slide-7 .summary-card.blue {  border-top-color: #0460a9;  }
+#slide-7 .summary-card.orange {  border-top-color: #e74a21;  }
+#slide-7 .summary-card.dark {  border-top-color: #334155;  }
+#slide-7 .card-icon { 
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            margin-bottom: 25px;
+            align-self: flex-start;
+         }
+#slide-7 .blue .card-icon {  background-color: #e6f7ff; color: #0460a9;  }
+#slide-7 .orange .card-icon {  background-color: #fff2e8; color: #e74a21;  }
+#slide-7 .dark .card-icon {  background-color: #f1f5f9; color: #334155;  }
+#slide-7 .card-title { 
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #1e293b;
+            margin-bottom: 15px;
+            line-height: 1.2;
+         }
+#slide-7 .card-subtitle { 
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            opacity: 0.6;
+         }
+#slide-7 .card-text { 
+            color: #64748b;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            flex: 1;
+         }
+#slide-7 .card-footer { 
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #f1f5f9;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #475569;
+            display: flex;
+            align-items: center;
+         }
+#slide-7 /* Bottom Bar */
+        .bottom-bar { 
+            background: linear-gradient(90deg, #0460a9 0%, #034a82 100%);
+            padding: 20px 60px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+         }
+
+
+</style>
+</head>
+<body>
+
+<!-- Slide from Novartis_Learning_Plan_Slide.html -->
+<div id="slide-0" class="slide-container">
+<!-- Top Accent Bar -->
+<div class="accent-bar"></div>
+<!-- Right Side Image -->
+<div class="hero-image-container">
+<img alt="Medical Science Technology" class="hero-image" src="https://page.gensparksite.com/slides_images/9ed94a0f1f358e256469212601f7b8ed.webp"/>
+<div class="overlay"></div>
+</div>
+<!-- Left Content -->
+<div class="content-wrapper">
+<!-- Header/Logo Area -->
+<div class="mb-8 flex items-center">
+<i class="fas fa-dna novartis-blue text-4xl mr-3"></i>
+<div class="text-xl font-bold tracking-widest text-gray-500 uppercase">Learning Plan</div>
+</div>
+<!-- Main Title -->
+<div class="mb-10">
+<h1 class="text-6xl font-black novartis-blue leading-tight mb-4">
+                    高知特<br/>应用支持岗位<br/>学习计划
+                </h1>
+<p class="text-2xl text-gray-600 font-light flex items-center">
+<span class="w-12 h-1 bg-novartis-orange mr-4 inline-block"></span>
+                    敏捷融入 · 全景掌控 · 无缝接管
+                </p>
+</div>
+<!-- Info Cards -->
+<div class="grid grid-cols-2 gap-6 mb-10">
+<div class="glass-card p-5 rounded-r-lg">
+<p class="text-sm text-gray-500 uppercase tracking-wide font-bold mb-1">应聘者 Candidate</p>
+<p class="text-2xl font-bold text-gray-800">孙金锁 (Jason)</p>
+</div>
+<div class="glass-card p-5 rounded-r-lg" style="border-left-color: #0460a9;">
+<p class="text-sm text-gray-500 uppercase tracking-wide font-bold mb-1">周期 Duration</p>
+<p class="text-2xl font-bold text-gray-800">4 - 6 周</p>
+</div>
+</div>
+<!-- Target Position & Goal -->
+<div class="bg-white rounded-lg shadow-lg p-6 border border-gray-100 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-gray-50 rounded-full -mr-10 -mt-10 z-0"></div>
+<div class="relative z-10">
+<div class="flex items-start mb-3">
+<div class="bg-novartis-blue text-white p-2 rounded mr-3 mt-1">
+<i class="fas fa-briefcase"></i>
+</div>
+<div>
+<p class="text-xs text-gray-500 font-bold uppercase">目标岗位 Target Position</p>
+<p class="text-xl font-bold novartis-blue">Delivery Manager - Application Support</p>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-gray-100">
+<p class="text-xs text-gray-500 font-bold uppercase mb-2">核心目标 Core Objective</p>
+<p class="text-gray-700 leading-relaxed text-lg">
+                            以<span class="font-bold novartis-blue">合规</span>为基石，快速融入诺华系统生态；通过<span class="font-bold novartis-blue">全景掌控</span>与卓越运维，实现业务连续性的<span class="font-bold novartis-orange">无缝接管</span>。
+                        </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom decorative elements -->
+<div class="absolute bottom-6 left-12 text-gray-400 text-xs font-mono">
+            Dec 2025
+        </div>
+</div>
+
+<!-- Slide from Novartis_Gap_Analysis_Slide.html -->
+<div id="slide-1" class="slide-container">
+<!-- Header -->
+<div class="header">
+<div>
+<div class="flex items-center mb-2">
+<span class="w-10 h-1 bg-novartis-orange mr-3"></span>
+<p class="text-sm text-gray-500 font-bold uppercase tracking-widest">GAP ANALYSIS</p>
+</div>
+<h1 class="text-4xl font-black text-gray-800">关键知识差距总览</h1>
+</div>
+<div class="text-right">
+<p class="text-gray-500 text-sm">基于当前金融背景与目标岗位要求的对比分析</p>
+<div class="flex items-center justify-end mt-2 space-x-4 text-xs font-bold text-gray-400">
+<span class="flex items-center"><span class="w-2 h-2 rounded-full bg-novartis-orange mr-1"></span>HIGH PRIORITY</span>
+<span class="flex items-center"><span class="w-2 h-2 rounded-full bg-yellow-500 mr-1"></span>MEDIUM PRIORITY</span>
+</div>
+</div>
+</div>
+<!-- Main Content -->
+<div class="content-wrapper">
+<!-- Column 1: Domain Knowledge (High Gap) -->
+<div class="gap-column gap-high">
+<div class="header-band">
+<span class="text-lg font-bold">领域知识</span>
+<span class="gap-badge">High Gap</span>
+</div>
+<div class="column-content">
+<div class="icon-circle">
+<i class="fas fa-flask"></i>
+</div>
+<h3 class="text-xl font-bold text-gray-800 mb-4">生命科学与GxP</h3>
+<div class="flex-1">
+<div class="list-item">
+<i class="fas fa-exclamation-circle check-icon"></i>
+<p class="text-gray-600 text-sm leading-relaxed"><strong>药物全生命周期：</strong>缺乏从研发、临床、注册到生产、上市后警戒的完整链条认知。</p>
+</div>
+<div class="list-item">
+<i class="fas fa-exclamation-circle check-icon"></i>
+<p class="text-gray-600 text-sm leading-relaxed"><strong>GxP与合规：</strong>需快速补齐GMP/GLP/GCP及数据完整性(Data Integrity)概念。</p>
+</div>
+<div class="list-item">
+<i class="fas fa-exclamation-circle check-icon"></i>
+<p class="text-gray-600 text-sm leading-relaxed"><strong>验证(CSV)：</strong>需掌握验证V模型、IQ/OQ/PQ及21 CFR Part 11电子记录要求。</p>
+</div>
+</div>
+<div class="mt-4">
+<div class="flex justify-between text-xs text-gray-400 mb-1">
+<span>Current Proficiency</span>
+<span>Target</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-bar-fill"></div>
+</div>
+<p class="text-xs text-red-500 font-bold mt-1 text-right">需重点投入 (40% 精力)</p>
+</div>
+</div>
+</div>
+<!-- Column 2: System Ecosystem (High Gap) -->
+<div class="gap-column gap-high" style="border-top: 4px solid #e74a21;">
+<div class="header-band" style="background-color: white; color: #333; border-bottom: 1px solid #eee;">
+<span class="text-lg font-bold">系统生态</span>
+<span class="gap-badge">High Gap</span>
+</div>
+<div class="column-content">
+<div class="icon-circle">
+<i class="fas fa-network-wired"></i>
+</div>
+<h3 class="text-xl font-bold text-gray-800 mb-4">制药系统架构</h3>
+<div class="flex-1">
+<div class="list-item">
+<i class="fas fa-exclamation-circle check-icon"></i>
+<p class="text-gray-600 text-sm leading-relaxed"><strong>行业特有系统：</strong>对LIMS, CTMS, eTMF, Argus, Veeva Vault等制药核心系统陌生。</p>
+</div>
+<div class="list-item">
+<i class="fas fa-exclamation-circle check-icon"></i>
+<p class="text-gray-600 text-sm leading-relaxed"><strong>数据流向：</strong>需理清从实验室数据到监管报告的端到端数据流转路径。</p>
+</div>
+<div class="list-item">
+<i class="fas fa-exclamation-circle check-icon"></i>
+<p class="text-gray-600 text-sm leading-relaxed"><strong>OT与IT融合：</strong>需了解制造现场系统(MES/DCS)与企业IT系统的集成边界。</p>
+</div>
+</div>
+<div class="mt-4">
+<div class="flex justify-between text-xs text-gray-400 mb-1">
+<span>Current Proficiency</span>
+<span>Target</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-bar-fill"></div>
+</div>
+<p class="text-xs text-red-500 font-bold mt-1 text-right">需重点投入 (40% 精力)</p>
+</div>
+</div>
+</div>
+<!-- Column 3: Operations Management (Medium Gap) -->
+<div class="gap-column gap-medium">
+<div class="header-band">
+<span class="text-lg font-bold">运维管理</span>
+<span class="gap-badge">Medium Gap</span>
+</div>
+<div class="column-content">
+<div class="icon-circle">
+<i class="fas fa-tools"></i>
+</div>
+<h3 class="text-xl font-bold text-gray-800 mb-4">受控环境运维</h3>
+<div class="flex-1">
+<div class="list-item">
+<i class="fas fa-adjust check-icon"></i>
+<p class="text-gray-600 text-sm leading-relaxed"><strong>ITIL体系化：</strong>具备L3支持与事件处理实战经验，需系统化补全ITIL理论，并适应GxP环境下的合规管控。</p>
+</div>
+<div class="list-item">
+<i class="fas fa-adjust check-icon"></i>
+<p class="text-gray-600 text-sm leading-relaxed"><strong>验证环境变更：</strong>理解验证环境(Val)与生产环境的同步管控及回归测试证据链。</p>
+</div>
+<div class="list-item">
+<i class="fas fa-check check-icon" style="color:#0460a9"></i>
+<p class="text-gray-600 text-sm leading-relaxed"><strong>KT与移交：</strong>已有丰富经验，仅需适配诺华特定的SOP与知识库模板。</p>
+</div>
+</div>
+<div class="mt-4">
+<div class="flex justify-between text-xs text-gray-400 mb-1">
+<span>Current Proficiency</span>
+<span>Target</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-bar-fill"></div>
+</div>
+<p class="text-xs text-yellow-600 font-bold mt-1 text-right">适配与迁移 (20% 精力)</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Slide from Novartis_Gap1_Slide.html -->
+<div id="slide-2" class="slide-container">
+<!-- Sidebar -->
+<div class="sidebar">
+<i class="fas fa-microscope sidebar-bg-icon"></i>
+<div>
+<div class="inline-block px-3 py-1 bg-white bg-opacity-20 rounded text-xs font-bold tracking-wider mb-6">
+                GAP ANALYSIS 01
+            </div>
+<h1 class="text-4xl font-bold leading-tight mb-4">
+                差距 1<br/>生命科学与合规
+            </h1>
+<p class="text-white text-opacity-80 text-lg font-light">
+                Life Sciences &amp;<br/>Compliance Framework
+            </p>
+<div class="mt-8 w-16 h-1 bg-novartis-orange"></div>
+</div>
+<div class="text-sm text-white text-opacity-60">
+
+</div>
+</div>
+<!-- Main Content -->
+<div class="content-area">
+<!-- Header for content area -->
+<div class="flex justify-between items-end mb-5 border-b border-gray-200 pb-2">
+<div>
+<h2 class="text-2xl font-bold text-gray-800">核心概念与合规框架详解</h2>
+<p class="text-sm text-gray-500">补齐行业认知短板，建立合规思维</p>
+</div>
+<div class="text-3xl text-gray-200">
+<i class="fas fa-shield-alt"></i>
+</div>
+</div>
+<!-- Grid Layout -->
+<div class="grid-container">
+<!-- Card 1: Core Concepts -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-dna"></i></div>
+<h3 class="font-bold text-lg text-gray-800">药物全生命周期 (Lifecycle)</h3>
+</div>
+<div>
+<p class="list-item">理解价值链：研发(R&amp;D) → 临床试验(Clinical) → 注册(Registration) → 生产(Manufacturing) → 上市与药物警戒(PV)。</p>
+<p class="list-item">关键阶段：<span class="highlight-text ml-1">临床 I-III 期</span>数据的严谨性直接决定上市许可。</p>
+</div>
+</div>
+<!-- Card 2: GxP & Regulations -->
+<div class="info-card accent">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-balance-scale"></i></div>
+<h3 class="font-bold text-lg text-gray-800">GxP 与法规体系</h3>
+</div>
+<div>
+<p class="list-item">核心规范：<span class="accent-text ml-1">GMP</span>(生产质量)、<span class="accent-text ml-1">GCP</span>(临床规范)、<span class="accent-text ml-1">GLP</span>(实验室规范)。</p>
+<p class="list-item">电子记录法规：<span class="highlight-text ml-1">FDA 21 CFR Part 11</span> 与 <span class="highlight-text ml-1">EU Annex 11</span> (电子签名与记录的要求)。</p>
+</div>
+</div>
+<!-- Card 3: Data Integrity -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-database"></i></div>
+<h3 class="font-bold text-lg text-gray-800">数据完整性 (Data Integrity)</h3>
+</div>
+<div>
+<p class="list-item">制药行业的基石原则：<span class="highlight-text ml-1">ALCOA+</span>。</p>
+<p class="list-item">内容：Attributable(可追溯), Legible(清晰), Concurrent(同步), Original(原始), Accurate(准确) + Complete(完整)等。</p>
+<p class="list-item">运维重点：确保日志不可篡改，操作留痕。</p>
+</div>
+</div>
+<!-- Card 4: CSV & GAMP5 -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-vial"></i></div>
+<h3 class="font-bold text-lg text-gray-800">计算机化系统验证 (CSV)</h3>
+</div>
+<div>
+<p class="list-item">验证方法论：<span class="highlight-text ml-1">GAMP5</span> (V-Model)。</p>
+<p class="list-item">验证阶段：URS(需求) → IQ(安装确认) → OQ(运行确认) → PQ(性能确认)。</p>
+<p class="list-item">运维影响：任何对验证系统的变更都需走严格的变更控制流程。</p>
+</div>
+</div>
+<!-- Card 5: Quality Processes -->
+<div class="info-card accent">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-clipboard-check"></i></div>
+<h3 class="font-bold text-lg text-gray-800">常见质量流程</h3>
+</div>
+<div>
+<p class="list-item">偏差管理 (<span class="accent-text ml-1">Deviations</span>)：处理偏离标准流程的事件。</p>
+<p class="list-item">纠正与预防措施 (<span class="accent-text ml-1">CAPA</span>)：防止问题再次发生。</p>
+<p class="list-item">审计追踪 (Audit Trail) Review：定期审查系统操作记录。</p>
+</div>
+</div>
+<!-- Card 6: Audit & Risk -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-search"></i></div>
+<h3 class="font-bold text-lg text-gray-800">审计与风险意识</h3>
+</div>
+<div>
+<p class="list-item">监管检查 (<span class="highlight-text ml-1">Inspections</span>)：随时准备应对 FDA/NMPA 的飞行检查。</p>
+<p class="list-item">风险思维：能够识别系统操作中的合规风险点 (Risk-based Approach)。</p>
+<p class="list-item">留痕意识："没有记录就没有发生" (If it isn't documented, it didn't happen)。</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Slide from Novartis_Gap2_Slide.html -->
+<div id="slide-3" class="slide-container">
+<!-- Sidebar -->
+<div class="sidebar">
+<i class="fas fa-network-wired sidebar-bg-icon"></i>
+<div>
+<div class="inline-block px-3 py-1 bg-white bg-opacity-20 rounded text-xs font-bold tracking-wider mb-6">
+                    GAP ANALYSIS 02
+                </div>
+<h1 class="text-4xl font-bold leading-tight mb-4">
+                    差距 2<br/>系统生态
+                </h1>
+<p class="text-white text-opacity-80 text-lg font-light">
+                    Pharma System<br/>Ecosystem Map
+                </p>
+<div class="mt-8 w-16 h-1 bg-novartis-orange"></div>
+</div>
+<div class="text-sm text-white text-opacity-60">
+
+</div>
+</div>
+<!-- Main Content -->
+<div class="content-area">
+<!-- Header for content area -->
+<div class="flex justify-between items-end mb-6 border-b border-gray-200 pb-2">
+<div>
+<h2 class="text-2xl font-bold text-gray-800">制药行业通用系统架构地图</h2>
+<p class="text-sm text-gray-500">覆盖从研发到商业化上市的全生命周期关键应用</p>
+</div>
+<div class="text-3xl text-gray-200">
+<i class="fas fa-sitemap"></i>
+</div>
+</div>
+<!-- Grid Layout -->
+<div class="grid-container">
+<!-- Card 1: R&D & Clinical -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-flask"></i></div>
+<h3 class="font-bold text-lg text-gray-800">研发与临床 (R&amp;D / Clinical)</h3>
+</div>
+<div>
+<p class="list-item">临床数据采集：<span class="highlight-text ml-1">EDC (Rave/Veeva)</span>, ePRO。</p>
+<p class="list-item">试验管理：<span class="highlight-text ml-1">CTMS</span> (Clinical Trial Management)。</p>
+<p class="list-item">文档主文件：<span class="highlight-text ml-1">eTMF (Veeva Vault)</span>，关键合规资产。</p>
+</div>
+</div>
+<!-- Card 2: Lab & Manufacturing -->
+<div class="info-card accent">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-industry"></i></div>
+<h3 class="font-bold text-lg text-gray-800">实验室与制造 (Lab &amp; Mfg)</h3>
+</div>
+<div>
+<p class="list-item">实验室信息管理：<span class="highlight-text ml-1">LIMS (LabWare)</span>, CDS (Empower)。</p>
+<p class="list-item">制造执行系统：<span class="highlight-text ml-1">MES (Werum PAS-X)</span>，批记录电子化。</p>
+<p class="list-item">底层控制：DCS / SCADA，连接生产设备。</p>
+</div>
+</div>
+<!-- Card 3: Quality & Compliance -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-shield-alt"></i></div>
+<h3 class="font-bold text-lg text-gray-800">质量与合规 (Quality)</h3>
+</div>
+<div>
+<p class="list-item">质量管理系统：<span class="highlight-text ml-1">QMS (TrackWise)</span>，处理偏差/CAPA。</p>
+<p class="list-item">文档管理：DMS (Documentum / Veeva QualityDocs)。</p>
+<p class="list-item">审计追踪 (Audit Trails) 与电子签名。</p>
+</div>
+</div>
+<!-- Card 4: Regulatory & Safety -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-file-medical-alt"></i></div>
+<h3 class="font-bold text-lg text-gray-800">注册与药物警戒 (Reg &amp; PV)</h3>
+</div>
+<div>
+<p class="list-item">监管信息管理：<span class="highlight-text ml-1">RIM (Veeva Vault RIM)</span>。</p>
+<p class="list-item">药物安全/警戒：<span class="highlight-text ml-1">Argus Safety</span>，不良事件报告核心系统。</p>
+<p class="list-item">标签管理与提交出版系统。</p>
+</div>
+</div>
+<!-- Card 5: Commercial & Supply Chain -->
+<div class="info-card accent">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-shipping-fast"></i></div>
+<h3 class="font-bold text-lg text-gray-800">供应链与商业 (SCM &amp; Comm)</h3>
+</div>
+<div>
+<p class="list-item">企业资源计划：<span class="highlight-text ml-1">SAP S/4HANA</span> (财务/物料/库存)。</p>
+<p class="list-item">客户关系管理：<span class="highlight-text ml-1">Veeva CRM</span> (针对医药代表优化)。</p>
+<p class="list-item">序列化与追踪：Serialization (应对防伪法规)。</p>
+</div>
+</div>
+<!-- Card 6: Data Infrastructure -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-database"></i></div>
+<h3 class="font-bold text-lg text-gray-800">数据与云基础设施</h3>
+</div>
+<div>
+<p class="list-item">实时历史数据库：<span class="highlight-text ml-1">OSIsoft PI</span> (制造数据集成)。</p>
+<p class="list-item">主数据管理 (MDM) 与数据湖 (Data Lake)。</p>
+<p class="list-item">云平台：AWS / Azure (诺华与微软/亚马逊有战略合作)。</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Slide from Novartis_Gap3_Slide.html -->
+<div id="slide-4" class="slide-container">
+<!-- Sidebar -->
+<div class="sidebar">
+<i class="fas fa-server sidebar-bg-icon"></i>
+<div>
+<div class="inline-block px-3 py-1 bg-white bg-opacity-20 rounded text-xs font-bold tracking-wider mb-6">
+                    GAP ANALYSIS 03
+                </div>
+<h1 class="text-4xl font-bold leading-tight mb-4">
+                    差距 3<br/>运维与移交
+                </h1>
+<p class="text-white text-opacity-80 text-lg font-light">
+                    GxP Compliant Operations
+                </p>
+<div class="mt-8 w-16 h-1 bg-novartis-orange"></div>
+</div>
+<div class="text-sm text-white text-opacity-60">
+
+</div>
+</div>
+<!-- Main Content -->
+<div class="content-area">
+<!-- Header for content area -->
+<div class="flex justify-between items-end mb-4 border-b border-gray-200 pb-2">
+<div>
+<h2 class="text-2xl font-bold text-gray-800">GxP 环境下的 ITIL 实践与移交</h2>
+<p class="text-sm text-gray-500">从通用运维向合规运维转型的关键控制点</p>
+</div>
+<div class="text-3xl text-gray-200">
+<i class="fas fa-cogs"></i>
+</div>
+</div>
+<!-- Grid Layout -->
+<div class="grid-container">
+<!-- Card 1: ITIL v4 Practices -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-book-reader"></i></div>
+<h3 class="font-bold text-lg text-gray-800">ITIL v4 合规实践</h3>
+</div>
+<div>
+<p class="list-item">事件与问题管理：区分一般故障与质量偏差（Deviation）。</p>
+<p class="list-item">变更管理：实施严格的CAB审批，任何生产环境变更需评估对验证状态的影响。</p>
+<p class="list-item">配置与发布：确保 CMDB 准确反映 GxP/Non-GxP 系统分类。</p>
+</div>
+</div>
+<!-- Card 2: Support Model -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-users-cog"></i></div>
+<h3 class="font-bold text-lg text-gray-800">多层级支撑模型</h3>
+</div>
+<div>
+<p class="list-item">建立清晰的 L1-L3 分层响应机制。</p>
+<p class="list-item">定义并监控 SLA (面向客户) 与 OLA (内部团队协作)。</p>
+<p class="list-item">重大事件（P1/P2）升级流程与应急响应演练。</p>
+</div>
+</div>
+<!-- Card 3: Controlled Documentation -->
+<div class="info-card accent">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-file-signature"></i></div>
+<h3 class="font-bold text-lg text-gray-800">受控文档体系</h3>
+</div>
+<div>
+<p class="list-item">SOP (标准操作程序) 与 WI (作业指导书) 必须现行有效。</p>
+<p class="list-item">Runbook 需版本受控，所有操作记录需满足 ALCOA+ 原则。</p>
+<p class="list-item">培训记录可追溯，确保运维人员具备相应资质。</p>
+</div>
+</div>
+<!-- Card 4: Validation Environment -->
+<div class="info-card accent">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-check-double"></i></div>
+<h3 class="font-bold text-lg text-gray-800">验证环境运维</h3>
+</div>
+<div>
+<p class="list-item">严格管控验证环境变更，确保与生产环境一致性。</p>
+<p class="list-item">保留完整的审计追踪 (Audit Trail)日志。</p>
+<p class="list-item">执行回归测试证据留存，支持定期的系统审核。</p>
+</div>
+</div>
+<!-- Card 5: Monitoring & Stability -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-heartbeat"></i></div>
+<h3 class="font-bold text-lg text-gray-800">监控与稳定性</h3>
+</div>
+<div>
+<p class="list-item">部署 APM 与日志监控，建立主动健康度仪表板。</p>
+<p class="list-item">设置合规告警（如数据完整性风险、未授权访问）。</p>
+<p class="list-item">定期进行系统稳定性审查与容量评估。</p>
+</div>
+</div>
+<!-- Card 6: Knowledge Transfer -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-exchange-alt"></i></div>
+<h3 class="font-bold text-lg text-gray-800">KT 与平稳过渡</h3>
+</div>
+<div>
+<p class="list-item">制定明确的 RACI 矩阵，界定移交前后的责任边界。</p>
+<p class="list-item">实施“双人影子”模式 (Shadowing)，确保实操技能转移。</p>
+<p class="list-item">建立知识库，梳理演练清单 (Drill List) 确保接手即稳。</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Slide from Novartis_PreOnboarding_Slide.html -->
+<div id="slide-5" class="slide-container">
+<!-- Header -->
+<div class="header-section">
+<div class="flex justify-between items-end">
+<div>
+<div class="flex items-center mb-2">
+<span class="w-10 h-1 bg-novartis-blue mr-3"></span>
+<p class="text-sm text-gray-500 font-bold uppercase tracking-widest">PRE-ONBOARDING PLAN</p>
+</div>
+<h1 class="text-4xl font-black text-gray-800">入职前 1-2 周学习计划</h1>
+</div>
+<div class="text-right">
+<p class="text-xl font-light text-gray-600">目标：基础扫盲与语言适配</p>
+<p class="text-sm text-gray-400 mt-1">Focus: Foundation &amp; Terminology</p>
+</div>
+</div>
+</div>
+<!-- Main Timeline Content -->
+<div class="timeline-wrapper">
+<!-- Center Arrow -->
+<div class="timeline-connector">
+<i class="fas fa-chevron-right text-2xl"></i>
+</div>
+<!-- Week 1 Card -->
+<div class="phase-card">
+<div class="card-header border-b border-gray-100">
+<span class="week-badge text-gray-800">01</span>
+<div class="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded text-xs font-bold mb-3">
+<i class="fas fa-book-reader mr-1"></i> Knowledge Base
+                    </div>
+<h2 class="text-2xl font-bold text-gray-800">行业与法规基础</h2>
+<p class="text-gray-500 text-sm mt-1">建立制药行业思维，理解合规底线</p>
+</div>
+<div class="card-body">
+<div class="task-list">
+<h3 class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">关键学习任务</h3>
+<div class="task-item blue-border">
+<div class="task-icon novartis-blue"><i class="fas fa-dna"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">全产业链与 GxP 体系</p>
+<p class="text-xs text-gray-500 mt-1">覆盖 R&D(GLP) -> Clinical(GCP) -> Mfg(GMP) -> PV 全流程；重点理解数据完整性 (ALCOA+) 与合规红线</p>
+</div>
+</div>
+<div class="task-item blue-border">
+<div class="task-icon novartis-blue"><i class="fas fa-file-signature"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">电子记录与签名法规</p>
+<p class="text-xs text-gray-500 mt-1">精读 FDA 21 CFR Part 11 & EU Annex 11；理解审计追踪 (Audit Trail) 的技术要求</p>
+</div>
+</div>
+<div class="task-item blue-border">
+<div class="task-icon novartis-blue"><i class="fas fa-check-double"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">计算机化系统验证 (CSV)</p>
+<p class="text-xs text-gray-500 mt-1">掌握 GAMP5 V模型核心逻辑；熟悉 URS -> IQ/OQ/PQ -> Traceability Matrix 的验证闭环</p>
+</div>
+</div>
+</div>
+<div class="deliverable-box" style="background-color: #f0f9ff; border-color: #0460a9;">
+<div class="deliverable-title" style="color: #0460a9;">
+<i class="fas fa-box-open mr-2"></i> 预期产出 (Deliverables)
+                        </div>
+<div class="flex flex-wrap">
+<span class="pill-tag pill-blue">合规术语速查表 (Glossary)</span>
+<span class="pill-tag pill-blue">验证活动速览图</span>
+<span class="pill-tag pill-blue">法规要点笔记</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Week 2 Card -->
+<div class="phase-card">
+<div class="card-header border-b border-gray-100">
+<span class="week-badge text-gray-800">02</span>
+<div class="inline-block px-3 py-1 bg-orange-100 text-orange-800 rounded text-xs font-bold mb-3">
+<i class="fas fa-network-wired mr-1"></i> System Ecosystem
+                    </div>
+<h2 class="text-2xl font-bold text-gray-800">系统生态与 ITSM 适配</h2>
+<p class="text-gray-500 text-sm mt-1">熟悉制药行业通用IT架构，学习GxP运维适配逻辑</p>
+</div>
+<div class="card-body">
+<div class="task-list">
+<h3 class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">关键学习任务</h3>
+<div class="task-item orange-border">
+<div class="task-icon novartis-orange"><i class="fas fa-sitemap"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">行业通用系统架构</p>
+<p class="text-xs text-gray-500 mt-1">研究 LIMS(实验室), CTMS(临床), Veeva(文档/CRM) 等核心系统；理解从实验室到监管报告的数据流</p>
+</div>
+</div>
+<div class="task-item orange-border">
+<div class="task-icon novartis-orange"><i class="fas fa-tools"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">ITIL 与 GxP 的融合</p>
+<p class="text-xs text-gray-500 mt-1">思考 GxP 环境下的特殊性：偏差 (Deviation) vs 事件 (Incident)；受控变更 (Change Control) vs 标准变更</p>
+</div>
+</div>
+<div class="task-item orange-border">
+<div class="task-icon novartis-orange"><i class="fas fa-clipboard-list"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">方法论准备</p>
+<p class="text-xs text-gray-500 mt-1">总结个人 P1 事件处理方法论；准备变更管理(CAB)相关问题清单</p>
+</div>
+</div>
+</div>
+<div class="deliverable-box">
+<div class="deliverable-title">
+<i class="fas fa-box-open mr-2"></i> 预期产出 (Deliverables)
+                        </div>
+<div class="flex flex-wrap">
+<span class="pill-tag pill-orange">制药行业系统概览图 (Landscape)</span>
+<span class="pill-tag pill-orange">KT 标准化模板 (KT Template)</span>
+<span class="pill-tag pill-orange">关键业务提问清单 (Key Questions)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Note -->
+<div class="absolute bottom-4 left-0 w-full text-center">
+<p class="text-xs text-gray-400 font-mono">通过两周高强度预习，消除"语言障碍"，为入职后快速建立信任打下基础</p>
+</div>
+</div>
+
+<!-- Slide from Novartis_PostOnboarding_Slide.html -->
+<div id="slide-6" class="slide-container">
+<!-- Header -->
+<div class="header-section">
+<div class="flex justify-between items-end">
+<div>
+<div class="flex items-center mb-2">
+<span class="w-10 h-1 bg-novartis-orange mr-3"></span>
+<p class="text-sm text-gray-500 font-bold uppercase tracking-widest">ONBOARDING EXECUTION PLAN</p>
+</div>
+<h1 class="text-4xl font-black text-gray-800">入职后 1-6 周学习与吸收计划</h1>
+</div>
+<div class="text-right">
+<p class="text-xl font-light text-gray-600">目标：从"适应"到"实战上手"</p>
+<p class="text-sm text-gray-400 mt-1">Focus: Absorption &amp; Hands-on</p>
+</div>
+</div>
+</div>
+<!-- Main Timeline Content -->
+<div class="timeline-wrapper">
+<!-- Connecting Line -->
+<div class="timeline-line"></div>
+<!-- Phase 1: Weeks 1-2 -->
+<div class="phase-card">
+<div class="card-header">
+<span class="week-badge">W1-2</span>
+<div class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-bold mb-2">
+<i class="fas fa-id-card mr-1"></i> 接入与融合
+                </div>
+<h2 class="text-xl font-bold text-gray-800">基础接入与团队融合</h2>
+</div>
+<div class="card-body">
+<div class="task-list">
+<div class="task-item blue-border">
+<div class="task-icon text-novartis-blue"><i class="fas fa-key"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">合规准入与权限配置 (W1)</p>
+<p class="text-xs text-gray-500">完成 GxP/InfoSec 必修培训；申请生产/验证环境访问权限；阅读部门核心 SOPs</p>
+</div>
+</div>
+<div class="task-item blue-border">
+<div class="task-icon text-novartis-blue"><i class="fas fa-handshake"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">干系人与团队融合 (W1-2)</p>
+<p class="text-xs text-gray-500">与 QA, Business Key Users, L2/L3 Team 进行 1:1 沟通；建立干系人地图，明确协作界面</p>
+</div>
+</div>
+<div class="task-item blue-border">
+<div class="task-icon text-novartis-blue"><i class="fas fa-language"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">文化与术语</p>
+<p class="text-xs text-gray-500">熟悉团队沟通机制；建立“诺华词典”快速融入语境</p>
+</div>
+</div>
+</div>
+<div class="deliverable-box blue">
+<div class="deliverable-title text-novartis-blue">
+<i class="fas fa-clipboard-check mr-1"></i> 预期产出 (Deliverables)
+                    </div>
+<div class="flex flex-wrap">
+<span class="pill-tag pill-blue">干系人地图 (Stakeholder Map)</span>
+<span class="pill-tag pill-blue">术语速查表 (Glossary)</span>
+<span class="pill-tag pill-blue">权限清单</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Phase 2: Weeks 3-4 -->
+<div class="phase-card">
+<div class="card-header">
+<span class="week-badge">W3-4</span>
+<div class="inline-block px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-bold mb-2">
+<i class="fas fa-map-marked-alt mr-1"></i> 理解与观察
+                </div>
+<h2 class="text-xl font-bold text-gray-800">系统全景与业务理解</h2>
+</div>
+<div class="card-body">
+<div class="task-list">
+<div class="task-item orange-border">
+<div class="task-icon text-novartis-orange"><i class="fas fa-sitemap"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">诺华系统全景深潜</p>
+<p class="text-xs text-gray-500">基于全景图梳理 LIMS/SAP/Veeva 集成关系；界定 IT (企业网) 与 OT (制造网/MES) 的运维边界</p>
+</div>
+</div>
+<div class="task-item orange-border">
+<div class="task-icon text-novartis-orange"><i class="fas fa-exchange-alt"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">关键数据流 (Data Flow)</p>
+<p class="text-xs text-gray-500">追踪关键业务数据 (CDE) 的全生命周期流转；识别数据完整性风险点</p>
+</div>
+</div>
+<div class="task-item orange-border">
+<div class="task-icon text-novartis-orange"><i class="fas fa-user-friends"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">影子学习与流程挖掘</p>
+<p class="text-xs text-gray-500">跟随处理 P1/P2 事件；旁听 CAB 会议；记录实际操作与 SOP 的差异 (Gap)</p>
+</div>
+</div>
+</div>
+<div class="deliverable-box orange">
+<div class="deliverable-title text-novartis-orange">
+<i class="fas fa-cubes mr-1"></i> 预期产出 (Deliverables)
+                    </div>
+<div class="flex flex-wrap">
+<span class="pill-tag pill-orange">业务全景图 (Business Landscape)</span>
+<span class="pill-tag pill-orange">业务与运维流程图 (Process Maps)</span>
+<span class="pill-tag pill-orange">运维痛点清单 (Pain Points List)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Phase 3: Weeks 5-6 -->
+<div class="phase-card">
+<div class="card-header">
+<span class="week-badge">W5-6</span>
+<div class="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-bold mb-2">
+<i class="fas fa-hand-holding-medical mr-1"></i> 验证与上手
+                </div>
+<h2 class="text-xl font-bold text-gray-800">知识固化与实战上手</h2>
+</div>
+<div class="card-body">
+<div class="task-list">
+<div class="task-item blue-border">
+<div class="task-icon text-novartis-blue"><i class="fas fa-file-alt"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">知识库校正与验证管控</p>
+<p class="text-xs text-gray-500">更新 Runbooks/KEDB；重点审查验证环境 (Val) 的变更记录与回归测试证据链</p>
+</div>
+</div>
+<div class="task-item blue-border">
+<div class="task-icon text-novartis-blue"><i class="fas fa-laptop-medical"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">实战演练 (Second Support)</p>
+<p class="text-xs text-gray-500">独立承担部分 L2/L3 工单；主导一次非生产环境的变更实施</p>
+</div>
+</div>
+<div class="task-item blue-border">
+<div class="task-icon text-novartis-blue"><i class="fas fa-chalkboard-teacher"></i></div>
+<div>
+<p class="font-bold text-gray-700 text-sm">反向演示 (Reverse KT)</p>
+<p class="text-xs text-gray-500">向团队反讲核心业务流，完成知识验收</p>
+</div>
+</div>
+</div>
+<div class="deliverable-box blue">
+<div class="deliverable-title text-novartis-blue">
+<i class="fas fa-check-circle mr-1"></i> 预期产出 (Deliverables)
+                    </div>
+<div class="flex flex-wrap">
+<span class="pill-tag pill-blue">校正后的KT文档</span>
+<span class="pill-tag pill-blue">工单处理记录</span>
+<span class="pill-tag pill-blue">反向KT验收报告</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Note -->
+<div class="absolute bottom-4 left-0 w-full text-center">
+<p class="text-xs text-gray-400 font-mono bg-white inline-block px-4 py-1 rounded-full shadow-sm border border-gray-100">
+<i class="fas fa-info-circle mr-1"></i> 注：本阶段侧重于系统性学习吸收与流程梳理，不做深度架构变更或激进优化
+        </p>
+</div>
+</div>
+
+<!-- Slide from Novartis_Summary_Slide.html -->
+<div id="slide-7" class="slide-container">
+        <!-- Header -->
+        <div class="header-section">
+            <div class="flex justify-between items-end">
+                <div>
+                    <div class="flex items-center mb-2">
+                        <span class="w-10 h-1 bg-novartis-blue mr-3"></span>
+                        <p class="text-sm text-gray-500 font-bold uppercase tracking-widest">CONCLUSION</p>
+                    </div>
+                    <h1 class="text-4xl font-black text-gray-800">总结与承诺</h1>
+                </div>
+                <div class="text-right">
+                    <p class="text-xl font-light text-gray-600">以合规为基石，以交付为导向</p>
+                    <p class="text-sm text-gray-400 mt-1">Compliance-based, Delivery-oriented</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="content-wrapper">
+            <!-- Pillar 1: Agile Integration -->
+            <div class="summary-card blue">
+                <div class="card-icon"><i class="fas fa-rocket"></i></div>
+                <div class="card-subtitle text-novartis-blue">Phase 01</div>
+                <h3 class="card-title">敏捷融入<br><span class="text-lg font-normal text-gray-500">Agile Integration</span></h3>
+                <p class="card-text">
+                    <strong>目标：消除壁垒，建立信任。</strong><br>
+                    入职前主动扫清行业术语障碍；入职后2周内建立干系人地图，快速适配诺华文化与沟通语境，从"局外人"转变为"团队一员"。
+                </p>
+                <div class="card-footer">
+                    <i class="fas fa-check mr-2 text-green-500"></i> 关键动作：术语扫盲 / 1:1沟通
+                </div>
+            </div>
+
+            <!-- Pillar 2: Holistic Mastery -->
+            <div class="summary-card orange">
+                <div class="card-icon"><i class="fas fa-network-wired"></i></div>
+                <div class="card-subtitle text-novartis-orange">Phase 02</div>
+                <h3 class="card-title">全景掌控<br><span class="text-lg font-normal text-gray-500">Holistic Mastery</span></h3>
+                <p class="card-text">
+                    <strong>目标：穿透架构，敬畏合规。</strong><br>
+                    不仅掌握系统功能，更要建立对 GxP/CSV 的合规敬畏。从架构层面理解 IT/OT 边界与数据流向，确保每一次技术决策都经得起审计。
+                </p>
+                <div class="card-footer">
+                    <i class="fas fa-check mr-2 text-green-500"></i> 关键动作：架构梳理 / 合规学习
+                </div>
+            </div>
+
+            <!-- Pillar 3: Seamless Transition -->
+            <div class="summary-card dark">
+                <div class="card-icon"><i class="fas fa-hand-holding-medical"></i></div>
+                <div class="card-subtitle text-gray-500">Phase 03</div>
+                <h3 class="card-title">无缝接管<br><span class="text-lg font-normal text-gray-500">Seamless Transition</span></h3>
+                <p class="card-text">
+                    <strong>目标：稳健交付，持续优化。</strong><br>
+                    以 ITIL 为抓手，确保从 KT 到独立交付期间的服务连续性 (Business Continuity)。通过影子学习与反向演示，实现零震荡过渡。
+                </p>
+                <div class="card-footer">
+                    <i class="fas fa-check mr-2 text-green-500"></i> 关键动作：反向KT / 独立交付
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="bottom-bar">
+            <div class="flex items-center">
+                <i class="fas fa-check-circle text-2xl mr-3 text-green-400"></i>
+                <span class="text-lg font-light">Ready to start immediately</span>
+            </div>
+            <div class="text-2xl font-bold tracking-widest">THANK YOU</div>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GxP环境下的运维与移交</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        .slide-container {
+            width: 1280px;
+            height: 720px;
+            display: flex;
+            background-color: #ffffff;
+            overflow: hidden;
+            position: relative;
+        }
+        .novartis-blue { color: #0460a9; }
+        .bg-novartis-blue { background-color: #0460a9; }
+        .novartis-orange { color: #e74a21; }
+        .bg-novartis-orange { background-color: #e74a21; }
+        .border-novartis-blue { border-color: #0460a9; }
+        .border-novartis-orange { border-color: #e74a21; }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 320px;
+            background-color: #0460a9;
+            color: white;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            z-index: 10;
+        }
+        .sidebar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background-color: #e74a21;
+        }
+        
+        .sidebar-bg-icon {
+            position: absolute;
+            bottom: -50px;
+            right: -50px;
+            font-size: 300px;
+            opacity: 0.05;
+            color: white;
+            transform: rotate(-15deg);
+            pointer-events: none;
+        }
+
+        /* Content Area Styles */
+        .content-area {
+            flex: 1;
+            padding: 30px 40px;
+            background-color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            height: 100%;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-top: 4px solid transparent;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .info-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+        }
+        
+        .info-card.primary { border-top-color: #0460a9; }
+        .info-card.accent { border-top-color: #e74a21; }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .icon-box {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 1rem;
+        }
+        .primary .icon-box { background-color: rgba(4, 96, 169, 0.1); color: #0460a9; }
+        .accent .icon-box { background-color: rgba(231, 74, 33, 0.1); color: #e74a21; }
+
+        .list-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 4px;
+            font-size: 0.85rem;
+            color: #475569;
+            line-height: 1.4;
+        }
+        .list-item::before {
+            content: '•';
+            color: #cbd5e1;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .highlight-text {
+            color: #0460a9;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+<div class="slide-container">
+<!-- Sidebar -->
+<div class="sidebar">
+<i class="fas fa-server sidebar-bg-icon"></i>
+<div>
+<div class="inline-block px-3 py-1 bg-white bg-opacity-20 rounded text-xs font-bold tracking-wider mb-6">
+                    GAP ANALYSIS 03
+                </div>
+<h1 class="text-4xl font-bold leading-tight mb-4">
+                    差距 3<br/>运维与移交
+                </h1>
+<p class="text-white text-opacity-80 text-lg font-light">
+                    GxP Compliant Operations
+                </p>
+<div class="mt-8 w-16 h-1 bg-novartis-orange"></div>
+</div>
+<div class="text-sm text-white text-opacity-60">
+
+</div>
+</div>
+<!-- Main Content -->
+<div class="content-area">
+<!-- Header for content area -->
+<div class="flex justify-between items-end mb-4 border-b border-gray-200 pb-2">
+<div>
+<h2 class="text-2xl font-bold text-gray-800">GxP 环境下的 ITIL 实践与移交</h2>
+<p class="text-sm text-gray-500">从通用运维向合规运维转型的关键控制点</p>
+</div>
+<div class="text-3xl text-gray-200">
+<i class="fas fa-cogs"></i>
+</div>
+</div>
+<!-- Grid Layout -->
+<div class="grid-container">
+<!-- Card 1: ITIL v4 Practices -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-book-reader"></i></div>
+<h3 class="font-bold text-lg text-gray-800">ITIL v4 合规实践</h3>
+</div>
+<div>
+<p class="list-item">事件与问题管理：区分一般故障与质量偏差（Deviation）。</p>
+<p class="list-item">变更管理：实施严格的CAB审批，任何生产环境变更需评估对验证状态的影响。</p>
+<p class="list-item">配置与发布：确保 CMDB 准确反映 GxP/Non-GxP 系统分类。</p>
+</div>
+</div>
+<!-- Card 2: Support Model -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-users-cog"></i></div>
+<h3 class="font-bold text-lg text-gray-800">多层级支撑模型</h3>
+</div>
+<div>
+<p class="list-item">建立清晰的 L1-L3 分层响应机制。</p>
+<p class="list-item">定义并监控 SLA (面向客户) 与 OLA (内部团队协作)。</p>
+<p class="list-item">重大事件（P1/P2）升级流程与应急响应演练。</p>
+</div>
+</div>
+<!-- Card 3: Controlled Documentation -->
+<div class="info-card accent">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-file-signature"></i></div>
+<h3 class="font-bold text-lg text-gray-800">受控文档体系</h3>
+</div>
+<div>
+<p class="list-item">SOP (标准操作程序) 与 WI (作业指导书) 必须现行有效。</p>
+<p class="list-item">Runbook 需版本受控，所有操作记录需满足 ALCOA+ 原则。</p>
+<p class="list-item">培训记录可追溯，确保运维人员具备相应资质。</p>
+</div>
+</div>
+<!-- Card 4: Validation Environment -->
+<div class="info-card accent">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-check-double"></i></div>
+<h3 class="font-bold text-lg text-gray-800">验证环境运维</h3>
+</div>
+<div>
+<p class="list-item">严格管控验证环境变更，确保与生产环境一致性。</p>
+<p class="list-item">保留完整的审计追踪 (Audit Trail)日志。</p>
+<p class="list-item">执行回归测试证据留存，支持定期的系统审核。</p>
+</div>
+</div>
+<!-- Card 5: Monitoring & Stability -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-heartbeat"></i></div>
+<h3 class="font-bold text-lg text-gray-800">监控与稳定性</h3>
+</div>
+<div>
+<p class="list-item">部署 APM 与日志监控，建立主动健康度仪表板。</p>
+<p class="list-item">设置合规告警（如数据完整性风险、未授权访问）。</p>
+<p class="list-item">定期进行系统稳定性审查与容量评估。</p>
+</div>
+</div>
+<!-- Card 6: Knowledge Transfer -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-exchange-alt"></i></div>
+<h3 class="font-bold text-lg text-gray-800">KT 与平稳过渡</h3>
+</div>
+<div>
+<p class="list-item">制定明确的 RACI 矩阵，界定移交前后的责任边界。</p>
+<p class="list-item">实施“双人影子”模式 (Shadowing)，确保实操技能转移。</p>
+<p class="list-item">建立知识库，梳理演练清单 (Drill List) 确保接手即稳。</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>

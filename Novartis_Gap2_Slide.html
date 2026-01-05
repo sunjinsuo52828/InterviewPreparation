@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>差距2：诺华及大型制药系统生态</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        .slide-container {
+            width: 1280px;
+            height: 720px;
+            display: flex;
+            background-color: #ffffff;
+            overflow: hidden;
+            position: relative;
+        }
+        .novartis-blue { color: #0460a9; }
+        .bg-novartis-blue { background-color: #0460a9; }
+        .novartis-orange { color: #e74a21; }
+        .bg-novartis-orange { background-color: #e74a21; }
+        .border-novartis-blue { border-color: #0460a9; }
+        .border-novartis-orange { border-color: #e74a21; }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 320px;
+            background-color: #0460a9;
+            color: white;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            z-index: 10;
+        }
+        .sidebar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background-color: #e74a21;
+        }
+        
+        .sidebar-bg-icon {
+            position: absolute;
+            bottom: -50px;
+            right: -50px;
+            font-size: 300px;
+            opacity: 0.05;
+            color: white;
+            transform: rotate(-15deg);
+            pointer-events: none;
+        }
+
+        /* Content Area Styles */
+        .content-area {
+            flex: 1;
+            padding: 40px 50px;
+            background-color: #f8fafc;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            height: 100%;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px 20px; /* Adjusted padding for denser content */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-top: 4px solid transparent;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .info-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+        }
+        
+        .info-card.primary { border-top-color: #0460a9; }
+        .info-card.accent { border-top-color: #e74a21; }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .icon-box {
+            width: 32px; /* Slightly smaller */
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-size: 1rem;
+        }
+        .primary .icon-box { background-color: rgba(4, 96, 169, 0.1); color: #0460a9; }
+        .accent .icon-box { background-color: rgba(231, 74, 33, 0.1); color: #e74a21; }
+
+        .list-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 6px;
+            font-size: 0.85rem; /* Slightly smaller font for more content */
+            color: #475569;
+            line-height: 1.4;
+        }
+        .list-item::before {
+            content: '•';
+            color: #cbd5e1;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .highlight-text {
+            color: #0460a9;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+<div class="slide-container">
+<!-- Sidebar -->
+<div class="sidebar">
+<i class="fas fa-network-wired sidebar-bg-icon"></i>
+<div>
+<div class="inline-block px-3 py-1 bg-white bg-opacity-20 rounded text-xs font-bold tracking-wider mb-6">
+                    GAP ANALYSIS 02
+                </div>
+<h1 class="text-4xl font-bold leading-tight mb-4">
+                    差距 2<br/>系统生态
+                </h1>
+<p class="text-white text-opacity-80 text-lg font-light">
+                    Pharma System<br/>Ecosystem Map
+                </p>
+<div class="mt-8 w-16 h-1 bg-novartis-orange"></div>
+</div>
+<div class="text-sm text-white text-opacity-60">
+
+</div>
+</div>
+<!-- Main Content -->
+<div class="content-area">
+<!-- Header for content area -->
+<div class="flex justify-between items-end mb-6 border-b border-gray-200 pb-2">
+<div>
+<h2 class="text-2xl font-bold text-gray-800">制药行业通用系统架构地图</h2>
+<p class="text-sm text-gray-500">覆盖从研发到商业化上市的全生命周期关键应用</p>
+</div>
+<div class="text-3xl text-gray-200">
+<i class="fas fa-sitemap"></i>
+</div>
+</div>
+<!-- Grid Layout -->
+<div class="grid-container">
+<!-- Card 1: R&D & Clinical -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-flask"></i></div>
+<h3 class="font-bold text-lg text-gray-800">研发与临床 (R&amp;D / Clinical)</h3>
+</div>
+<div>
+<p class="list-item">临床数据采集：<span class="highlight-text ml-1">EDC (Rave/Veeva)</span>, ePRO。</p>
+<p class="list-item">试验管理：<span class="highlight-text ml-1">CTMS</span> (Clinical Trial Management)。</p>
+<p class="list-item">文档主文件：<span class="highlight-text ml-1">eTMF (Veeva Vault)</span>，关键合规资产。</p>
+</div>
+</div>
+<!-- Card 2: Lab & Manufacturing -->
+<div class="info-card accent">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-industry"></i></div>
+<h3 class="font-bold text-lg text-gray-800">实验室与制造 (Lab &amp; Mfg)</h3>
+</div>
+<div>
+<p class="list-item">实验室信息管理：<span class="highlight-text ml-1">LIMS (LabWare)</span>, CDS (Empower)。</p>
+<p class="list-item">制造执行系统：<span class="highlight-text ml-1">MES (Werum PAS-X)</span>，批记录电子化。</p>
+<p class="list-item">底层控制：DCS / SCADA，连接生产设备。</p>
+</div>
+</div>
+<!-- Card 3: Quality & Compliance -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-shield-alt"></i></div>
+<h3 class="font-bold text-lg text-gray-800">质量与合规 (Quality)</h3>
+</div>
+<div>
+<p class="list-item">质量管理系统：<span class="highlight-text ml-1">QMS (TrackWise)</span>，处理偏差/CAPA。</p>
+<p class="list-item">文档管理：DMS (Documentum / Veeva QualityDocs)。</p>
+<p class="list-item">审计追踪 (Audit Trails) 与电子签名。</p>
+</div>
+</div>
+<!-- Card 4: Regulatory & Safety -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-file-medical-alt"></i></div>
+<h3 class="font-bold text-lg text-gray-800">注册与药物警戒 (Reg &amp; PV)</h3>
+</div>
+<div>
+<p class="list-item">监管信息管理：<span class="highlight-text ml-1">RIM (Veeva Vault RIM)</span>。</p>
+<p class="list-item">药物安全/警戒：<span class="highlight-text ml-1">Argus Safety</span>，不良事件报告核心系统。</p>
+<p class="list-item">标签管理与提交出版系统。</p>
+</div>
+</div>
+<!-- Card 5: Commercial & Supply Chain -->
+<div class="info-card accent">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-shipping-fast"></i></div>
+<h3 class="font-bold text-lg text-gray-800">供应链与商业 (SCM &amp; Comm)</h3>
+</div>
+<div>
+<p class="list-item">企业资源计划：<span class="highlight-text ml-1">SAP S/4HANA</span> (财务/物料/库存)。</p>
+<p class="list-item">客户关系管理：<span class="highlight-text ml-1">Veeva CRM</span> (针对医药代表优化)。</p>
+<p class="list-item">序列化与追踪：Serialization (应对防伪法规)。</p>
+</div>
+</div>
+<!-- Card 6: Data Infrastructure -->
+<div class="info-card primary">
+<div class="card-header">
+<div class="icon-box"><i class="fas fa-database"></i></div>
+<h3 class="font-bold text-lg text-gray-800">数据与云基础设施</h3>
+</div>
+<div>
+<p class="list-item">实时历史数据库：<span class="highlight-text ml-1">OSIsoft PI</span> (制造数据集成)。</p>
+<p class="list-item">主数据管理 (MDM) 与数据湖 (Data Lake)。</p>
+<p class="list-item">云平台：AWS / Azure (诺华与微软/亚马逊有战略合作)。</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
