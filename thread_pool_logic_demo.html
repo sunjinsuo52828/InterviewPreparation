@@ -195,6 +195,38 @@ while (true) {
         <p>So, <strong>Thread T1</strong> can execute a Math calculation now, and a Database query 1 second later.</p>
     </div>
 
+    <div class="explanation" style="margin-top: 20px;">
+        <h3>ThreadPoolExecutor Parameters Explained</h3>
+        <p>When creating a custom thread pool in Java, you typically use the <code>ThreadPoolExecutor</code> constructor with these 7 parameters:</p>
+        <ul style="line-height: 1.6;">
+            <li><strong>corePoolSize</strong>: The number of threads to keep in the pool, even if they are idle.</li>
+            <li><strong>maximumPoolSize</strong>: The maximum number of threads allowed in the pool.</li>
+            <li><strong>keepAliveTime</strong>: When the number of threads is greater than the core, this is the maximum time that excess idle threads will wait for new tasks before terminating.</li>
+            <li><strong>unit</strong>: The time unit for the <code>keepAliveTime</code> argument.</li>
+            <li><strong>workQueue</strong>: The queue to use for holding tasks before they are executed.</li>
+            <li><strong>threadFactory</strong>: The factory to use when the executor creates a new thread.</li>
+            <li><strong>handler</strong>: The handler to use when execution is blocked because the thread bounds and queue capacities are reached.</li>
+        </ul>
+
+        <h4>Code Example:</h4>
+        <pre style="background:#2d2d2d; color:#ccc; padding:15px; border-radius:4px; overflow-x:auto; font-family: Consolas, monospace;">
+ThreadPoolExecutor executor = new ThreadPoolExecutor(
+    2,                                      // corePoolSize
+    5,                                      // maximumPoolSize
+    3,                                      // keepAliveTime
+    TimeUnit.SECONDS,                       // unit
+    new ArrayBlockingQueue<>(3),            // workQueue (Capacity: 3)
+    new ThreadFactory() {                   // threadFactory
+        private final AtomicInteger count = new AtomicInteger(1);
+        public Thread newThread(Runnable r) {
+            return new Thread(r, "My-Custom-Thread-" + count.getAndIncrement());
+        }
+    },
+    new ThreadPoolExecutor.AbortPolicy()    // handler (Reject Policy)
+);
+        </pre>
+    </div>
+
     <script>
         const queueEl = document.getElementById('taskQueue');
         const threads = [
