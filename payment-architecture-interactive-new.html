@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E2E Payment Flow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* Custom scrollbar for the scenario selector */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    body {
+      background-color: #020617; /* slate-950 */
+      color: #cbd5e1; /* slate-300 */
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    }
+    
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .5; }
+    }
+    .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    
+    @keyframes packetMove {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(400%); }
+    }
+    .animate-packet {
+      animation: packetMove 3s linear infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen selection:bg-cyan-500/30">
+  <!-- Header -->
+  <header class="border-b border-slate-800/60 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+          E2E Payment Flow
+        </h1>
+        <p class="text-xs text-slate-500 mt-1 font-mono uppercase tracking-wider">
+          Banking & Payments Architecture
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="autoPlayBtn" class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700">
+          <i data-lucide="play" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Auto-Play Off</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Scenario Selector -->
+  <div class="bg-slate-900/30 border-b border-slate-800/60 sticky top-[73px] z-40 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-6 py-3 overflow-x-auto no-scrollbar">
+      <div class="flex items-center gap-2" id="scenarioTabs">
+        <!-- Tabs injected here -->
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <!-- Scenario Header -->
+    <div class="mb-12 text-center max-w-3xl mx-auto">
+      <h2 id="scenarioTitle" class="text-2xl md:text-3xl font-bold text-white mb-3"></h2>
+      <p id="scenarioDesc" class="text-slate-400 text-sm md:text-base"></p>
+    </div>
+
+    <!-- Visual Flow Diagram -->
+    <div class="relative mb-24 mt-8">
+      <!-- Connecting Line (Desktop) -->
+      <div class="absolute top-8 left-[5%] right-[5%] h-0.5 bg-slate-800 hidden md:block"></div>
+      
+      <!-- Animated Packet (Desktop) -->
+      <div class="absolute top-8 left-[5%] right-[5%] h-0.5 hidden md:block overflow-hidden">
+        <div class="w-1/4 h-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50 animate-packet"></div>
+      </div>
+
+      <!-- Connecting Line (Mobile) -->
+      <div class="absolute top-[5%] bottom-[5%] left-8 w-0.5 bg-slate-800 block md:hidden"></div>
+
+      <div id="nodesContainer" class="flex flex-col md:flex-row justify-between relative z-10 gap-8 md:gap-0">
+        <!-- Nodes injected here -->
+      </div>
+    </div>
+
+    <!-- Details Section -->
+    <div id="detailsSection" class="grid grid-cols-1 lg:grid-cols-3 gap-6 transition-opacity duration-300 opacity-100">
+      <!-- Main Description Card -->
+      <div class="lg:col-span-3 bg-gradient-to-br from-slate-900 to-slate-900/50 border border-slate-800/60 rounded-3xl p-8 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+        <div class="relative z-10">
+          <div class="flex items-center gap-3 mb-2" id="nodeBadges">
+            <!-- Badges injected here -->
+          </div>
+          <h2 id="nodeTitle" class="text-3xl font-bold text-white mb-4 mt-4"></h2>
+          <p id="nodeDetails" class="text-lg text-slate-300 leading-relaxed max-w-4xl"></p>
+        </div>
+      </div>
+
+      <!-- Stakeholders -->
+      <div class="bg-slate-900/40 border border-slate-800/60 rounded-3xl p-6 hover:bg-slate-900/60 transition-colors">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+            <i data-lucide="users" class="text-blue-400 w-5 h-5"></i>
+          </div>
+          <h3 class="text-lg font-semibold text-white">Stakeholders</h3>
+        </div>
+        <ul id="nodeStakeholders" class="space-y-3"></ul>
+      </div>
+
+      <!-- Systems -->
+      <div class="bg-slate-900/40 border border-slate-800/60 rounded-3xl p-6 hover:bg-slate-900/60 transition-colors">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+            <i data-lucide="server" class="text-purple-400 w-5 h-5"></i>
+          </div>
+          <h3 class="text-lg font-semibold text-white">Systems & Networks</h3>
+        </div>
+        <ul id="nodeSystems" class="space-y-3"></ul>
+      </div>
+
+      <!-- Regulations -->
+      <div class="bg-slate-900/40 border border-slate-800/60 rounded-3xl p-6 hover:bg-slate-900/60 transition-colors">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+            <i data-lucide="shield" class="text-emerald-400 w-5 h-5"></i>
+          </div>
+          <h3 class="text-lg font-semibold text-white">Regulations & Rules</h3>
+        </div>
+        <ul id="nodeRegulations" class="space-y-3"></ul>
+      </div>
+
+      <!-- Key Concepts Deep Dive -->
+      <div id="conceptsContainerWrapper" class="lg:col-span-3 bg-slate-900/40 border border-slate-800/60 rounded-3xl p-8 mt-4 hover:bg-slate-900/60 transition-colors hidden">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20">
+            <i data-lucide="book-open" class="text-amber-400 w-5 h-5"></i>
+          </div>
+          <h3 class="text-xl font-semibold text-white">Key Concepts Deep Dive</h3>
+        </div>
+        <div id="nodeConcepts" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const scenarios = JSON.parse(decodeURIComponent("%5B%7B%22id%22%3A%22pt-1-own%22%2C%22name%22%3A%22PT-1%3A%20Own%20Account%22%2C%22description%22%3A%22Transfer%20between%20two%20accounts%20owned%20by%20the%20same%20customer%20within%20the%20same%20bank.%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20Initiation%22%2C%22description%22%3A%22Customer%20initiates%20transfer%20between%20their%20own%20accounts.%22%2C%22stakeholders%22%3A%5B%22Customer%22%5D%2C%22systems%22%3A%5B%22Mobile%2FWeb%20Banking%20App%22%5D%2C%22regulations%22%3A%5B%22SCA%20(Strong%20Customer%20Authentication)%22%5D%2C%22concepts%22%3A%5B%22SCA%20%26%20KYC%22%5D%2C%22details%22%3A%22The%20customer%20logs%20into%20their%20banking%20app%20and%20selects%20two%20accounts%20they%20own%20(e.g.%2C%20Checking%20to%20Savings).%20Since%20both%20accounts%20belong%20to%20the%20same%20verified%20entity%2C%20friction%20is%20minimal.%22%2C%22iconName%22%3A%22user%22%7D%2C%7B%22id%22%3A%22core-banking%22%2C%22title%22%3A%222.%20Core%20Banking%20Processing%22%2C%22description%22%3A%22The%20bank's%20internal%20ledger%20updates%20the%20balances.%22%2C%22stakeholders%22%3A%5B%22Bank%20Operations%22%5D%2C%22systems%22%3A%5B%22Core%20Banking%20System%20(CBS)%22%5D%2C%22regulations%22%3A%5B%22Internal%20Audit%20%26%20Logging%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22The%20Core%20Banking%20System%20performs%20a%20simple%20%5C%22book%20transfer%5C%22.%20It%20debits%20the%20source%20account%20and%20credits%20the%20destination%20account%20simultaneously.%20No%20external%20networks%20or%20complex%20AML%20checks%20are%20required%20since%20the%20entity%20is%20the%20same.%22%2C%22iconName%22%3A%22server%22%7D%2C%7B%22id%22%3A%22settlement%22%2C%22title%22%3A%223.%20Instant%20Settlement%22%2C%22description%22%3A%22Funds%20are%20immediately%20available.%22%2C%22stakeholders%22%3A%5B%22Customer%22%5D%2C%22systems%22%3A%5B%22Customer%20Notification%20System%22%5D%2C%22regulations%22%3A%5B%22Internal%20Ledger%20Rules%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22Because%20the%20funds%20never%20leave%20the%20bank%2C%20settlement%20is%20instantaneous.%20The%20customer%20sees%20the%20updated%20balances%20immediately%2C%20and%20no%20interbank%20settlement%20is%20needed.%22%2C%22iconName%22%3A%22check-circle2%22%7D%5D%7D%2C%7B%22id%22%3A%22pt-1-internal%22%2C%22name%22%3A%22PT-1%3A%20Internal%20(Other%20Account)%22%2C%22description%22%3A%22Transfer%20to%20another%20customer's%20account%20within%20the%20same%20bank.%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20Initiation%22%2C%22description%22%3A%22Sender%20initiates%20a%20transfer%20to%20another%20customer%20at%20the%20same%20bank.%22%2C%22stakeholders%22%3A%5B%22Payer%22%5D%2C%22systems%22%3A%5B%22Mobile%20Banking%20App%22%2C%22Online%20Portal%22%5D%2C%22regulations%22%3A%5B%22SCA%20(Strong%20Customer%20Authentication)%22%5D%2C%22concepts%22%3A%5B%22SCA%20%26%20KYC%22%2C%22APP%20Fraud%22%5D%2C%22details%22%3A%22The%20payer%20enters%20the%20payee's%20account%20details.%20Since%20the%20payee%20is%20in%20the%20same%20bank%2C%20the%20system%20can%20often%20instantly%20verify%20the%20payee's%20name%20(Confirmation%20of%20Payee).%22%2C%22iconName%22%3A%22user%22%7D%2C%7B%22id%22%3A%22fraud-aml%22%2C%22title%22%3A%222.%20Fraud%20%26%20AML%20Check%22%2C%22description%22%3A%22Internal%20screening%20for%20suspicious%20activity.%22%2C%22stakeholders%22%3A%5B%22Fraud%20Prevention%20Team%22%2C%22Compliance%20Officer%22%5D%2C%22systems%22%3A%5B%22Fraud%20Detection%20Engine%22%2C%22Transaction%20Monitoring%20System%22%5D%2C%22regulations%22%3A%5B%22AML%20(Anti-Money%20Laundering)%22%2C%22Internal%20Risk%20Policies%22%5D%2C%22concepts%22%3A%5B%22AML%20%26%20Monitoring%22%2C%22Screening%20vs%20Monitoring%22%5D%2C%22details%22%3A%22Even%20though%20it%20is%20an%20internal%20transfer%2C%20the%20bank%20must%20monitor%20for%20money%20laundering%20or%20account%20takeover%20fraud.%20The%20system%20checks%20if%20the%20transaction%20fits%20the%20customer's%20normal%20behavior.%22%2C%22iconName%22%3A%22shield-check%22%7D%2C%7B%22id%22%3A%22core-banking%22%2C%22title%22%3A%223.%20Book%20Transfer%22%2C%22description%22%3A%22Internal%20ledger%20updates%20both%20accounts.%22%2C%22stakeholders%22%3A%5B%22Bank%20Operations%22%5D%2C%22systems%22%3A%5B%22Core%20Banking%20System%20(CBS)%22%5D%2C%22regulations%22%3A%5B%22Record%20Keeping%20Requirements%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22Once%20cleared%20by%20the%20fraud%20engine%2C%20the%20Core%20Banking%20System%20debits%20the%20sender%20and%20credits%20the%20receiver.%20No%20external%20clearing%20house%20is%20involved.%22%2C%22iconName%22%3A%22server%22%7D%2C%7B%22id%22%3A%22settlement%22%2C%22title%22%3A%224.%20Settlement%22%2C%22description%22%3A%22Funds%20are%20credited%20to%20the%20payee.%22%2C%22stakeholders%22%3A%5B%22Payee%22%5D%2C%22systems%22%3A%5B%22Notification%20Gateway%22%5D%2C%22regulations%22%3A%5B%22Consumer%20Protection%20Laws%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22The%20payee%20receives%20the%20funds%20instantly.%20The%20transaction%20is%20final%20and%20irrevocable%20within%20the%20bank's%20internal%20closed-loop%20system.%22%2C%22iconName%22%3A%22check-circle2%22%7D%5D%7D%2C%7B%22id%22%3A%22pt-2-local%22%2C%22name%22%3A%22PT-2%3A%20Local%20Bank%20to%20Bank%22%2C%22description%22%3A%22Domestic%20transfer%20between%20two%20different%20local%20banks.%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20Initiation%22%2C%22description%22%3A%22Payer%20initiates%20a%20domestic%20transfer.%22%2C%22stakeholders%22%3A%5B%22Payer%22%5D%2C%22systems%22%3A%5B%22Banking%20App%22%5D%2C%22regulations%22%3A%5B%22SCA%22%2C%22Confirmation%20of%20Payee%20(CoP)%22%5D%2C%22concepts%22%3A%5B%22SCA%20%26%20KYC%22%2C%22APP%20Fraud%22%5D%2C%22details%22%3A%22The%20payer%20enters%20the%20BSB%2FSort%20Code%20and%20Account%20Number.%20In%20many%20modern%20local%20systems%2C%20a%20%5C%22Confirmation%20of%20Payee%5C%22%20check%20is%20done%20to%20ensure%20the%20name%20matches%20the%20account%20details%20at%20the%20destination%20bank.%22%2C%22iconName%22%3A%22user%22%7D%2C%7B%22id%22%3A%22originating-bank%22%2C%22title%22%3A%222.%20Originating%20Bank%22%2C%22description%22%3A%22Sender's%20bank%20validates%20and%20screens%20the%20payment.%22%2C%22stakeholders%22%3A%5B%22Debtor%20Bank%22%2C%22Compliance%20Team%22%5D%2C%22systems%22%3A%5B%22Core%20Banking%20System%22%2C%22Sanctions%20Screening%22%5D%2C%22regulations%22%3A%5B%22AML%22%2C%22CTF%22%2C%22Domestic%20Sanctions%22%5D%2C%22concepts%22%3A%5B%22AML%20%26%20Monitoring%22%2C%22Sanctions%20%26%20PEPs%22%2C%22Screening%20vs%20Monitoring%22%5D%2C%22details%22%3A%22The%20originating%20bank%20verifies%20funds%2C%20runs%20fraud%20checks%2C%20and%20screens%20against%20domestic%20watchlists%20before%20formatting%20the%20message%20for%20the%20local%20clearing%20network.%22%2C%22iconName%22%3A%22building2%22%7D%2C%7B%22id%22%3A%22clearing-network%22%2C%22title%22%3A%223.%20Local%20Clearing%20Network%22%2C%22description%22%3A%22Routes%20the%20payment%20via%20domestic%20rails.%22%2C%22stakeholders%22%3A%5B%22Clearing%20House%20(e.g.%2C%20ACH%2C%20Faster%20Payments%2C%20NPP)%22%5D%2C%22systems%22%3A%5B%22RTGS%20(Real-Time%20Gross%20Settlement)%22%2C%22ACH%20(Automated%20Clearing%20House)%22%5D%2C%22regulations%22%3A%5B%22Scheme%20Rules%22%2C%22Central%20Bank%20Oversight%22%5D%2C%22concepts%22%3A%5B%22RTGS%20vs%20ACH%22%2C%22ISO%2020022%22%5D%2C%22details%22%3A%22The%20payment%20is%20sent%20through%20a%20domestic%20network%20(like%20Fedwire%20in%20US%2C%20Faster%20Payments%20in%20UK%2C%20NPP%20in%20Australia).%20Depending%20on%20the%20rail%2C%20settlement%20between%20the%20banks%20happens%20either%20in%20real-time%20(RTGS)%20or%20in%20deferred%20net%20batches%20(ACH).%22%2C%22iconName%22%3A%22network%22%7D%2C%7B%22id%22%3A%22beneficiary-bank%22%2C%22title%22%3A%224.%20Beneficiary%20Bank%22%2C%22description%22%3A%22Receiver's%20bank%20processes%20the%20incoming%20transfer.%22%2C%22stakeholders%22%3A%5B%22Creditor%20Bank%22%5D%2C%22systems%22%3A%5B%22Inbound%20Clearing%20Gateway%22%2C%22Core%20Banking%20System%22%5D%2C%22regulations%22%3A%5B%22Inbound%20AML%2FSanctions%20Check%22%5D%2C%22concepts%22%3A%5B%22Sanctions%20%26%20PEPs%22%5D%2C%22details%22%3A%22The%20receiving%20bank%20gets%20the%20payment%20message%2C%20performs%20its%20own%20compliance%20checks%20on%20the%20beneficiary%2C%20and%20prepares%20to%20credit%20the%20account.%22%2C%22iconName%22%3A%22landmark%22%7D%2C%7B%22id%22%3A%22settlement%22%2C%22title%22%3A%225.%20Settlement%22%2C%22description%22%3A%22Funds%20are%20credited%20to%20the%20payee.%22%2C%22stakeholders%22%3A%5B%22Payee%22%5D%2C%22systems%22%3A%5B%22Account%20Receivables%22%5D%2C%22regulations%22%3A%5B%22Funds%20Availability%20Policies%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22The%20payee's%20account%20is%20credited.%20For%20real-time%20rails%2C%20this%20happens%20in%20seconds.%20For%20ACH%2C%20it%20might%20take%201-2%20business%20days.%22%2C%22iconName%22%3A%22check-circle2%22%7D%5D%7D%2C%7B%22id%22%3A%22pt-3-bill%22%2C%22name%22%3A%22PT-3%3A%20Bill%20Payment%22%2C%22description%22%3A%22Payment%20to%20a%20registered%20biller%20(e.g.%2C%20Utilities%2C%20Tax)%20via%20a%20bill%20payment%20network.%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20Initiation%22%2C%22description%22%3A%22Payer%20enters%20Biller%20Code%20and%20Reference%20Number.%22%2C%22stakeholders%22%3A%5B%22Payer%22%5D%2C%22systems%22%3A%5B%22Mobile%20Banking%20App%22%5D%2C%22regulations%22%3A%5B%22SCA%22%5D%2C%22concepts%22%3A%5B%22SCA%20%26%20KYC%22%5D%2C%22details%22%3A%22Instead%20of%20an%20account%20number%2C%20the%20payer%20uses%20a%20specific%20Biller%20Code%20and%20Customer%20Reference%20Number%20(CRN).%20This%20ensures%20the%20payment%20is%20automatically%20routed%20and%20reconciled%20by%20the%20biller.%22%2C%22iconName%22%3A%22receipt%22%7D%2C%7B%22id%22%3A%22originating-bank%22%2C%22title%22%3A%222.%20Originating%20Bank%22%2C%22description%22%3A%22Validates%20the%20Biller%20Code%20and%20debits%20the%20payer.%22%2C%22stakeholders%22%3A%5B%22Debtor%20Bank%22%5D%2C%22systems%22%3A%5B%22Core%20Banking%20System%22%2C%22Biller%20Directory%20Cache%22%5D%2C%22regulations%22%3A%5B%22AML%22%5D%2C%22concepts%22%3A%5B%22AML%20%26%20Monitoring%22%5D%2C%22details%22%3A%22The%20bank%20verifies%20that%20the%20Biller%20Code%20is%20valid%20and%20active.%20It%20debits%20the%20payer's%20account%20and%20prepares%20the%20transaction%20for%20the%20bill%20payment%20network.%22%2C%22iconName%22%3A%22building2%22%7D%2C%7B%22id%22%3A%22bill-network%22%2C%22title%22%3A%223.%20Bill%20Payment%20Network%22%2C%22description%22%3A%22Routes%20payment%20and%20reference%20data.%22%2C%22stakeholders%22%3A%5B%22Bill%20Payment%20Scheme%20(e.g.%2C%20BPAY%2C%20Giro)%22%5D%2C%22systems%22%3A%5B%22Central%20Biller%20Switch%22%5D%2C%22regulations%22%3A%5B%22Scheme%20Operating%20Rules%22%5D%2C%22concepts%22%3A%5B%22RTGS%20vs%20ACH%22%5D%2C%22details%22%3A%22The%20central%20switch%20routes%20the%20payment%20from%20the%20payer's%20bank%20to%20the%20biller's%20bank.%20Crucially%2C%20it%20ensures%20the%20Customer%20Reference%20Number%20(CRN)%20remains%20intact%20for%20reconciliation.%22%2C%22iconName%22%3A%22network%22%7D%2C%7B%22id%22%3A%22biller-bank%22%2C%22title%22%3A%224.%20Biller's%20Bank%22%2C%22description%22%3A%22Receives%20funds%20on%20behalf%20of%20the%20biller.%22%2C%22stakeholders%22%3A%5B%22Biller's%20Bank%20(Creditor%20Institution)%22%5D%2C%22systems%22%3A%5B%22Wholesale%20Banking%20System%22%5D%2C%22regulations%22%3A%5B%22Corporate%20AML%22%5D%2C%22concepts%22%3A%5B%22AML%20%26%20Monitoring%22%5D%2C%22details%22%3A%22The%20biller's%20bank%20receives%20the%20consolidated%20funds%20from%20the%20network%20and%20credits%20the%20biller's%20master%20account%2C%20usually%20in%20a%20daily%20batch.%22%2C%22iconName%22%3A%22landmark%22%7D%2C%7B%22id%22%3A%22reconciliation%22%2C%22title%22%3A%225.%20Reconciliation%22%2C%22description%22%3A%22Biller%20updates%20the%20customer's%20account%20balance.%22%2C%22stakeholders%22%3A%5B%22Biller%20(Utility%2FTelco%2FGov)%22%5D%2C%22systems%22%3A%5B%22Corporate%20ERP%22%2C%22Billing%20System%22%5D%2C%22regulations%22%3A%5B%22Tax%20%26%20Accounting%20Standards%22%5D%2C%22concepts%22%3A%5B%22ISO%2020022%22%5D%2C%22details%22%3A%22The%20biller%20receives%20a%20data%20file%20containing%20all%20CRNs%20and%20amounts%20paid.%20Their%20ERP%20system%20automatically%20matches%20these%20to%20customer%20accounts%2C%20marking%20the%20bills%20as%20paid%20without%20manual%20intervention.%22%2C%22iconName%22%3A%22file-text%22%7D%5D%7D%2C%7B%22id%22%3A%22pt-4-global-internal%22%2C%22name%22%3A%22PT-4%3A%20Global%20Citi%22%2C%22description%22%3A%22Cross-border%20transfer%20between%20two%20branches%20of%20the%20same%20global%20bank.%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20Initiation%22%2C%22description%22%3A%22Payer%20initiates%20an%20international%20transfer%20to%20another%20branch.%22%2C%22stakeholders%22%3A%5B%22Payer%22%5D%2C%22systems%22%3A%5B%22Global%20Banking%20Portal%22%5D%2C%22regulations%22%3A%5B%22SCA%22%2C%22Cross-Border%20Declarations%22%5D%2C%22concepts%22%3A%5B%22SCA%20%26%20KYC%22%2C%22CDD%20%26%20EDD%22%5D%2C%22details%22%3A%22The%20payer%20initiates%20a%20transfer%20to%20a%20beneficiary%20in%20another%20country%2C%20but%20the%20beneficiary%20banks%20with%20the%20same%20global%20institution%20(e.g.%2C%20Citi%20US%20to%20Citi%20UK).%22%2C%22iconName%22%3A%22user%22%7D%2C%7B%22id%22%3A%22originating-branch%22%2C%22title%22%3A%222.%20Originating%20Branch%22%2C%22description%22%3A%22Local%20compliance%20and%20FX%20initiation.%22%2C%22stakeholders%22%3A%5B%22Local%20Branch%20Compliance%22%5D%2C%22systems%22%3A%5B%22Local%20Core%20Banking%22%2C%22Global%20Sanctions%20Filter%22%5D%2C%22regulations%22%3A%5B%22Local%20AML%22%2C%22Outbound%20Capital%20Controls%22%5D%2C%22concepts%22%3A%5B%22AML%20%26%20Monitoring%22%2C%22Sanctions%20%26%20PEPs%22%2C%22Screening%20vs%20Monitoring%22%5D%2C%22details%22%3A%22The%20local%20branch%20verifies%20funds%20and%20checks%20local%20outbound%20regulations.%20It%20also%20locks%20in%20the%20Foreign%20Exchange%20(FX)%20rate%20for%20the%20currency%20conversion.%22%2C%22iconName%22%3A%22building2%22%7D%2C%7B%22id%22%3A%22global-ledger%22%2C%22title%22%3A%223.%20Global%20Internal%20Network%22%2C%22description%22%3A%22Routes%20via%20the%20bank's%20proprietary%20global%20ledger.%22%2C%22stakeholders%22%3A%5B%22Global%20Treasury%22%2C%22Internal%20FX%20Desk%22%5D%2C%22systems%22%3A%5B%22Proprietary%20Global%20Routing%20System%22%2C%22Internal%20FX%20Engine%22%5D%2C%22regulations%22%3A%5B%22FATF%20Travel%20Rule%22%2C%22Global%20Sanctions%20(OFAC%2C%20UN)%22%5D%2C%22concepts%22%3A%5B%22FATF%20Travel%20Rule%22%2C%22Nostro%20%2F%20Vostro%22%5D%2C%22details%22%3A%22Because%20both%20branches%20are%20part%20of%20the%20same%20global%20entity%2C%20the%20payment%20often%20bypasses%20the%20public%20SWIFT%20network.%20It%20is%20routed%20via%20an%20internal%20global%20ledger%2C%20saving%20correspondent%20banking%20fees%20and%20time.%22%2C%22iconName%22%3A%22globe%22%7D%2C%7B%22id%22%3A%22destination-branch%22%2C%22title%22%3A%224.%20Destination%20Branch%22%2C%22description%22%3A%22Receives%20the%20internal%20transfer%20and%20applies%20local%20rules.%22%2C%22stakeholders%22%3A%5B%22Destination%20Branch%20Compliance%22%5D%2C%22systems%22%3A%5B%22Local%20Core%20Banking%22%5D%2C%22regulations%22%3A%5B%22Inbound%20AML%22%2C%22Local%20Central%20Bank%20Reporting%22%5D%2C%22concepts%22%3A%5B%22AML%20%26%20Monitoring%22%2C%22Sanctions%20%26%20PEPs%22%5D%2C%22details%22%3A%22The%20destination%20branch%20receives%20the%20instruction%20internally.%20It%20performs%20inbound%20screening%20according%20to%20its%20local%20jurisdiction's%20laws%20before%20crediting%20the%20account.%22%2C%22iconName%22%3A%22landmark%22%7D%2C%7B%22id%22%3A%22settlement%22%2C%22title%22%3A%225.%20Settlement%22%2C%22description%22%3A%22Funds%20credited%20in%20local%20currency.%22%2C%22stakeholders%22%3A%5B%22Payee%22%5D%2C%22systems%22%3A%5B%22Account%20Receivables%22%5D%2C%22regulations%22%3A%5B%22Tax%20Reporting%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22The%20payee%20receives%20the%20funds%2C%20often%20much%20faster%20than%20a%20standard%20SWIFT%20transfer%2C%20because%20the%20global%20bank%20acts%20as%20its%20own%20correspondent.%22%2C%22iconName%22%3A%22check-circle2%22%7D%5D%7D%2C%7B%22id%22%3A%22pt-5-cross-border%22%2C%22name%22%3A%22PT-5%3A%20Cross%20Border%20(SWIFT)%22%2C%22description%22%3A%22International%20transfer%20between%20two%20different%20banks%20via%20the%20SWIFT%20network.%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20Initiation%22%2C%22description%22%3A%22Payer%20provides%20SWIFT%2FBIC%20and%20IBAN%20details.%22%2C%22stakeholders%22%3A%5B%22Payer%22%5D%2C%22systems%22%3A%5B%22Corporate%20ERP%22%2C%22Banking%20Portal%22%5D%2C%22regulations%22%3A%5B%22Purpose%20of%20Payment%20Codes%22%2C%22Cross-Border%20Declarations%22%5D%2C%22concepts%22%3A%5B%22SCA%20%26%20KYC%22%5D%2C%22details%22%3A%22The%20payer%20initiates%20the%20transfer%20using%20the%20beneficiary's%20International%20Bank%20Account%20Number%20(IBAN)%20and%20the%20bank's%20SWIFT%2FBIC%20code.%20They%20must%20often%20provide%20a%20%5C%22Purpose%20of%20Payment%5C%22%20code%20for%20regulatory%20reasons.%22%2C%22iconName%22%3A%22user%22%7D%2C%7B%22id%22%3A%22originating-bank%22%2C%22title%22%3A%222.%20Originating%20Bank%22%2C%22description%22%3A%22Formats%20the%20MT103%20%2F%20ISO%2020022%20message.%22%2C%22stakeholders%22%3A%5B%22Debtor%20Bank%22%2C%22Trade%20Compliance%20Team%22%5D%2C%22systems%22%3A%5B%22SWIFT%20Alliance%20Access%22%2C%22Sanctions%20Screening%22%5D%2C%22regulations%22%3A%5B%22FATF%20Travel%20Rule%22%2C%22AML%2FCTF%22%5D%2C%22concepts%22%3A%5B%22ISO%2020022%22%2C%22FATF%20Travel%20Rule%22%2C%22AML%20%26%20Monitoring%22%2C%22Sanctions%20%26%20PEPs%22%2C%22Screening%20vs%20Monitoring%22%5D%2C%22details%22%3A%22The%20bank%20screens%20the%20transaction%20against%20global%20sanctions.%20It%20then%20formats%20the%20payment%20instruction%20into%20a%20SWIFT%20message%20(historically%20MT103%2C%20migrating%20to%20ISO%2020022%20pacs.008)%20ensuring%20all%20FATF%20Travel%20Rule%20data%20is%20included.%22%2C%22iconName%22%3A%22building2%22%7D%2C%7B%22id%22%3A%22correspondent-bank%22%2C%22title%22%3A%223.%20Correspondent%20Bank(s)%22%2C%22description%22%3A%22Intermediary%20banks%20route%20the%20payment%20and%20handle%20FX.%22%2C%22stakeholders%22%3A%5B%22Intermediary%20Banks%22%2C%22FX%20Liquidity%20Providers%22%5D%2C%22systems%22%3A%5B%22Nostro%2FVostro%20Ledgers%22%2C%22SWIFT%20GPI%22%5D%2C%22regulations%22%3A%5B%22Correspondent%20Banking%20Due%20Diligence%20(CBDD)%22%5D%2C%22concepts%22%3A%5B%22Nostro%20%2F%20Vostro%22%2C%22SWIFT%20GPI%20%26%20UETR%22%2C%22Correspondent%20Banking%22%2C%22Serial%20vs%20Cover%22%5D%2C%22details%22%3A%22If%20the%20originating%20and%20beneficiary%20banks%20don't%20have%20a%20direct%20relationship%2C%20the%20payment%20hops%20through%20one%20or%20more%20correspondent%20banks.%20They%20handle%20currency%20conversion%20and%20take%20a%20fee.%20SWIFT%20GPI%20allows%20tracking%20of%20this%20journey.%22%2C%22iconName%22%3A%22arrow-right-left%22%7D%2C%7B%22id%22%3A%22beneficiary-bank%22%2C%22title%22%3A%224.%20Beneficiary%20Bank%22%2C%22description%22%3A%22Receives%20the%20SWIFT%20message%20and%20clears%20funds.%22%2C%22stakeholders%22%3A%5B%22Creditor%20Bank%22%2C%22Inbound%20Compliance%22%5D%2C%22systems%22%3A%5B%22SWIFT%20Gateway%22%2C%22Core%20Banking%20System%22%5D%2C%22regulations%22%3A%5B%22Final%20AML%2FSanctions%20Check%22%2C%22Capital%20Controls%22%5D%2C%22concepts%22%3A%5B%22Sanctions%20%26%20PEPs%22%2C%22AML%20%26%20Monitoring%22%5D%2C%22details%22%3A%22The%20receiving%20bank%20gets%20the%20SWIFT%20message%2C%20performs%20a%20final%20sanctions%20check%20on%20the%20beneficiary%2C%20and%20converts%20the%20funds%20to%20the%20local%20currency%20if%20not%20already%20done.%22%2C%22iconName%22%3A%22landmark%22%7D%2C%7B%22id%22%3A%22settlement%22%2C%22title%22%3A%225.%20Settlement%22%2C%22description%22%3A%22Payee%20receives%20funds%2C%20often%20minus%20intermediary%20fees.%22%2C%22stakeholders%22%3A%5B%22Payee%22%5D%2C%22systems%22%3A%5B%22Corporate%20ERP%22%5D%2C%22regulations%22%3A%5B%22Data%20Privacy%20(GDPR)%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%2C%22ISO%2020022%22%2C%22GDPR%20%26%20Data%20Privacy%22%5D%2C%22details%22%3A%22The%20funds%20are%20credited.%20The%20payee's%20ERP%20system%20uses%20the%20rich%20data%20in%20the%20ISO%2020022%20message%20to%20reconcile%20the%20payment%2C%20though%20the%20final%20amount%20may%20be%20less%20due%20to%20correspondent%20bank%20fees%20(unless%20sent%20as%20%5C%22OUR%5C%22).%22%2C%22iconName%22%3A%22check-circle2%22%7D%5D%7D%2C%7B%22id%22%3A%22pt-6-ecom-wallet%22%2C%22name%22%3A%22PT-6%3A%20E-Commerce%20(Digital%20Wallet%2FPSP)%22%2C%22description%22%3A%22Online%20purchase%20using%20a%20digital%20wallet%20(e.g.%2C%20Apple%20Pay%2C%20Alipay)%20processed%20via%20a%20Third-Party%20Payment%20Service%20Provider%20(PSP).%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20Checkout%22%2C%22description%22%3A%22Customer%20authenticates%20via%20biometric%20digital%20wallet.%22%2C%22stakeholders%22%3A%5B%22Customer%22%5D%2C%22systems%22%3A%5B%22Merchant%20Website%22%2C%22Digital%20Wallet%20(Apple%2FGoogle%20Pay)%22%5D%2C%22regulations%22%3A%5B%22SCA%22%2C%22PCI-DSS%22%5D%2C%22concepts%22%3A%5B%22Digital%20Wallets%22%2C%22SCA%20%26%20KYC%22%2C%22PCI-DSS%22%5D%2C%22details%22%3A%22The%20customer%20selects%20a%20digital%20wallet%20at%20checkout.%20The%20device%20uses%20biometrics%20(SCA)%20to%20authenticate%20and%20generates%20a%20one-time%20cryptogram%20and%20tokenized%20card%20number%2C%20keeping%20the%20real%20PAN%20hidden%20from%20the%20merchant.%22%2C%22iconName%22%3A%22smartphone%22%7D%2C%7B%22id%22%3A%22psp-gateway%22%2C%22title%22%3A%222.%20Payment%20Gateway%20(PSP)%22%2C%22description%22%3A%22Routes%20the%20tokenized%20transaction%20to%20the%20acquiring%20bank.%22%2C%22stakeholders%22%3A%5B%22PSP%20(e.g.%2C%20Stripe%2C%20Adyen)%22%2C%22Merchant%22%5D%2C%22systems%22%3A%5B%22Payment%20Gateway%20API%22%5D%2C%22regulations%22%3A%5B%22PCI-DSS%22%5D%2C%22concepts%22%3A%5B%22Payment%20Gateways%20%26%20PSPs%22%2C%22PCI-DSS%22%5D%2C%22details%22%3A%22The%20PSP%20receives%20the%20encrypted%20payload%2C%20performs%20merchant-level%20fraud%20checks%2C%20and%20routes%20the%20authorization%20request%20to%20the%20merchant's%20Acquiring%20Bank.%22%2C%22iconName%22%3A%22server%22%7D%2C%7B%22id%22%3A%22card-network%22%2C%22title%22%3A%223.%20Card%20Network%22%2C%22description%22%3A%22Switches%20the%20transaction%20to%20the%20issuing%20bank.%22%2C%22stakeholders%22%3A%5B%22Card%20Scheme%20(Visa%2FMastercard%2FUnionPay)%22%5D%2C%22systems%22%3A%5B%22Card%20Payment%20Network%22%5D%2C%22regulations%22%3A%5B%22Scheme%20Rules%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22The%20Acquirer%20sends%20the%20request%20to%20the%20Card%20Network%2C%20which%20identifies%20the%20Issuing%20Bank%20(the%20customer's%20bank)%20and%20forwards%20the%20authorization%20request.%22%2C%22iconName%22%3A%22network%22%7D%2C%7B%22id%22%3A%22issuing-bank%22%2C%22title%22%3A%224.%20Issuing%20Bank%20Auth%22%2C%22description%22%3A%22Approves%20or%20declines%20the%20transaction.%22%2C%22stakeholders%22%3A%5B%22Issuing%20Bank%22%5D%2C%22systems%22%3A%5B%22Core%20Banking%22%2C%22Card%20Authorization%20System%22%5D%2C%22regulations%22%3A%5B%22AML%22%2C%22Fraud%20Prevention%22%5D%2C%22concepts%22%3A%5B%22AML%20%26%20Monitoring%22%5D%2C%22details%22%3A%22The%20Issuer%20checks%20the%20customer's%20balance%2C%20decrypts%20the%20token%20cryptogram%2C%20and%20runs%20issuer-level%20fraud%20rules.%20If%20approved%2C%20it%20reserves%20the%20funds%20and%20sends%20an%20auth%20code%20back%20through%20the%20chain.%22%2C%22iconName%22%3A%22building2%22%7D%2C%7B%22id%22%3A%22settlement%22%2C%22title%22%3A%225.%20Clearing%20%26%20Settlement%22%2C%22description%22%3A%22Funds%20move%20from%20Issuer%20to%20Merchant.%22%2C%22stakeholders%22%3A%5B%22Merchant%22%2C%22Acquirer%22%5D%2C%22systems%22%3A%5B%22Merchant%20Bank%20Account%22%5D%2C%22regulations%22%3A%5B%22Interchange%20Fee%20Regulations%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22Later%20(usually%20end%20of%20day)%2C%20the%20Acquirer%20submits%20a%20batch%20of%20approved%20transactions%20for%20clearing.%20The%20Issuer%20transfers%20funds%20to%20the%20Acquirer%20(minus%20interchange%20fees)%2C%20who%20then%20pays%20out%20the%20Merchant%20(minus%20acquiring%20fees).%22%2C%22iconName%22%3A%22check-circle2%22%7D%5D%7D%2C%7B%22id%22%3A%22pt-7-crypto-stablecoin%22%2C%22name%22%3A%22PT-7%3A%20Cross-Border%20Stablecoin%22%2C%22description%22%3A%22International%20remittance%20using%20a%20Stablecoin%20(e.g.%2C%20USDC)%20or%20Digital%20Currency%20over%20a%20public%20blockchain.%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20Fiat%20On-Ramp%22%2C%22description%22%3A%22Sender%20converts%20local%20fiat%20to%20Stablecoin.%22%2C%22stakeholders%22%3A%5B%22Sender%22%2C%22Crypto%20Exchange%20%2F%20Wallet%22%5D%2C%22systems%22%3A%5B%22Exchange%20App%22%2C%22Local%20Bank%20Rails%22%5D%2C%22regulations%22%3A%5B%22KYC%22%2C%22AML%22%5D%2C%22concepts%22%3A%5B%22Crypto%20On%2FOff%20Ramps%22%2C%22SCA%20%26%20KYC%22%5D%2C%22details%22%3A%22The%20sender%20deposits%20local%20fiat%20currency%20into%20a%20regulated%20crypto%20exchange%20or%20wallet%20provider%20and%20purchases%20a%20USD-pegged%20stablecoin%20(like%20USDC)%20or%20a%20CBDC.%22%2C%22iconName%22%3A%22wallet%22%7D%2C%7B%22id%22%3A%22blockchain-transfer%22%2C%22title%22%3A%222.%20Blockchain%20Transfer%22%2C%22description%22%3A%22Digital%20currency%20is%20sent%20over%20a%20distributed%20ledger.%22%2C%22stakeholders%22%3A%5B%22Blockchain%20Validators%20%2F%20Miners%22%5D%2C%22systems%22%3A%5B%22Public%20Blockchain%20(e.g.%2C%20Ethereum%2C%20Solana)%22%5D%2C%22regulations%22%3A%5B%22Travel%20Rule%20(Virtual%20Assets)%22%5D%2C%22concepts%22%3A%5B%22Stablecoins%22%2C%22FATF%20Travel%20Rule%22%5D%2C%22details%22%3A%22The%20sender%20transfers%20the%20stablecoins%20to%20the%20receiver's%20wallet%20address.%20The%20transaction%20is%20validated%20by%20the%20decentralized%20network%20and%20settles%20in%20seconds%20to%20minutes%2C%20with%20full%20transparency%20on%20the%20public%20ledger.%22%2C%22iconName%22%3A%22coins%22%7D%2C%7B%22id%22%3A%22compliance-check%22%2C%22title%22%3A%223.%20Wallet%20Compliance%22%2C%22description%22%3A%22Screening%20of%20wallet%20addresses.%22%2C%22stakeholders%22%3A%5B%22Blockchain%20Analytics%20Firms%22%2C%22VASP%20(Virtual%20Asset%20Service%20Provider)%22%5D%2C%22systems%22%3A%5B%22Chainalysis%20%2F%20Elliptic%22%5D%2C%22regulations%22%3A%5B%22Sanctions%20(OFAC%20Crypto%20Addresses)%22%5D%2C%22concepts%22%3A%5B%22Sanctions%20%26%20PEPs%22%2C%22AML%20%26%20Monitoring%22%5D%2C%22details%22%3A%22Regulated%20wallets%20(VASPs)%20screen%20the%20incoming%2Foutgoing%20blockchain%20addresses%20against%20sanctioned%20lists%20and%20analyze%20transaction%20history%20for%20exposure%20to%20darknet%20markets%20or%20mixers.%22%2C%22iconName%22%3A%22shield-check%22%7D%2C%7B%22id%22%3A%22off-ramp%22%2C%22title%22%3A%224.%20Fiat%20Off-Ramp%22%2C%22description%22%3A%22Receiver%20converts%20Stablecoin%20to%20local%20fiat.%22%2C%22stakeholders%22%3A%5B%22Receiver%22%2C%22Local%20Crypto%20Exchange%22%5D%2C%22systems%22%3A%5B%22Exchange%20Order%20Book%22%2C%22Local%20Clearing%20Network%22%5D%2C%22regulations%22%3A%5B%22KYC%22%2C%22AML%22%5D%2C%22concepts%22%3A%5B%22Crypto%20On%2FOff%20Ramps%22%2C%22CBDC%22%5D%2C%22details%22%3A%22The%20receiver%20sells%20the%20stablecoin%20on%20their%20local%20exchange%20for%20their%20domestic%20fiat%20currency%20(or%20potentially%20a%20local%20CBDC).%22%2C%22iconName%22%3A%22landmark%22%7D%2C%7B%22id%22%3A%22settlement%22%2C%22title%22%3A%225.%20Final%20Settlement%22%2C%22description%22%3A%22Fiat%20withdrawn%20to%20local%20bank%20account.%22%2C%22stakeholders%22%3A%5B%22Receiver%22%5D%2C%22systems%22%3A%5B%22Local%20Bank%20Account%22%5D%2C%22regulations%22%3A%5B%22Domestic%20Banking%20Rules%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22The%20exchange%20initiates%20a%20local%20bank%20transfer%20(like%20ACH%20or%20Faster%20Payments)%20to%20deposit%20the%20final%20fiat%20amount%20into%20the%20receiver's%20traditional%20bank%20account.%22%2C%22iconName%22%3A%22check-circle2%22%7D%5D%7D%2C%7B%22id%22%3A%22pt-8-pos-instore%22%2C%22name%22%3A%22PT-8%3A%20In-Store%20POS%22%2C%22description%22%3A%22Physical%20Point-of-Sale%20(POS)%20transaction%20using%20a%20card%20or%20contactless%20device.%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20POS%20Terminal%22%2C%22description%22%3A%22Customer%20taps%20or%20inserts%20card%20at%20the%20merchant.%22%2C%22stakeholders%22%3A%5B%22Customer%22%2C%22Merchant%22%5D%2C%22systems%22%3A%5B%22POS%20Hardware%22%2C%22EMV%20Chip%20%2F%20NFC%20Reader%22%5D%2C%22regulations%22%3A%5B%22PCI-DSS%22%5D%2C%22concepts%22%3A%5B%22EMV%20%26%20NFC%22%2C%22CP%20vs%20CNP%22%2C%22PCI-DSS%22%5D%2C%22details%22%3A%22The%20customer%20uses%20a%20physical%20card%20(Chip%20%26%20PIN)%20or%20taps%20their%20phone%20(NFC).%20The%20terminal%20reads%20the%20EMV%20chip%2C%20which%20generates%20a%20unique%2C%20one-time%20cryptogram%20for%20this%20specific%20transaction%2C%20making%20cloning%20extremely%20difficult.%22%2C%22iconName%22%3A%22store%22%7D%2C%7B%22id%22%3A%22acquirer-processor%22%2C%22title%22%3A%222.%20Acquirer%20%2F%20Processor%22%2C%22description%22%3A%22Terminal%20sends%20encrypted%20data%20to%20the%20acquiring%20bank.%22%2C%22stakeholders%22%3A%5B%22Merchant%20Acquirer%22%2C%22Payment%20Processor%22%5D%2C%22systems%22%3A%5B%22Acquiring%20Processing%20Platform%22%5D%2C%22regulations%22%3A%5B%22PCI-DSS%22%5D%2C%22concepts%22%3A%5B%22Payment%20Gateways%20%26%20PSPs%22%2C%22PCI-DSS%22%5D%2C%22details%22%3A%22The%20POS%20terminal%20routes%20the%20encrypted%20transaction%20data%20to%20the%20merchant's%20Acquiring%20Bank%20(or%20their%20designated%20payment%20processor%2C%20like%20Fiserv%20or%20Worldpay).%22%2C%22iconName%22%3A%22server%22%7D%2C%7B%22id%22%3A%22card-network%22%2C%22title%22%3A%223.%20Card%20Network%22%2C%22description%22%3A%22Routes%20the%20transaction%20to%20the%20issuing%20bank.%22%2C%22stakeholders%22%3A%5B%22Card%20Scheme%20(Visa%2FMastercard)%22%5D%2C%22systems%22%3A%5B%22Card%20Payment%20Network%22%5D%2C%22regulations%22%3A%5B%22Scheme%20Rules%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22The%20Acquirer%20forwards%20the%20request%20to%20the%20Card%20Network.%20The%20network%20identifies%20the%20Issuing%20Bank%20based%20on%20the%20card's%20BIN%20(Bank%20Identification%20Number)%20and%20passes%20the%20authorization%20request%20along.%22%2C%22iconName%22%3A%22network%22%7D%2C%7B%22id%22%3A%22issuing-bank%22%2C%22title%22%3A%224.%20Issuing%20Bank%20Auth%22%2C%22description%22%3A%22Verifies%20PIN%2FCryptogram%20and%20approves.%22%2C%22stakeholders%22%3A%5B%22Issuing%20Bank%22%5D%2C%22systems%22%3A%5B%22Core%20Banking%22%2C%22Card%20Authorization%20System%22%5D%2C%22regulations%22%3A%5B%22AML%22%2C%22Fraud%20Prevention%22%5D%2C%22concepts%22%3A%5B%22AML%20%26%20Monitoring%22%5D%2C%22details%22%3A%22The%20Issuer%20validates%20the%20EMV%20cryptogram%20(or%20PIN)%2C%20checks%20the%20account%20balance%2C%20and%20runs%20fraud%20detection%20algorithms.%20If%20everything%20is%20clear%2C%20it%20places%20a%20hold%20on%20the%20funds%20and%20sends%20an%20approval%20code%20back%20to%20the%20POS.%22%2C%22iconName%22%3A%22building2%22%7D%2C%7B%22id%22%3A%22settlement%22%2C%22title%22%3A%225.%20Batch%20Settlement%22%2C%22description%22%3A%22End-of-day%20clearing%20and%20settlement.%22%2C%22stakeholders%22%3A%5B%22Merchant%22%2C%22Acquirer%22%5D%2C%22systems%22%3A%5B%22Merchant%20Bank%20Account%22%5D%2C%22regulations%22%3A%5B%22Interchange%20Fee%20Regulations%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%2C%22CP%20vs%20CNP%22%5D%2C%22details%22%3A%22At%20the%20end%20of%20the%20day%2C%20the%20merchant%20%5C%22batches%20out%5C%22%20their%20POS%20terminal.%20The%20Acquirer%20submits%20all%20approved%20transactions%20to%20the%20Card%20Network%20for%20clearing.%20Funds%20are%20settled%20to%20the%20merchant%20within%201-2%20business%20days%2C%20usually%20with%20lower%20interchange%20fees%20than%20online%20(CNP)%20transactions.%22%2C%22iconName%22%3A%22check-circle2%22%7D%5D%7D%2C%7B%22id%22%3A%22pt-9-ecom-3ds%22%2C%22name%22%3A%22PT-9%3A%20E-Commerce%20(3D%20Secure)%22%2C%22description%22%3A%22Standard%20online%20card%20payment%20(Card%20Not%20Present)%20utilizing%20the%203D%20Secure%20protocol%20for%20strong%20customer%20authentication.%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20Checkout%22%2C%22description%22%3A%22Customer%20enters%20card%20details%20on%20the%20merchant%20website.%22%2C%22stakeholders%22%3A%5B%22Customer%22%2C%22Merchant%22%5D%2C%22systems%22%3A%5B%22Merchant%20Checkout%20Page%22%5D%2C%22regulations%22%3A%5B%22PCI-DSS%22%5D%2C%22concepts%22%3A%5B%22CP%20vs%20CNP%22%2C%22PCI-DSS%22%5D%2C%22details%22%3A%22The%20customer%20types%20their%20PAN%2C%20Expiry%2C%20and%20CVV%20into%20the%20payment%20form.%20Because%20the%20physical%20card%20is%20not%20present%20(CNP)%2C%20the%20risk%20of%20fraud%20is%20higher.%22%2C%22iconName%22%3A%22credit-card%22%7D%2C%7B%22id%22%3A%223ds-auth%22%2C%22title%22%3A%222.%203D%20Secure%20Auth%22%2C%22description%22%3A%22Customer%20authenticates%20directly%20with%20their%20issuing%20bank.%22%2C%22stakeholders%22%3A%5B%22Issuing%20Bank%22%2C%22Customer%22%2C%22PSP%22%5D%2C%22systems%22%3A%5B%22Access%20Control%20Server%20(ACS)%22%2C%223DS%20Server%22%5D%2C%22regulations%22%3A%5B%22SCA%20(PSD2)%22%5D%2C%22concepts%22%3A%5B%223D%20Secure%22%2C%22Liability%20Shift%22%2C%22SCA%20%26%20KYC%22%2C%22PSD2%20%26%20Open%20Banking%22%5D%2C%22details%22%3A%22Before%20the%20payment%20is%20authorized%2C%20the%20PSP%20triggers%203D%20Secure.%20The%20customer%20is%20prompted%20by%20their%20Issuing%20Bank%20(often%20via%20an%20iframe%20or%20app%20redirect)%20to%20enter%20an%20OTP%20or%20use%20biometrics%20to%20prove%20they%20are%20the%20genuine%20cardholder.%22%2C%22iconName%22%3A%22shield-check%22%7D%2C%7B%22id%22%3A%22authorization%22%2C%22title%22%3A%223.%20Authorization%22%2C%22description%22%3A%22Transaction%20is%20routed%20for%20financial%20approval.%22%2C%22stakeholders%22%3A%5B%22Acquirer%22%2C%22Card%20Network%22%2C%22Issuer%22%5D%2C%22systems%22%3A%5B%22Payment%20Gateway%22%2C%22Card%20Network%22%5D%2C%22regulations%22%3A%5B%22Scheme%20Rules%22%5D%2C%22concepts%22%3A%5B%22Payment%20Gateways%20%26%20PSPs%22%5D%2C%22details%22%3A%22With%20the%203DS%20authentication%20cryptogram%20attached%2C%20the%20PSP%20routes%20the%20authorization%20request%20through%20the%20Acquirer%20and%20Card%20Network%20to%20the%20Issuer.%20The%20Issuer%20checks%20the%20balance%20and%20approves%20the%20transaction.%22%2C%22iconName%22%3A%22server%22%7D%2C%7B%22id%22%3A%22settlement%22%2C%22title%22%3A%224.%20Clearing%20%26%20Settlement%22%2C%22description%22%3A%22Funds%20are%20transferred%20to%20the%20merchant.%22%2C%22stakeholders%22%3A%5B%22Merchant%22%2C%22Acquirer%22%5D%2C%22systems%22%3A%5B%22Merchant%20Bank%20Account%22%5D%2C%22regulations%22%3A%5B%22Interchange%20Fee%20Regulations%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%2C%22Chargeback%22%5D%2C%22details%22%3A%22The%20transaction%20is%20batched%20and%20settled.%20Because%203D%20Secure%20was%20used%2C%20the%20merchant%20benefits%20from%20a%20%5C%22Liability%20Shift%5C%22%E2%80%94if%20the%20transaction%20turns%20out%20to%20be%20fraudulent%2C%20the%20issuing%20bank%20bears%20the%20cost%20of%20the%20chargeback%2C%20not%20the%20merchant.%22%2C%22iconName%22%3A%22check-circle2%22%7D%5D%7D%2C%7B%22id%22%3A%22pt-10-bnpl%22%2C%22name%22%3A%22PT-10%3A%20Buy%20Now%20Pay%20Later%20(BNPL)%22%2C%22description%22%3A%22Consumer%20splits%20an%20online%20purchase%20into%20installments%20using%20a%20provider%20like%20Klarna%20or%20Affirm.%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20Checkout%20Selection%22%2C%22description%22%3A%22Customer%20selects%20BNPL%20at%20merchant%20checkout.%22%2C%22stakeholders%22%3A%5B%22Customer%22%2C%22Merchant%22%5D%2C%22systems%22%3A%5B%22Merchant%20Website%22%2C%22BNPL%20API%22%5D%2C%22regulations%22%3A%5B%22Consumer%20Credit%20Laws%22%5D%2C%22concepts%22%3A%5B%22BNPL%22%5D%2C%22details%22%3A%22Instead%20of%20paying%20full%20price%2C%20the%20customer%20chooses%20to%20split%20the%20payment.%20The%20merchant%20redirects%20the%20customer%20to%20the%20BNPL%20provider's%20hosted%20checkout%20or%20API.%22%2C%22iconName%22%3A%22split%22%7D%2C%7B%22id%22%3A%22credit-check%22%2C%22title%22%3A%222.%20Risk%20%26%20Credit%20Check%22%2C%22description%22%3A%22BNPL%20provider%20assesses%20the%20customer's%20creditworthiness.%22%2C%22stakeholders%22%3A%5B%22BNPL%20Provider%20(e.g.%2C%20Klarna)%22%2C%22Credit%20Bureaus%22%5D%2C%22systems%22%3A%5B%22Risk%20Engine%22%2C%22Credit%20Bureau%20API%22%5D%2C%22regulations%22%3A%5B%22KYC%22%2C%22Fair%20Lending%20Laws%22%5D%2C%22concepts%22%3A%5B%22SCA%20%26%20KYC%22%5D%2C%22details%22%3A%22The%20BNPL%20provider%20performs%20a%20rapid%20%5C%22soft%5C%22%20credit%20check%20and%20runs%20proprietary%20fraud%20and%20risk%20models%20to%20approve%20or%20decline%20the%20installment%20plan%20instantly.%22%2C%22iconName%22%3A%22shield-check%22%7D%2C%7B%22id%22%3A%22merchant-funding%22%2C%22title%22%3A%223.%20Merchant%20Funding%22%2C%22description%22%3A%22BNPL%20provider%20pays%20the%20merchant%20upfront.%22%2C%22stakeholders%22%3A%5B%22BNPL%20Provider%22%2C%22Merchant%22%5D%2C%22systems%22%3A%5B%22BNPL%20Treasury%22%2C%22Merchant%20Bank%22%5D%2C%22regulations%22%3A%5B%22B2B%20Settlement%20Rules%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22The%20BNPL%20provider%20settles%20the%20full%20purchase%20amount%20(minus%20a%20merchant%20discount%20fee%2C%20usually%20higher%20than%20card%20interchange)%20with%20the%20merchant%20upfront.%20The%20merchant%20takes%20no%20credit%20risk.%22%2C%22iconName%22%3A%22server%22%7D%2C%7B%22id%22%3A%22installment-collection%22%2C%22title%22%3A%224.%20Installment%20Collection%22%2C%22description%22%3A%22BNPL%20provider%20collects%20payments%20from%20the%20customer%20over%20time.%22%2C%22stakeholders%22%3A%5B%22Customer%22%2C%22BNPL%20Provider%22%5D%2C%22systems%22%3A%5B%22Direct%20Debit%20%2F%20Card%20Auto-pay%22%5D%2C%22regulations%22%3A%5B%22Debt%20Collection%20Laws%22%5D%2C%22concepts%22%3A%5B%22BNPL%22%2C%22Chargeback%22%5D%2C%22details%22%3A%22Over%20the%20next%20few%20weeks%2Fmonths%2C%20the%20BNPL%20provider%20automatically%20charges%20the%20customer's%20linked%20debit%2Fcredit%20card%20or%20bank%20account%20for%20the%20installments.%20The%20BNPL%20provider%20bears%20all%20the%20risk%20of%20non-payment.%22%2C%22iconName%22%3A%22calendar-clock%22%7D%5D%7D%2C%7B%22id%22%3A%22pt-11-a2a-openbanking%22%2C%22name%22%3A%22PT-11%3A%20Open%20Banking%20(A2A)%22%2C%22description%22%3A%22Account-to-Account%20payment%20initiated%20directly%20from%20the%20customer's%20bank%20to%20the%20merchant%2C%20bypassing%20card%20networks.%22%2C%22nodes%22%3A%5B%7B%22id%22%3A%22initiation%22%2C%22title%22%3A%221.%20Pay%20by%20Bank%22%2C%22description%22%3A%22Customer%20selects%20%5C%22Pay%20by%20Bank%5C%22%20at%20checkout.%22%2C%22stakeholders%22%3A%5B%22Customer%22%2C%22Merchant%22%5D%2C%22systems%22%3A%5B%22Merchant%20Checkout%22%2C%22PISP%20Gateway%22%5D%2C%22regulations%22%3A%5B%22PSD2%20(EU)%20%2F%20Open%20Banking%22%5D%2C%22concepts%22%3A%5B%22A2A%22%2C%22PSD2%20%26%20Open%20Banking%22%5D%2C%22details%22%3A%22The%20customer%20chooses%20to%20pay%20directly%20from%20their%20bank%20account.%20The%20merchant%20uses%20a%20Payment%20Initiation%20Service%20Provider%20(PISP%2C%20e.g.%2C%20Trustly%2C%20Plaid)%20to%20facilitate%20the%20connection.%22%2C%22iconName%22%3A%22monitor-smartphone%22%7D%2C%7B%22id%22%3A%22bank-auth%22%2C%22title%22%3A%222.%20Bank%20Authentication%22%2C%22description%22%3A%22Customer%20logs%20into%20their%20bank%20to%20authorize.%22%2C%22stakeholders%22%3A%5B%22Customer%22%2C%22Customer's%20Bank%22%5D%2C%22systems%22%3A%5B%22Bank%20Mobile%20App%20%2F%20Web%20Portal%22%5D%2C%22regulations%22%3A%5B%22SCA%20(Strong%20Customer%20Authentication)%22%5D%2C%22concepts%22%3A%5B%22SCA%20%26%20KYC%22%2C%22PSD2%20%26%20Open%20Banking%22%5D%2C%22details%22%3A%22The%20customer%20is%20securely%20redirected%20to%20their%20own%20bank's%20app%20or%20website.%20They%20log%20in%20(e.g.%2C%20using%20FaceID)%20and%20explicitly%20authorize%20the%20PISP%20to%20initiate%20the%20specific%20payment%20amount%20to%20the%20merchant.%22%2C%22iconName%22%3A%22shield-check%22%7D%2C%7B%22id%22%3A%22payment-execution%22%2C%22title%22%3A%223.%20Payment%20Execution%22%2C%22description%22%3A%22Bank%20pushes%20funds%20via%20domestic%20real-time%20rails.%22%2C%22stakeholders%22%3A%5B%22Customer's%20Bank%22%2C%22Clearing%20House%22%5D%2C%22systems%22%3A%5B%22Core%20Banking%22%2C%22Faster%20Payments%20%2F%20SEPA%20Inst%22%5D%2C%22regulations%22%3A%5B%22Domestic%20Payment%20Rules%22%5D%2C%22concepts%22%3A%5B%22RTGS%20vs%20ACH%22%2C%22A2A%22%5D%2C%22details%22%3A%22Once%20authorized%2C%20the%20customer's%20bank%20initiates%20an%20irrevocable%20credit%20push%20directly%20to%20the%20merchant's%20bank%20account%20using%20domestic%20real-time%20payment%20rails%20(like%20RTP%20in%20US%20or%20SEPA%20Instant%20in%20EU).%22%2C%22iconName%22%3A%22arrow-right-left%22%7D%2C%7B%22id%22%3A%22settlement%22%2C%22title%22%3A%224.%20Instant%20Settlement%22%2C%22description%22%3A%22Merchant%20receives%20funds%20instantly%2C%20without%20card%20fees.%22%2C%22stakeholders%22%3A%5B%22Merchant%22%2C%22Merchant's%20Bank%22%5D%2C%22systems%22%3A%5B%22Merchant%20Bank%20Account%22%2C%22ERP%22%5D%2C%22regulations%22%3A%5B%22Finality%20of%20Payment%22%5D%2C%22concepts%22%3A%5B%22Clearing%20vs%20Settlement%22%5D%2C%22details%22%3A%22The%20merchant%20receives%20the%20funds%20almost%20instantly.%20Because%20this%20bypasses%20Visa%2FMastercard%2C%20there%20are%20no%20interchange%20fees%2C%20and%20the%20payment%20is%20usually%20irrevocable%20(no%20traditional%20chargebacks).%22%2C%22iconName%22%3A%22check-circle2%22%7D%5D%7D%5D"));
+    const concepts = JSON.parse(decodeURIComponent("%7B%22ISO%2020022%22%3A%7B%22title%22%3A%22ISO%2020022%20Messaging%22%2C%22description%22%3A%22The%20global%20standard%20for%20financial%20messaging%20(XML-based).%20It%20carries%20rich%2C%20structured%20data%20(e.g.%2C%20exact%20purpose%20codes%2C%20structured%20addresses)%2C%20which%20drastically%20reduces%20false%20positives%20in%20AML%20screening%20and%20enables%20automated%20reconciliation%20(STP).%20Key%20messages%3A%20pacs.008%20(customer%20transfer)%2C%20pacs.009%20(bank%20transfer).%22%7D%2C%22SWIFT%20GPI%20%26%20UETR%22%3A%7B%22title%22%3A%22SWIFT%20GPI%20%26%20UETR%22%2C%22description%22%3A%22Global%20Payments%20Innovation%20(GPI)%20brings%20transparency%20and%20speed%20to%20cross-border%20payments.%20Every%20payment%20is%20assigned%20a%20UETR%20(Unique%20End-to-End%20Transaction%20Reference)%2C%20acting%20like%20a%20parcel%20tracking%20number%2C%20allowing%20banks%20to%20see%20exactly%20where%20funds%20are%20and%20what%20fees%20were%20deducted.%22%7D%2C%22FATF%20Travel%20Rule%22%3A%7B%22title%22%3A%22FATF%20Travel%20Rule%20(Rec%2016)%22%2C%22description%22%3A%22Mandates%20that%20all%20financial%20institutions%20pass%20on%20specific%20originator%20and%20beneficiary%20information%20to%20the%20next%20institution%20in%20the%20payment%20chain.%20This%20ensures%20law%20enforcement%20can%20trace%20the%20flow%20of%20funds%20to%20combat%20money%20laundering%20and%20terrorist%20financing.%22%7D%2C%22AML%20%26%20Monitoring%22%3A%7B%22title%22%3A%22AML%20%26%20Transaction%20Monitoring%22%2C%22description%22%3A%22Anti-Money%20Laundering%20(AML)%20involves%20scanning%20transactions%20for%20suspicious%20patterns%20(e.g.%2C%20structuring%2C%20smurfing%2C%20sudden%20high-value%20transfers).%20Suspicious%20activities%20trigger%20alerts%20for%20investigation%20and%20potential%20filing%20of%20Suspicious%20Activity%20Reports%20(SARs).%22%7D%2C%22Sanctions%20%26%20PEPs%22%3A%7B%22title%22%3A%22Sanctions%20%26%20PEP%20Screening%22%2C%22description%22%3A%22Payments%20are%20screened%20against%20global%20watchlists%20(OFAC%2C%20UN%2C%20EU)%20to%20ensure%20funds%20do%20not%20reach%20sanctioned%20entities%20or%20countries.%20Politically%20Exposed%20Persons%20(PEPs)%20require%20enhanced%20due%20diligence%20due%20to%20higher%20bribery%2Fcorruption%20risks.%22%7D%2C%22Nostro%20%2F%20Vostro%22%3A%7B%22title%22%3A%22Nostro%20%2F%20Vostro%20Accounts%22%2C%22description%22%3A%22Because%20there%20is%20no%20%5C%22global%20central%20bank%5C%22%2C%20banks%20hold%20accounts%20with%20each%20other%20to%20settle%20cross-border%20payments.%20A%20Nostro%20is%20%5C%22our%20money%20held%20by%20you%5C%22%2C%20and%20a%20Vostro%20is%20%5C%22your%20money%20held%20by%20us%5C%22.%20Correspondent%20banking%20relies%20on%20these%20ledger%20updates.%22%7D%2C%22RTGS%20vs%20ACH%22%3A%7B%22title%22%3A%22RTGS%20vs%20ACH%22%2C%22description%22%3A%22RTGS%20(Real-Time%20Gross%20Settlement)%20processes%20payments%20individually%20and%20instantly%20in%20central%20bank%20money%20(high-value%2Furgent).%20ACH%20(Automated%20Clearing%20House)%20processes%20payments%20in%20batches%2C%20netting%20the%20amounts%20between%20banks%20before%20settling%20(low-value%2Fnon-urgent).%22%7D%2C%22Clearing%20vs%20Settlement%22%3A%7B%22title%22%3A%22Clearing%20vs%20Settlement%22%2C%22description%22%3A%22Clearing%20is%20the%20exchange%20of%20payment%20information%20and%20calculation%20of%20obligations%20between%20banks.%20Settlement%20is%20the%20actual%20transfer%20of%20funds%20to%20discharge%20those%20obligations.%22%7D%2C%22SCA%20%26%20KYC%22%3A%7B%22title%22%3A%22SCA%20%26%20KYC%22%2C%22description%22%3A%22Strong%20Customer%20Authentication%20(SCA)%20requires%20multi-factor%20authentication%20for%20electronic%20payments.%20Know%20Your%20Customer%20(KYC)%20is%20the%20foundational%20process%20of%20verifying%20client%20identity%20before%20allowing%20them%20to%20transact.%22%7D%2C%22Correspondent%20Banking%22%3A%7B%22title%22%3A%22Correspondent%20Banking%22%2C%22description%22%3A%22A%20financial%20institution%20that%20provides%20services%20on%20behalf%20of%20another.%20Crucial%20for%20cross-border%20payments%20where%20banks%20lack%20direct%20relationships.%20They%20act%20as%20intermediaries%20to%20route%20funds%20and%20perform%20currency%20exchange.%22%7D%2C%22CDD%20%26%20EDD%22%3A%7B%22title%22%3A%22CDD%20%26%20EDD%22%2C%22description%22%3A%22Customer%20Due%20Diligence%20(CDD)%20and%20Enhanced%20Due%20Diligence%20(EDD)%20assess%20risk.%20EDD%20is%20applied%20to%20high-risk%20customers%20(like%20PEPs%20or%20those%20from%20high-risk%20jurisdictions)%20to%20deeply%20understand%20their%20source%20of%20wealth%20and%20funds.%22%7D%2C%22Screening%20vs%20Monitoring%22%3A%7B%22title%22%3A%22Screening%20vs%20Monitoring%22%2C%22description%22%3A%22Transaction%20Screening%20(Sanctions)%20happens%20in%20real-time%20BEFORE%20a%20payment%20is%20processed%20to%20block%20illegal%20transfers.%20Transaction%20Monitoring%20(AML)%20happens%20AFTER%20the%20fact%20to%20detect%20suspicious%20behavioral%20patterns%20over%20time.%22%7D%2C%22APP%20Fraud%22%3A%7B%22title%22%3A%22APP%20Fraud%22%2C%22description%22%3A%22Authorized%20Push%20Payment%20(APP)%20Fraud%20occurs%20when%20a%20user%20is%20tricked%20into%20sending%20money%20to%20a%20fraudster.%20It%20is%20a%20major%20focus%20for%20modern%20payment%20regulations%2C%20driving%20the%20adoption%20of%20%5C%22Confirmation%20of%20Payee%5C%22%20(CoP)%20systems.%22%7D%2C%22Serial%20vs%20Cover%22%3A%7B%22title%22%3A%22Serial%20vs%20Cover%20Payments%22%2C%22description%22%3A%22In%20cross-border%20SWIFT%2C%20%5C%22Serial%5C%22%20routes%20the%20full%20payment%20message%20through%20each%20correspondent.%20%5C%22Cover%5C%22%20splits%20the%20message%3A%20settlement%20instructions%20go%20bank-to-bank%2C%20while%20customer%20details%20go%20direct%20to%20the%20beneficiary%20bank%2C%20improving%20privacy%20and%20speed.%22%7D%2C%22Digital%20Wallets%22%3A%7B%22title%22%3A%22Digital%20Wallets%20%26%20Tokenization%22%2C%22description%22%3A%22Apps%20like%20Apple%20Pay%2C%20Google%20Pay%2C%20or%20Alipay%20store%20payment%20credentials%20securely.%20They%20use%20%5C%22Tokenization%5C%22%20to%20replace%20actual%20card%20numbers%20with%20unique%20digital%20tokens%2C%20ensuring%20sensitive%20data%20is%20not%20exposed%20during%20the%20transaction.%22%7D%2C%22Payment%20Gateways%20%26%20PSPs%22%3A%7B%22title%22%3A%22Payment%20Gateways%20%26%20PSPs%22%2C%22description%22%3A%22Payment%20Service%20Providers%20(PSPs)%20like%20Stripe%20or%20Adyen%20act%20as%20intermediaries%20between%20merchants%20and%20acquiring%20banks.%20They%20provide%20the%20technical%20integration%20(API)%20to%20accept%20various%20payment%20methods%20globally.%22%7D%2C%22Stablecoins%22%3A%7B%22title%22%3A%22Stablecoins%22%2C%22description%22%3A%22Cryptocurrencies%20pegged%20to%20a%20stable%20asset%2C%20usually%20a%20fiat%20currency%20like%20the%20US%20Dollar%20(e.g.%2C%20USDC%2C%20USDT).%20They%20offer%20the%20speed%20and%20borderless%20nature%20of%20blockchain%20without%20the%20extreme%20volatility%20of%20traditional%20crypto.%22%7D%2C%22CBDC%22%3A%7B%22title%22%3A%22Central%20Bank%20Digital%20Currency%20(CBDC)%22%2C%22description%22%3A%22A%20digital%20form%20of%20a%20country's%20fiat%20currency%2C%20issued%20and%20regulated%20directly%20by%20the%20central%20bank.%20Unlike%20decentralized%20crypto%2C%20CBDCs%20represent%20a%20direct%20claim%20on%20the%20central%20bank%2C%20aiming%20to%20modernize%20national%20payment%20systems.%22%7D%2C%22Crypto%20On%2FOff%20Ramps%22%3A%7B%22title%22%3A%22Crypto%20On%2FOff%20Ramps%22%2C%22description%22%3A%22Services%20(like%20exchanges)%20that%20facilitate%20the%20exchange%20between%20fiat%20money%20and%20cryptocurrencies.%20%5C%22On-ramp%5C%22%20is%20buying%20crypto%20with%20fiat%3B%20%5C%22Off-ramp%5C%22%20is%20selling%20crypto%20for%20fiat%20to%20deposit%20into%20a%20traditional%20bank%20account.%22%7D%2C%22CP%20vs%20CNP%22%3A%7B%22title%22%3A%22Card%20Present%20(CP)%20vs%20Card%20Not%20Present%20(CNP)%22%2C%22description%22%3A%22CP%20transactions%20happen%20in-store%20via%20a%20physical%20terminal%20(POS).%20CNP%20transactions%20happen%20online%20or%20over%20the%20phone.%20CP%20generally%20has%20lower%20fraud%20risk%20and%20lower%20interchange%20fees%20compared%20to%20CNP.%22%7D%2C%22EMV%20%26%20NFC%22%3A%7B%22title%22%3A%22EMV%20%26%20NFC%22%2C%22description%22%3A%22EMV%20(Europay%2C%20Mastercard%2C%20Visa)%20is%20the%20global%20standard%20for%20chip%20cards%2C%20generating%20dynamic%20cryptograms%20for%20each%20transaction.%20NFC%20(Near%20Field%20Communication)%20enables%20contactless%20payments%20via%20tap-to-pay%20(cards%20or%20phones).%22%7D%2C%223D%20Secure%22%3A%7B%22title%22%3A%223D%20Secure%20(3DS)%22%2C%22description%22%3A%22An%20authentication%20protocol%20for%20online%20(CNP)%20transactions%20(e.g.%2C%20Verified%20by%20Visa%2C%20Mastercard%20Identity%20Check).%20It%20redirects%20the%20buyer%20to%20their%20issuing%20bank%20to%20verify%20their%20identity%20(via%20OTP%20or%20app%20approval)%20before%20payment%20authorization.%20Crucially%2C%20a%20successful%203DS%20check%20shifts%20fraud%20liability%20from%20the%20merchant%20to%20the%20issuer.%22%7D%2C%22Liability%20Shift%22%3A%7B%22title%22%3A%22Liability%20Shift%22%2C%22description%22%3A%22A%20rule%20in%20card%20payments%20determining%20who%20pays%20for%20fraudulent%20chargebacks.%20In%20CNP%20transactions%2C%20merchants%20usually%20bear%20the%20cost.%20However%2C%20if%20the%20merchant%20uses%203D%20Secure%20and%20the%20issuer%20approves%20the%20authentication%2C%20the%20liability%20shifts%20to%20the%20issuing%20bank.%22%7D%2C%22PCI-DSS%22%3A%7B%22title%22%3A%22PCI-DSS%22%2C%22description%22%3A%22Payment%20Card%20Industry%20Data%20Security%20Standard.%20A%20set%20of%20security%20standards%20designed%20to%20ensure%20that%20all%20companies%20that%20accept%2C%20process%2C%20store%20or%20transmit%20credit%20card%20information%20maintain%20a%20secure%20environment%20to%20prevent%20data%20breaches.%22%7D%2C%22GDPR%20%26%20Data%20Privacy%22%3A%7B%22title%22%3A%22GDPR%20%26%20Data%20Privacy%22%2C%22description%22%3A%22General%20Data%20Protection%20Regulation%20(GDPR)%20is%20an%20EU%20law%20governing%20data%20protection%20and%20privacy.%20In%20payments%2C%20it%20strictly%20regulates%20how%20personal%20identifiable%20information%20(PII)%20of%20payers%20and%20payees%20is%20collected%2C%20stored%2C%20and%20shared%20across%20borders.%22%7D%2C%22PSD2%20%26%20Open%20Banking%22%3A%7B%22title%22%3A%22PSD2%20%26%20Open%20Banking%22%2C%22description%22%3A%22The%20Second%20Payment%20Services%20Directive%20(PSD2)%20is%20an%20EU%20regulation%20that%20mandated%20Strong%20Customer%20Authentication%20(SCA)%20for%20online%20payments%20and%20forced%20banks%20to%20open%20their%20data%20to%20third-party%20providers%20via%20APIs%20(Open%20Banking).%22%7D%2C%22Chargeback%22%3A%7B%22title%22%3A%22Chargeback%20%26%20Disputes%22%2C%22description%22%3A%22A%20chargeback%20is%20a%20forced%20reversal%20of%20a%20card%20transaction%20initiated%20by%20the%20issuing%20bank%2C%20usually%20because%20the%20cardholder%20disputes%20the%20charge%20(e.g.%2C%20fraud%2C%20goods%20not%20received).%20It%20protects%20consumers%20but%20is%20costly%20for%20merchants.%22%7D%2C%22BNPL%22%3A%7B%22title%22%3A%22Buy%20Now%2C%20Pay%20Later%20(BNPL)%22%2C%22description%22%3A%22A%20type%20of%20short-term%20financing%20allowing%20consumers%20to%20make%20purchases%20and%20pay%20for%20them%20in%20future%20installments%2C%20often%20interest-free.%20The%20BNPL%20provider%20pays%20the%20merchant%20upfront%20(minus%20a%20fee)%20and%20takes%20on%20the%20consumer%20credit%20risk.%22%7D%2C%22A2A%22%3A%7B%22title%22%3A%22Account-to-Account%20(A2A)%20Payments%22%2C%22description%22%3A%22Payments%20that%20move%20money%20directly%20from%20the%20payer's%20bank%20account%20to%20the%20payee's%20bank%20account%2C%20bypassing%20traditional%20card%20networks%20(Visa%2FMastercard).%20Often%20powered%20by%20Open%20Banking%20APIs%20(PISP)%20or%20real-time%20payment%20rails.%22%7D%2C%22VCN%22%3A%7B%22title%22%3A%22Virtual%20Card%20Numbers%20(VCN)%22%2C%22description%22%3A%22Temporary%2C%20randomly%20generated%2016-digit%20card%20numbers%20linked%20to%20a%20real%20funding%20account.%20Used%20extensively%20in%20B2B%20payments%20(e.g.%2C%20corporate%20travel%2C%20supplier%20payments)%20for%20security%2C%20spend%20control%2C%20and%20automated%20reconciliation.%22%7D%2C%22DCC%22%3A%7B%22title%22%3A%22Dynamic%20Currency%20Conversion%20(DCC)%22%2C%22description%22%3A%22A%20service%20offered%20at%20POS%20or%20ATMs%20abroad%20allowing%20consumers%20to%20pay%20in%20their%20home%20currency%20rather%20than%20the%20local%20currency.%20While%20convenient%2C%20the%20exchange%20rate%20is%20set%20by%20the%20merchant's%20acquirer%2C%20often%20including%20a%20high%20markup.%22%7D%2C%22Virtual%20Accounts%22%3A%7B%22title%22%3A%22Virtual%20Accounts%20(POBO%2FROBO)%22%2C%22description%22%3A%22Sub-accounts%20linked%20to%20a%20physical%20master%20bank%20account%2C%20used%20by%20large%20corporates%20for%20easier%20reconciliation.%20Payments%20can%20be%20made%20%5C%22On%20Behalf%20Of%5C%22%20(POBO)%20or%20received%20%5C%22On%20Behalf%20Of%5C%22%20(ROBO)%20underlying%20entities%20or%20subsidiaries.%22%7D%7D"));
+    
+    let activeScenarioIndex = 0;
+    let activeNodeIndex = 0;
+    let isPlaying = false;
+    let playInterval;
+
+    // DOM Elements
+    const scenarioTabsEl = document.getElementById('scenarioTabs');
+    const scenarioTitleEl = document.getElementById('scenarioTitle');
+    const scenarioDescEl = document.getElementById('scenarioDesc');
+    const nodesContainerEl = document.getElementById('nodesContainer');
+    const detailsSectionEl = document.getElementById('detailsSection');
+    
+    const nodeBadgesEl = document.getElementById('nodeBadges');
+    const nodeTitleEl = document.getElementById('nodeTitle');
+    const nodeDetailsEl = document.getElementById('nodeDetails');
+    const nodeStakeholdersEl = document.getElementById('nodeStakeholders');
+    const nodeSystemsEl = document.getElementById('nodeSystems');
+    const nodeRegulationsEl = document.getElementById('nodeRegulations');
+    const conceptsContainerWrapperEl = document.getElementById('conceptsContainerWrapper');
+    const nodeConceptsEl = document.getElementById('nodeConcepts');
+    
+    const autoPlayBtn = document.getElementById('autoPlayBtn');
+
+    function init() {
+      renderTabs();
+      renderScenario();
+      setupAutoPlay();
+      lucide.createIcons();
+    }
+
+    function renderTabs() {
+      const tabsHtml = scenarios.map((scenario, index) => {
+        const isActive = index === activeScenarioIndex;
+        const classes = isActive 
+          ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+          : 'bg-slate-800/50 text-slate-400 border border-slate-700/50 hover:bg-slate-800 hover:text-slate-300';
+        return `<button onclick="setScenario(${index})" class="whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-all ${classes}">${scenario.name}</button>`;
+      }).join('');
+      
+      scenarioTabsEl.innerHTML = `<i data-lucide="layout-list" class="w-4 h-4 text-slate-500 mr-2 flex-shrink-0"></i>` + tabsHtml;
+    }
+
+    function renderScenario() {
+      const scenario = scenarios[activeScenarioIndex];
+      scenarioTitleEl.textContent = scenario.name;
+      scenarioDescEl.textContent = scenario.description;
+      
+      renderNodes();
+      renderDetails();
+    }
+
+    function renderNodes() {
+      const scenario = scenarios[activeScenarioIndex];
+      
+      nodesContainerEl.innerHTML = scenario.nodes.map((node, index) => {
+        const isActive = index === activeNodeIndex;
+        const isPast = index < activeNodeIndex;
+        
+        const circleClasses = isActive
+          ? 'bg-slate-900 border-cyan-400 shadow-[0_0_30px_rgba(34,211,238,0.2)]'
+          : isPast
+          ? 'bg-slate-900 border-slate-600'
+          : 'bg-slate-950 border-slate-800 hover:border-slate-600';
+          
+        const iconClasses = isActive
+          ? 'text-cyan-400'
+          : isPast
+          ? 'text-slate-400'
+          : 'text-slate-600';
+          
+        const titleClasses = isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-300';
+        
+        const activeRing = isActive 
+          ? `<div class="absolute -inset-2 border border-cyan-400/30 rounded-3xl transition-all duration-300"></div>`
+          : '';
+
+        return `
+          <div onclick="setNode(${index})" class="flex md:flex-col items-center gap-4 md:gap-4 cursor-pointer group relative w-full flex-1 flex-shrink-0">
+            <div class="relative w-16 h-16 rounded-2xl flex items-center justify-center border-2 transition-all duration-500 z-10 flex-shrink-0 ${circleClasses}">
+              <i data-lucide="${node.iconName}" class="w-7 h-7 transition-colors duration-500 ${iconClasses}"></i>
+              ${activeRing}
+            </div>
+            <div class="text-left md:text-center flex-1 md:flex-none md:px-2">
+              <h3 class="text-sm font-medium transition-colors duration-300 ${titleClasses}">${node.title}</h3>
+              <p class="text-xs text-slate-500 mt-1 md:hidden">${node.description}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      lucide.createIcons();
+    }
+
+    function renderDetails() {
+      const scenario = scenarios[activeScenarioIndex];
+      const node = scenario.nodes[activeNodeIndex];
+      
+      // Fade out, update, fade in
+      detailsSectionEl.classList.remove('opacity-100');
+      detailsSectionEl.classList.add('opacity-0');
+      
+      setTimeout(() => {
+        // Badges
+        let badgesHtml = `<span class="px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-mono uppercase tracking-wider border border-cyan-500/20">Node ${activeNodeIndex + 1} of ${scenario.nodes.length}</span>`;
+        
+        if (node.concepts && node.concepts.length > 0) {
+          badgesHtml += node.concepts.map(concept => 
+            `<span class="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 text-xs font-mono uppercase tracking-wider border border-amber-500/20 flex items-center gap-1">
+              <i data-lucide="lightbulb" class="w-3 h-3"></i> ${concept}
+            </span>`
+          ).join('');
+        }
+        nodeBadgesEl.innerHTML = badgesHtml;
+        
+        nodeTitleEl.textContent = node.title;
+        nodeDetailsEl.textContent = node.details;
+        
+        // Lists
+        const createListItems = (items, colorClass) => items.map(item => 
+          `<li class="flex items-start gap-3 text-sm text-slate-300">
+            <i data-lucide="chevron-right" class="w-4 h-4 ${colorClass} mt-0.5 flex-shrink-0"></i>
+            <span>${item}</span>
+          </li>`
+        ).join('');
+        
+        nodeStakeholdersEl.innerHTML = createListItems(node.stakeholders, 'text-blue-400/50');
+        nodeSystemsEl.innerHTML = createListItems(node.systems, 'text-purple-400/50');
+        nodeRegulationsEl.innerHTML = createListItems(node.regulations, 'text-emerald-400/50');
+        
+        // Concepts
+        if (node.concepts && node.concepts.length > 0) {
+          conceptsContainerWrapperEl.classList.remove('hidden');
+          nodeConceptsEl.innerHTML = node.concepts.map(conceptKey => {
+            const concept = concepts[conceptKey];
+            if (!concept) return '';
+            return `
+              <div class="bg-slate-950/50 rounded-2xl p-5 border border-slate-800/50">
+                <h4 class="text-amber-400 font-medium mb-2 flex items-center gap-2">
+                  <i data-lucide="lightbulb" class="w-4 h-4"></i>
+                  ${concept.title}
+                </h4>
+                <p class="text-sm text-slate-400 leading-relaxed">${concept.description}</p>
+              </div>
+            `;
+          }).join('');
+        } else {
+          conceptsContainerWrapperEl.classList.add('hidden');
+        }
+        
+        lucide.createIcons();
+        
+        detailsSectionEl.classList.remove('opacity-0');
+        detailsSectionEl.classList.add('opacity-100');
+      }, 150);
+    }
+
+    window.setScenario = function(index) {
+      activeScenarioIndex = index;
+      activeNodeIndex = 0;
+      isPlaying = false;
+      updatePlayButton();
+      renderTabs();
+      renderScenario();
+    };
+
+    window.setNode = function(index) {
+      activeNodeIndex = index;
+      isPlaying = false;
+      updatePlayButton();
+      renderNodes();
+      renderDetails();
+    };
+
+    function setupAutoPlay() {
+      autoPlayBtn.addEventListener('click', () => {
+        isPlaying = !isPlaying;
+        updatePlayButton();
+        
+        if (isPlaying) {
+          playInterval = setInterval(() => {
+            const scenario = scenarios[activeScenarioIndex];
+            activeNodeIndex = (activeNodeIndex + 1) % scenario.nodes.length;
+            renderNodes();
+            renderDetails();
+          }, 5000);
+        } else {
+          clearInterval(playInterval);
+        }
+      });
+    }
+
+    function updatePlayButton() {
+      if (isPlaying) {
+        autoPlayBtn.className = 'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all bg-cyan-500/10 text-cyan-400 border border-cyan-500/20';
+        autoPlayBtn.innerHTML = `<i data-lucide="pause" class="w-4 h-4"></i><span class="hidden sm:inline">Auto-Play On</span>`;
+      } else {
+        autoPlayBtn.className = 'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700';
+        autoPlayBtn.innerHTML = `<i data-lucide="play" class="w-4 h-4"></i><span class="hidden sm:inline">Auto-Play Off</span>`;
+      }
+      lucide.createIcons();
+    }
+
+    // Start
+    init();
+  </script>
+</body>
+</html>
