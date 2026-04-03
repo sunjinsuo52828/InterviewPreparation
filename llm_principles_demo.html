@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM 大语言模型原理全景图</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; background: #0f0f1a; color: #e0e0e0; line-height: 1.7; }
+        
+        /* Header */
+        .hero {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 60px 20px;
+            text-align: center;
+            border-bottom: 3px solid #e94560;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(233,69,96,0.05) 0%, transparent 50%);
+            animation: pulse 8s infinite;
+        }
+        @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        .hero h1 { font-size: 2.8rem; color: #e94560; position: relative; z-index: 1; }
+        .hero p { font-size: 1.2rem; color: #a0a0b0; margin-top: 10px; position: relative; z-index: 1; }
+
+        /* Navigation */
+        .nav-bar {
+            background: #1a1a2e;
+            padding: 12px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid #333;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        .nav-bar a {
+            color: #a0a0b0;
+            text-decoration: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+        .nav-bar a:hover, .nav-bar a.active {
+            color: #e94560;
+            border-color: #e94560;
+            background: rgba(233,69,96,0.1);
+        }
+
+        /* Sections */
+        .section {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        .section-title {
+            font-size: 1.8rem;
+            color: #e94560;
+            border-left: 4px solid #e94560;
+            padding-left: 15px;
+            margin-bottom: 25px;
+        }
+        .card {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid #2a2a3e;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .card h3 {
+            color: #53c0f0;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+        }
+        .card p, .card li {
+            color: #b0b0c0;
+            margin-bottom: 8px;
+        }
+
+        /* Architecture Diagrams */
+        .diagram-box {
+            background: #12121e;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #c0c0d0;
+            white-space: pre;
+        }
+
+        /* Interactive Flow Diagram */
+        .flow-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        .flow-box {
+            background: linear-gradient(135deg, #1e3a5f, #16213e);
+            border: 2px solid #53c0f0;
+            border-radius: 10px;
+            padding: 15px 20px;
+            text-align: center;
+            min-width: 140px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .flow-box:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(83,192,240,0.3);
+            border-color: #e94560;
+        }
+        .flow-box.active {
+            border-color: #e94560;
+            background: linear-gradient(135deg, #3a1a2e, #2e1640);
+            box-shadow: 0 0 20px rgba(233,69,96,0.3);
+        }
+        .flow-box .title { font-weight: bold; color: #53c0f0; font-size: 1rem; }
+        .flow-box .subtitle { color: #888; font-size: 0.75rem; margin-top: 4px; }
+        .flow-arrow {
+            color: #e94560;
+            font-size: 1.5rem;
+            margin: 0 5px;
+            flex-shrink: 0;
+        }
+
+        /* Detail Panel */
+        .detail-panel {
+            background: #12121e;
+            border: 1px solid #e94560;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 15px;
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        .detail-panel.show { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Comparison Table */
+        .comp-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .comp-table th {
+            background: #e94560;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        .comp-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #2a2a3e;
+            font-size: 0.85rem;
+            color: #b0b0c0;
+        }
+        .comp-table tr:hover td { background: rgba(83,192,240,0.05); }
+        .comp-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+        /* Animated Attention Matrix */
+        .matrix-grid {
+            display: inline-grid;
+            gap: 2px;
+            margin: 15px 0;
+        }
+        .matrix-cell {
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .matrix-cell:hover { transform: scale(1.15); z-index: 10; }
+        .matrix-header {
+            background: #2a2a3e;
+            color: #53c0f0;
+            font-weight: bold;
+        }
+
+        /* Interactive Tabs */
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 0;
+            border-bottom: 2px solid #333;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 0.9rem;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        .tab-btn:hover { color: #e94560; }
+        .tab-btn.active {
+            color: #e94560;
+            border-bottom-color: #e94560;
+            font-weight: bold;
+        }
+        .tab-content { display: none; padding: 20px 0; }
+        .tab-content.active { display: block; }
+
+        /* KV Cache Animation */
+        .cache-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 15px;
+            background: #12121e;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 3px solid #53c0f0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .cache-step:hover { border-left-color: #e94560; background: #161626; }
+        .cache-step .step-num {
+            background: #e94560;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        /* MoE Diagram */
+        .moe-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .expert-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 600px;
+        }
+        .expert-box {
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            transition: all 0.4s;
+            cursor: pointer;
+            border: 2px solid #333;
+            background: #1a1a2e;
+        }
+        .expert-box.active {
+            border-color: #e94560;
+            background: linear-gradient(135deg, #3a1a2e, #2e1640);
+            box-shadow: 0 0 15px rgba(233,69,96,0.3);
+            transform: scale(1.05);
+        }
+        .expert-box.inactive { opacity: 0.3; }
+        .expert-box .expert-name { font-weight: bold; color: #53c0f0; font-size: 0.9rem; }
+        .expert-box .expert-size { color: #888; font-size: 0.7rem; }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #e94560, #53c0f0, #4caf50);
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #12121e;
+            border-radius: 8px;
+            border: 1px solid #2a2a3e;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e94560;
+            border: 2px solid #1a1a2e;
+        }
+        .timeline-item .year { color: #e94560; font-weight: bold; font-size: 0.85rem; }
+        .timeline-item .event { color: #53c0f0; font-weight: bold; margin-top: 4px; }
+        .timeline-item .desc { color: #888; font-size: 0.85rem; margin-top: 4px; }
+
+        /* Highlight */
+        .highlight { color: #e94560; font-weight: bold; }
+        .highlight-blue { color: #53c0f0; font-weight: bold; }
+        .highlight-green { color: #4caf50; font-weight: bold; }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            margin: 2px;
+        }
+        .badge-red { background: rgba(233,69,96,0.2); color: #e94560; border: 1px solid #e94560; }
+        .badge-blue { background: rgba(83,192,240,0.2); color: #53c0f0; border: 1px solid #53c0f0; }
+        .badge-green { background: rgba(76,175,80,0.2); color: #4caf50; border: 1px solid #4caf50; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 1.8rem; }
+            .flow-container { flex-direction: column; }
+            .flow-arrow { transform: rotate(90deg); }
+            .expert-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        /* Scroll animation */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s, transform 0.6s;
+        }
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        ul { padding-left: 20px; }
+        ul li { margin-bottom: 6px; }
+
+        /* Back to top */
+        .back-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 45px;
+            height: 45px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.3rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(233,69,96,0.4);
+            transition: all 0.3s;
+            z-index: 99;
+            display: none;
+        }
+        .back-top:hover { transform: scale(1.1); }
+    </style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+    <h1>🧠 LLM 大语言模型原理全景图</h1>
+    <p>从 RNN 到 Transformer，从 Self-Attention 到 MoE —— 一站式可视化学习</p>
+</div>
+
+<!-- Navigation -->
+<nav class="nav-bar" id="navbar">
+    <a href="#evolution">演进历程</a>
+    <a href="#architecture">整体架构</a>
+    <a href="#tokenizer">Tokenizer</a>
+    <a href="#transformer-block">Transformer Block</a>
+    <a href="#self-attention">Self-Attention</a>
+    <a href="#multi-head">多头注意力</a>
+    <a href="#ffn">FFN 前馈网络</a>
+    <a href="#kv-cache">KV Cache</a>
+    <a href="#encoder-decoder">Encoder vs Decoder</a>
+    <a href="#moe">MoE 混合专家</a>
+</nav>
+
+<!-- ==================== Section 1: Evolution ==================== -->
+<div class="section fade-in" id="evolution">
+    <h2 class="section-title">1. 演进历程：RNN → Attention → Transformer</h2>
+    
+    <div class="card">
+        <h3>语言模型的三次飞跃</h3>
+        <div class="timeline">
+            <div class="timeline-item">
+                <div class="year">2013 — Word2Vec</div>
+                <div class="event">词向量革命</div>
+                <div class="desc">将每个词映射为固定维度的向量，King - Man + Woman ≈ Queen。但无法处理一词多义（"bank" 是银行还是河岸？）</div>
+            </div>
+            <div class="timeline-item">
+                <div class="year">2014-2017 — RNN / LSTM / GRU</div>
+                <div class="event">序列建模时代</div>
+                <div class="desc">一个词一个词地顺序处理，通过"隐藏状态"传递上下文。<span class="highlight">致命缺陷</span>：长距离依赖遗忘 + 无法并行计算。</div>
+            </div>
+            <div class="timeline-item">
+                <div class="year">2015-2017 — Attention 机制</div>
+                <div class="event">注意力增强 RNN</div>
+                <div class="desc">为 RNN 加了一双"回看全局"的眼睛，但底层仍是串行的 RNN。Seq2Seq + Attention 成为机器翻译标配。</div>
+            </div>
+            <div class="timeline-item">
+                <div class="year">2017 — Transformer</div>
+                <div class="event">🔥 Attention Is All You Need</div>
+                <div class="desc">完全抛弃 RNN，<span class="highlight">纯注意力架构</span>。所有位置可以并行计算，长距离依赖通过一步矩阵乘法直达。GPU 利用率飙升，催生 BERT、GPT 系列。</div>
+            </div>
+            <div class="timeline-item">
+                <div class="year">2018-Now — 大模型时代</div>
+                <div class="event">BERT → GPT-2 → GPT-3 → GPT-4 → ...</div>
+                <div class="desc">参数从亿级到万亿级，涌现 In-Context Learning、Chain-of-Thought 等能力。Scaling Law 证明：更大 = 更强。</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>为什么 Transformer 能取代 RNN？</h3>
+        <table class="comp-table">
+            <tr><th>维度</th><th>RNN / LSTM</th><th>Transformer</th></tr>
+            <tr><td>计算方式</td><td>串行逐词处理</td><td><span class="highlight-green">全并行</span> 矩阵运算</td></tr>
+            <tr><td>长距离依赖</td><td>信息衰减，越远越弱</td><td><span class="highlight-green">一步直达</span>，任意位置</td></tr>
+            <tr><td>训练速度</td><td>慢（无法并行）</td><td><span class="highlight-green">快（GPU 友好）</span></td></tr>
+            <tr><td>可扩展性</td><td>难以超过 1B 参数</td><td><span class="highlight-green">轻松扩展到万亿级</span></td></tr>
+            <tr><td>位置信息</td><td>天然有序</td><td>需要额外的位置编码</td></tr>
+        </table>
+    </div>
+</div>
+
+<!-- ==================== Section 2: Overall Architecture ==================== -->
+<div class="section fade-in" id="architecture">
+    <h2 class="section-title">2. LLM 整体架构：三大组件</h2>
+    
+    <div class="card">
+        <h3>从输入到输出的完整链路</h3>
+        <p>一个 LLM 本质上由三部分组成：</p>
+        
+        <div class="flow-container" id="arch-flow">
+            <div class="flow-box" onclick="showArchDetail('tokenizer-detail')">
+                <div class="title">🔤 Tokenizer</div>
+                <div class="subtitle">文本 → Token IDs</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box" onclick="showArchDetail('embedding-detail')">
+                <div class="title">📐 Embedding</div>
+                <div class="subtitle">IDs → 向量</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box" onclick="showArchDetail('blocks-detail')">
+                <div class="title">🧱 Transformer Blocks ×N</div>
+                <div class="subtitle">理解 & 推理</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box" onclick="showArchDetail('lmhead-detail')">
+                <div class="title">🎯 LM Head</div>
+                <div class="subtitle">向量 → 概率</div>
+            </div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-box" onclick="showArchDetail('decode-detail')">
+                <div class="title">📝 Decode</div>
+                <div class="subtitle">Token → 文本</div>
+            </div>
+        </div>
+
+        <div class="detail-panel" id="tokenizer-detail">
+            <h3>🔤 Tokenizer — 分词器</h3>
+            <p>将自然语言文本切分成子词 Token，再映射为整数 ID。</p>
+            <div class="diagram-box">"I love AI" → ["I", " love", " AI"] → [40, 3021, 9552]
+
+常见算法: BPE (GPT), WordPiece (BERT), SentencePiece (LLaMA)
+词表大小: 通常 32K ~ 150K</div>
+        </div>
+
+        <div class="detail-panel" id="embedding-detail">
+            <h3>📐 Embedding — 嵌入层</h3>
+            <p>将每个 Token ID 查表转换为高维向量，并加上位置编码。</p>
+            <div class="diagram-box">Token ID: 40 → 查 Embedding Table → [0.12, -0.34, 0.78, ...] (4096维)
+
+位置编码: 告诉模型每个 Token 在句子中的位置
+  - 绝对位置编码 (原始 Transformer)
+  - RoPE 旋转位置编码 (LLaMA, GPT-NeoX) ← 主流</div>
+        </div>
+
+        <div class="detail-panel" id="blocks-detail">
+            <h3>🧱 Transformer Blocks — 核心推理引擎</h3>
+            <p>N 层相同结构的 Block 堆叠，每层包含 Self-Attention + FFN。</p>
+            <div class="diagram-box">┌─────────────────────────────┐
+│      Transformer Block       │
+│                               │
+│  Input → LayerNorm            │
+│       → Self-Attention        │  ← 理解词与词的关系
+│       → Residual Connection   │
+│       → LayerNorm             │
+│       → FFN (Feed-Forward)    │  ← 存储知识 & 非线性变换
+│       → Residual Connection   │
+│  → Output                     │
+└─────────────────────────────┘
+         ↓  × N 层 (32~128层)
+
+LLaMA-2 7B: 32层  |  GPT-4: 推测 120层+</div>
+        </div>
+
+        <div class="detail-panel" id="lmhead-detail">
+            <h3>🎯 LM Head — 语言模型头</h3>
+            <p>将最后一层输出的向量映射回词表大小的概率分布。</p>
+            <div class="diagram-box">隐藏向量 [4096维] → 线性层 [4096 × 词表大小] → Softmax → 概率分布
+
+例如 (词表=32000):
+  "the"  → 0.35   ← 最高概率，被选中
+  "a"    → 0.12
+  "this" → 0.08
+  ...
+
+采样策略: Greedy / Top-K / Top-P (Nucleus) / Temperature</div>
+        </div>
+
+        <div class="detail-panel" id="decode-detail">
+            <h3>📝 Decode — 解码输出</h3>
+            <p>将预测的 Token ID 转回文本，自回归地逐个生成。</p>
+            <div class="diagram-box">自回归生成 (Autoregressive Generation):
+
+Step 1: "I love"       → 预测 "AI"
+Step 2: "I love AI"    → 预测 " and"
+Step 3: "I love AI and" → 预测 " machine"
+...
+
+每步把新预测的 Token 追加到输入序列，循环直到生成 &lt;EOS&gt; 或达到最大长度。</div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== Section 3: Tokenizer ==================== -->
+<div class="section fade-in" id="tokenizer">
+    <h2 class="section-title">3. Tokenizer 分词器详解</h2>
+    
+    <div class="card">
+        <h3>BPE (Byte Pair Encoding) 算法</h3>
+        <p>GPT 系列使用的分词算法，核心思想：从字符级开始，反复合并最高频的相邻对。</p>
+        
+        <div class="diagram-box">训练过程 (简化):
+Step 0: 初始词表 = 所有单个字节 (256个)
+Step 1: 统计所有相邻字节对出现频率
+Step 2: 合并频率最高的对 → 新 Token
+Step 3: 重复直到词表大小达到目标
+
+示例:
+  "low low low lower" 
+  → 初始: [l, o, w, ' ', l, o, w, ' ', l, o, w, ' ', l, o, w, e, r]
+  → 合并 (l,o) → lo:  [lo, w, ' ', lo, w, ' ', lo, w, ' ', lo, w, e, r]
+  → 合并 (lo,w) → low: [low, ' ', low, ' ', low, ' ', low, e, r]
+  → ...</div>
+        
+        <table class="comp-table">
+            <tr><th>Tokenizer</th><th>使用模型</th><th>词表大小</th><th>特点</th></tr>
+            <tr><td>BPE</td><td>GPT-2/3/4, LLaMA</td><td>32K~100K</td><td>基于频率的子词合并</td></tr>
+            <tr><td>WordPiece</td><td>BERT</td><td>30K</td><td>基于似然度的合并</td></tr>
+            <tr><td>SentencePiece</td><td>T5, LLaMA</td><td>32K</td><td>语言无关，直接处理原始文本</td></tr>
+            <tr><td>Tiktoken</td><td>GPT-3.5/4</td><td>100K</td><td>OpenAI 优化的 BPE 实现</td></tr>
+        </table>
+    </div>
+</div>
+
+<!-- ==================== Section 4: Transformer Block ==================== -->
+<div class="section fade-in" id="transformer-block">
+    <h2 class="section-title">4. Transformer Block 内部结构</h2>
+    
+    <div class="card">
+        <h3>每个 Block 的两大核心</h3>
+        <div class="diagram-box">
+                     ┌──────────────────────────┐
+                     │     输入向量 (hidden)      │
+                     └────────────┬───────────────┘
+                                  │
+                     ┌────────────▼───────────────┐
+                     │        Layer Norm           │
+                     └────────────┬───────────────┘
+                                  │
+         ┌────────────────────────▼──────────────────────────┐
+         │              Self-Attention (多头注意力)             │
+         │   "我该关注输入中的哪些词？" — 负责理解词间关系         │
+         └────────────────────────┬──────────────────────────┘
+                                  │
+                          ┌───────▼───────┐
+                          │  + 残差连接    │ ← 防止梯度消失
+                          └───────┬───────┘
+                                  │
+                     ┌────────────▼───────────────┐
+                     │        Layer Norm           │
+                     └────────────┬───────────────┘
+                                  │
+         ┌────────────────────────▼──────────────────────────┐
+         │               FFN (前馈神经网络)                      │
+         │   "基于已理解的关系，进行深层推理" — 存储世界知识        │
+         └────────────────────────┬──────────────────────────┘
+                                  │
+                          ┌───────▼───────┐
+                          │  + 残差连接    │
+                          └───────┬───────┘
+                                  │
+                     ┌────────────▼───────────────┐
+                     │        输出向量              │
+                     └──────────────────────────────┘</div>
+        
+        <p><span class="highlight">Self-Attention</span> 类比：在教室里，每个学生（Token）环顾四周，决定关注哪些同学（其他 Token），从而理解完整语境。</p>
+        <p><span class="highlight-blue">FFN</span> 类比：每个学生独立思考，从自己的"知识库"中检索和组合信息。FFN 的参数量占模型总参数的约 2/3！</p>
+    </div>
+
+    <div class="card">
+        <h3>残差连接 (Residual Connection) 的作用</h3>
+        <div class="diagram-box">  x ─────────────────────────┐
+  │                           │
+  ▼                           │
+┌─────────────┐               │
+│ Sub-Layer    │               │  (跳跃连接)
+│ (Attention   │               │
+│  or FFN)     │               │
+└──────┬──────┘               │
+       │                      │
+       ▼                      │
+   output = SubLayer(x) + x  ◄┘
+
+作用: 梯度可以"绕过"子层直接回传，深层网络 (100+层) 也能稳定训练。</div>
+    </div>
+</div>
+
+<!-- ==================== Section 5: Self-Attention ==================== -->
+<div class="section fade-in" id="self-attention">
+    <h2 class="section-title">5. Self-Attention 自注意力机制</h2>
+    
+    <div class="card">
+        <h3>Q / K / V 三兄弟</h3>
+        <p>每个 Token 的向量通过三个不同的权重矩阵，分别变换出 <span class="highlight">Query</span>、<span class="highlight-blue">Key</span> 和 <span class="highlight-green">Value</span>。</p>
+        
+        <div class="diagram-box">
+ 输入向量 x (4096维)
+     │
+     ├── × W_Q → Q (Query)  "我在找什么？"    — 好比你手里的搜索词
+     │
+     ├── × W_K → K (Key)    "我能提供什么？"  — 好比文档的关键词/标签
+     │
+     └── × W_V → V (Value)  "我的实际内容"    — 好比文档的正文内容
+
+Attention(Q, K, V) = Softmax(Q × K^T / √d_k) × V
+                     ─────────────────────────
+                          注意力权重矩阵</div>
+
+        <h3 style="margin-top:20px;">计算步骤可视化</h3>
+        <div class="diagram-box">
+Step 1: Q × K^T  — 计算每对 Token 之间的相似度
+┌──────────────────────────────────────┐
+│  "The cat sat on the mat"            │
+│                                      │
+│       The   cat   sat   on   the  mat│
+│ The  [0.8   0.2   0.1  0.0  0.7 0.1]│
+│ cat  [0.1   0.9   0.3  0.1  0.1 0.2]│
+│ sat  [0.2   0.4   0.8  0.3  0.1 0.1]│
+│ on   [0.1   0.1   0.2  0.7  0.3 0.5]│
+│ the  [0.6   0.1   0.1  0.3  0.8 0.4]│
+│ mat  [0.1   0.2   0.1  0.4  0.3 0.9]│
+└──────────────────────────────────────┘
+
+Step 2: / √d_k  — 缩放，防止数值过大导致 Softmax 梯度消失
+
+Step 3: Softmax  — 归一化为概率分布（每行加起来=1）
+
+Step 4: × V  — 用权重对 Value 加权求和，得到新的表示</div>
+    </div>
+
+    <div class="card">
+        <h3>交互式：注意力矩阵可视化</h3>
+        <p>点击单元格查看某个词对另一个词的注意力权重：</p>
+        <div id="attention-matrix" style="display:flex;flex-direction:column;align-items:center;"></div>
+        <div id="attention-info" style="margin-top:10px;padding:10px;background:#12121e;border-radius:8px;min-height:40px;text-align:center;color:#888;"></div>
+    </div>
+
+    <div class="card">
+        <h3>Causal Mask（因果掩码）— GPT 的秘密</h3>
+        <p>在 Decoder-only 模型中，每个 Token <span class="highlight">只能看到它前面的 Token</span>，不能偷看未来。这通过一个下三角掩码实现：</p>
+        <div class="diagram-box">
+掩码矩阵 (1=可见, 0=遮挡):
+
+       The  cat  sat  on
+The   [ 1    0    0    0 ]   ← The 只能看自己
+cat   [ 1    1    0    0 ]   ← cat 能看 The 和自己
+sat   [ 1    1    1    0 ]   ← sat 能看前面3个词
+on    [ 1    1    1    1 ]   ← on 能看所有前面的词
+
+被遮挡的位置: score 设为 -∞ → Softmax 后 → 0</div>
+    </div>
+</div>
+
+<!-- ==================== Section 6: Multi-Head Attention ==================== -->
+<div class="section fade-in" id="multi-head">
+    <h2 class="section-title">6. 多头注意力 & 优化变体</h2>
+    
+    <div class="card">
+        <h3>Multi-Head Attention (MHA)</h3>
+        <p>一个注意力头只能捕获一种关系。多头注意力让模型<span class="highlight">同时从多个角度</span>理解文本。</p>
+        
+        <div class="diagram-box">
+                         输入向量 (d_model = 4096)
+                              │
+            ┌─────────────────┼─────────────────┐
+            │                 │                 │
+        ┌───▼───┐        ┌───▼───┐        ┌───▼───┐
+        │ Head 1 │        │ Head 2 │   ...  │Head 32│
+        │Q₁,K₁,V₁│       │Q₂,K₂,V₂│       │Q₃₂,K₃₂,V₃₂│
+        │128维    │        │128维    │        │128维    │
+        └───┬───┘        └───┬───┘        └───┬───┘
+            │                 │                 │
+            └────────┬────────┘─────────────────┘
+                     │  Concatenate (拼接)
+                     ▼
+            ┌──────────────┐
+            │  W_O 线性投影  │  (32×128 = 4096 → 4096)
+            └──────┬───────┘
+                   ▼
+              最终输出 (4096维)
+
+Head i 负责关注不同类型的关系:
+  Head 1: 语法关系 (主谓宾)
+  Head 5: 指代消解 ("it" 指向谁)
+  Head 12: 位置邻近信息
+  Head 28: 语义相似度</div>
+    </div>
+
+    <div class="card">
+        <h3>MHA 的效率挑战 & 优化方案</h3>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab(event, 'tab-mha')">MHA 标准</button>
+            <button class="tab-btn" onclick="switchTab(event, 'tab-mqa')">MQA</button>
+            <button class="tab-btn" onclick="switchTab(event, 'tab-gqa')">GQA</button>
+            <button class="tab-btn" onclick="switchTab(event, 'tab-sparse')">Sparse Attention</button>
+        </div>
+
+        <div class="tab-content active" id="tab-mha">
+            <h3>Multi-Head Attention <span class="badge badge-blue">标准方案</span></h3>
+            <div class="diagram-box">每个头有独立的 Q, K, V:
+
+Head 1: Q₁ K₁ V₁    (每组 128维)
+Head 2: Q₂ K₂ V₂
+...
+Head 32: Q₃₂ K₃₂ V₃₂
+
+KV Cache 总量 = 32 头 × 2(K+V) × 序列长度 × 128维
+    → 长序列时内存爆炸！</div>
+            <p><span class="highlight">问题</span>：推理时每个头都要缓存 K 和 V，32 头 × 2 = 64 份缓存，内存占用极高。</p>
+        </div>
+
+        <div class="tab-content" id="tab-mqa">
+            <h3>Multi-Query Attention <span class="badge badge-green">Google 2019</span></h3>
+            <div class="diagram-box">所有头共享同一份 K 和 V，只有 Q 是独立的:
+
+Head 1: Q₁  ─┐
+Head 2: Q₂  ─┤──→ 共享 K, V
+...           │
+Head 32: Q₃₂─┘
+
+KV Cache 总量 = 1 × 2(K+V) × 序列长度 × 128维
+    → 内存降为 1/32！</div>
+            <p><span class="highlight-green">优点</span>：内存大幅下降，推理速度提升。</p>
+            <p><span class="highlight">代价</span>：质量略有下降，因为所有头看到相同的 K/V。</p>
+        </div>
+
+        <div class="tab-content" id="tab-gqa">
+            <h3>Grouped-Query Attention <span class="badge badge-red">LLaMA 2 使用</span></h3>
+            <div class="diagram-box">折中方案：将 32 个头分成 8 组，每组共享 K/V:
+
+Group 1: Head 1-4  → 共享 K₁, V₁
+Group 2: Head 5-8  → 共享 K₂, V₂
+...
+Group 8: Head 29-32 → 共享 K₈, V₈
+
+KV Cache 总量 = 8 × 2(K+V) × 序列长度 × 128维
+    → 内存降为 1/4，质量接近 MHA！</div>
+            <p>GQA 是 MHA 和 MQA 的折中，被 <span class="highlight">LLaMA 2, Mistral, Gemma</span> 等广泛采用。</p>
+        </div>
+
+        <div class="tab-content" id="tab-sparse">
+            <h3>Sparse Attention <span class="badge badge-blue">稀疏注意力</span></h3>
+            <div class="diagram-box">标准 Attention: O(n²) — 每个 Token 看所有其他 Token
+
+Sparse Attention: 只看"重要"的一部分
+  ┌───────────────────────────┐
+  │ ■ ■ ■ □ □ □ □ □ □ ■      │  ← 局部窗口 + 全局锚点
+  │ ■ ■ ■ ■ □ □ □ □ □ ■      │
+  │ □ ■ ■ ■ ■ □ □ □ □ ■      │  ■ = 可见
+  │ □ □ ■ ■ ■ ■ □ □ □ ■      │  □ = 跳过
+  │ □ □ □ ■ ■ ■ ■ □ □ ■      │
+  │ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■      │  ← 全局 Token
+  └───────────────────────────┘
+
+代表模型: Longformer, BigBird, GPT-4(推测使用某种稀疏)</div>
+            <p>将复杂度从 O(n²) 降到 O(n√n) 或 O(n log n)，使超长序列（100K+ Token）成为可能。</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>对比总览</h3>
+        <table class="comp-table">
+            <tr><th>方案</th><th>KV 份数</th><th>内存占用</th><th>质量</th><th>代表模型</th></tr>
+            <tr><td>MHA</td><td>32 份</td><td>100%</td><td>最佳</td><td>GPT-3, 原始 Transformer</td></tr>
+            <tr><td>GQA</td><td>8 份</td><td>~25%</td><td>接近 MHA</td><td>LLaMA 2, Mistral</td></tr>
+            <tr><td>MQA</td><td>1 份</td><td>~3%</td><td>略低</td><td>PaLM, Falcon</td></tr>
+        </table>
+    </div>
+</div>
+
+<!-- ==================== Section 7: FFN ==================== -->
+<div class="section fade-in" id="ffn">
+    <h2 class="section-title">7. FFN 前馈神经网络</h2>
+    
+    <div class="card">
+        <h3>为什么要"先膨胀再压缩"？</h3>
+        <p>FFN 是 Transformer 中参数最多的部分（约占 2/3），其结构看似简单，实则是模型的"知识库"。</p>
+        
+        <div class="diagram-box">
+   输入 x (4096维)
+       │
+       ▼
+  ┌─────────┐
+  │  W_gate  │──→ gate = σ(x · W_gate)     门控信号
+  └─────────┘
+       ×
+  ┌─────────┐
+  │  W_up   │──→ up = SiLU(x · W_up)       升维: 4096 → 14336 (×3.5)
+  └─────────┘
+       │
+       │         gate * up                   逐元素相乘
+       │
+  ┌─────────┐
+  │  W_down │──→ output = (gate * up) · W_down   降维: 14336 → 4096
+  └─────────┘
+       │
+       ▼
+   输出 (4096维)</div>
+
+        <h3 style="margin-top:20px;">维度膨胀的直觉</h3>
+        <div style="display:flex;gap:20px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:250px;background:#12121e;padding:15px;border-radius:8px;border-left:3px solid #e94560;">
+                <p class="highlight">低维空间 (4096维)</p>
+                <p>所有概念被挤在一起，像一个拥挤的房间。"银行"和"河岸"的向量可能重叠。</p>
+            </div>
+            <div style="flex:1;min-width:250px;background:#12121e;padding:15px;border-radius:8px;border-left:3px solid #4caf50;">
+                <p class="highlight-green">高维空间 (14336维)</p>
+                <p>展开到更大的空间，每个概念有充足的"私人空间"来分开。在这里做非线性变换，精细地组合特征。</p>
+            </div>
+            <div style="flex:1;min-width:250px;background:#12121e;padding:15px;border-radius:8px;border-left:3px solid #53c0f0;">
+                <p class="highlight-blue">回到低维 (4096维)</p>
+                <p>提取最有用的信息压回标准维度，传给下一层。类似"升高分辨率 → 精修细节 → 压缩回正常尺寸"。</p>
+            </div>
+        </div>
+
+        <h3 style="margin-top:20px;">参数量计算</h3>
+        <div class="diagram-box">LLaMA 2 7B 的 FFN (SwiGLU 结构):
+  W_gate: 4096 × 14336 = 58,720,256
+  W_up:   4096 × 14336 = 58,720,256
+  W_down: 14336 × 4096 = 58,720,256
+  ────────────────────────────────
+  每层 FFN 参数: ~176M
+
+  32层 × 176M = 5.6B（FFN 总参数）
+  模型总参数: 7B
+  FFN 占比: 5.6/7 ≈ 80%！</div>
+    </div>
+</div>
+
+<!-- ==================== Section 8: KV Cache ==================== -->
+<div class="section fade-in" id="kv-cache">
+    <h2 class="section-title">8. KV Cache 推理加速</h2>
+    
+    <div class="card">
+        <h3>为什么需要 KV Cache？</h3>
+        <p>LLM 自回归生成时，每一步都要计算 Attention。如果重复计算所有 Token 的 K/V，浪费巨大。</p>
+        
+        <div class="cache-step" onclick="this.classList.toggle('expanded')">
+            <div class="step-num">1</div>
+            <div>
+                <p><strong>输入 "I love"</strong></p>
+                <p style="color:#888;font-size:0.85rem;">计算 "I" 和 "love" 的 Q、K、V，将 K₁、V₁、K₂、V₂ 存入缓存。</p>
+            </div>
+        </div>
+
+        <div class="cache-step">
+            <div class="step-num">2</div>
+            <div>
+                <p><strong>生成第3个词</strong></p>
+                <p style="color:#888;font-size:0.85rem;">只计算新 Token 的 Q₃、K₃、V₃。K₃ 和 V₃ 追加到缓存。<br>
+                用 Q₃ 跟 <span class="highlight">[K₁, K₂, K₃]</span> 做注意力 → 不需要重新算 K₁、K₂！</p>
+            </div>
+        </div>
+
+        <div class="cache-step">
+            <div class="step-num">3</div>
+            <div>
+                <p><strong>生成第4个词</strong></p>
+                <p style="color:#888;font-size:0.85rem;">只算 Q₄、K₄、V₄。缓存中已有 [K₁,K₂,K₃]，追加 K₄ 即可。<br>
+                复杂度从 O(n²) 降到 O(n)！</p>
+            </div>
+        </div>
+
+        <div class="diagram-box">
+没有 KV Cache:                          有 KV Cache:
+生成第 n 个词时                         生成第 n 个词时
+  → 重算所有 n 个 Token 的 K,V           → 只算第 n 个 Token 的 K,V
+  → O(n²) 总计算量                      → O(n) 总计算量
+                                        → KV Cache 追加新的 K,V
+
+代价: 内存占用增大 (需要存所有历史 K,V)
+  LLaMA 7B, 序列长度 4096:
+  = 32层 × 32头 × 2(K+V) × 4096 × 128维 × 2字节(FP16)
+  ≈ 2 GB 显存只用于 KV Cache！</div>
+    </div>
+</div>
+
+<!-- ==================== Section 9: Encoder vs Decoder ==================== -->
+<div class="section fade-in" id="encoder-decoder">
+    <h2 class="section-title">9. Encoder vs Decoder 架构对比</h2>
+    
+    <div class="card">
+        <h3>三种 Transformer 架构</h3>
+        
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:15px; margin:15px 0;">
+            <div style="background:#12121e;padding:20px;border-radius:10px;border-top:3px solid #53c0f0;">
+                <h3 style="color:#53c0f0;">Encoder-Only</h3>
+                <p><span class="badge badge-blue">双向注意力</span></p>
+                <div class="diagram-box" style="font-size:0.8rem;">  [CLS] I love AI [SEP]
+    ↕   ↕  ↕   ↕   ↕
+  每个词都能看到所有词
+  
+  代表: BERT, RoBERTa
+  擅长: 分类, NER, 问答
+  不擅长: 生成文本</div>
+            </div>
+            
+            <div style="background:#12121e;padding:20px;border-radius:10px;border-top:3px solid #e94560;">
+                <h3 style="color:#e94560;">Decoder-Only</h3>
+                <p><span class="badge badge-red">因果掩码(单向)</span></p>
+                <div class="diagram-box" style="font-size:0.8rem;">  I → love → AI → ?
+  ←    ←     ←
+  每个词只能看前面的词
+  
+  代表: GPT系列, LLaMA, Claude
+  擅长: 文本生成, 对话
+  实际: 足够大时什么都能做</div>
+            </div>
+            
+            <div style="background:#12121e;padding:20px;border-radius:10px;border-top:3px solid #4caf50;">
+                <h3 style="color:#4caf50;">Encoder-Decoder</h3>
+                <p><span class="badge badge-green">编码+解码</span></p>
+                <div class="diagram-box" style="font-size:0.8rem;">  Encoder: 双向读输入
+     ↓ (Cross-Attention)
+  Decoder: 单向写输出
+  
+  代表: T5, BART, 原始Transformer
+  擅长: 翻译, 摘要
+  缺点: 架构复杂, 2套参数</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>为什么 GPT 选择 Decoder-Only？</h3>
+        <table class="comp-table">
+            <tr><th>原因</th><th>解释</th></tr>
+            <tr><td><span class="highlight">Scaling Law</span></td><td>研究证明：同等参数量下，Decoder-Only 的 loss 下降更高效。简单架构 + 大参数 > 复杂架构 + 小参数。</td></tr>
+            <tr><td><span class="highlight-blue">统一范式</span></td><td>一切任务都可以表述为"给一段文字，续写下一段"，不需要特殊的编码器。</td></tr>
+            <tr><td><span class="highlight-green">工程简洁</span></td><td>只需一套参数，代码简单，易于分布式训练和优化。</td></tr>
+            <tr><td>In-Context Learning</td><td>Decoder 天生擅长利用 prompt 中的示例（few-shot），这在 Encoder 架构中很难实现。</td></tr>
+        </table>
+        
+        <div style="margin-top:15px;padding:15px;background:#12121e;border-radius:8px;border-left:3px solid #e94560;">
+            <p><strong>🤔 那 Decoder-Only 不能看后文，理解力会差吗？</strong></p>
+            <p style="color:#888;margin-top:8px;">实证表明：当模型足够大（>1B 参数），Decoder-Only 的单向注意力通过 Scaling 可以达到媲美 Encoder 双向注意力的理解能力。这就是为什么 GPT-4 不需要 Encoder 也能做文本分类、情感分析等"理解型"任务。</p>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== Section 10: MoE ==================== -->
+<div class="section fade-in" id="moe">
+    <h2 class="section-title">10. MoE 混合专家模型</h2>
+    
+    <div class="card">
+        <h3>核心思想：不是所有参数每次都需要</h3>
+        <p>传统"密集模型"每次推理都激活所有参数。MoE 的理念：<span class="highlight">用路由器选择性地激活少数"专家"</span>，大幅降低计算量。</p>
+        
+        <div class="diagram-box">
+                    输入 Token 向量
+                         │
+                    ┌────▼─────┐
+                    │  Router  │  ← 门控网络，Softmax 输出每个专家的权重
+                    │ (门控)   │
+                    └────┬─────┘
+                         │
+          ┌──────┬──────┬┴──────┬──────┬──────┬──────┬──────┐
+          │      │      │       │      │      │      │      │
+        ┌─▼─┐ ┌─▼─┐ ┌─▼─┐  ┌─▼─┐ ┌─▼─┐ ┌─▼─┐ ┌─▼─┐ ┌─▼─┐
+        │E-1│ │E-2│ │E-3│  │E-4│ │E-5│ │E-6│ │E-7│ │E-8│
+        │🔥 │ │   │ │🔥 │  │   │ │   │ │   │ │   │ │   │
+        └─┬─┘ └───┘ └─┬─┘  └───┘ └───┘ └───┘ └───┘ └───┘
+          │            │
+          └──────┬─────┘   只有被选中的 2 个专家参与计算
+                 │
+            加权求和 (w₁·E₁ + w₃·E₃)
+                 │
+                 ▼
+            输出向量</div>
+    </div>
+
+    <div class="card">
+        <h3>交互演示：Mixtral 8×7B 的专家选择</h3>
+        <p>点击不同的输入 Token 观察 Router 如何选择不同的专家：</p>
+        
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin:15px 0;">
+            <button class="tab-btn" style="border:1px solid #53c0f0;border-radius:20px;" onclick="selectMoeToken('数学公式')">数学公式</button>
+            <button class="tab-btn" style="border:1px solid #53c0f0;border-radius:20px;" onclick="selectMoeToken('法语翻译')">法语翻译</button>
+            <button class="tab-btn" style="border:1px solid #53c0f0;border-radius:20px;" onclick="selectMoeToken('写Python')">写Python</button>
+            <button class="tab-btn" style="border:1px solid #53c0f0;border-radius:20px;" onclick="selectMoeToken('医学问答')">医学问答</button>
+        </div>
+        
+        <div class="expert-grid" id="expert-grid">
+            <div class="expert-box" id="exp-1"><div class="expert-name">Expert 1</div><div class="expert-size">7B 参数</div><div class="expert-desc" style="color:#666;font-size:0.7rem;margin-top:4px;">通用语言</div></div>
+            <div class="expert-box" id="exp-2"><div class="expert-name">Expert 2</div><div class="expert-size">7B 参数</div><div class="expert-desc" style="color:#666;font-size:0.7rem;margin-top:4px;">逻辑推理</div></div>
+            <div class="expert-box" id="exp-3"><div class="expert-name">Expert 3</div><div class="expert-size">7B 参数</div><div class="expert-desc" style="color:#666;font-size:0.7rem;margin-top:4px;">代码生成</div></div>
+            <div class="expert-box" id="exp-4"><div class="expert-name">Expert 4</div><div class="expert-size">7B 参数</div><div class="expert-desc" style="color:#666;font-size:0.7rem;margin-top:4px;">多语言</div></div>
+            <div class="expert-box" id="exp-5"><div class="expert-name">Expert 5</div><div class="expert-size">7B 参数</div><div class="expert-desc" style="color:#666;font-size:0.7rem;margin-top:4px;">数学计算</div></div>
+            <div class="expert-box" id="exp-6"><div class="expert-name">Expert 6</div><div class="expert-size">7B 参数</div><div class="expert-desc" style="color:#666;font-size:0.7rem;margin-top:4px;">科学知识</div></div>
+            <div class="expert-box" id="exp-7"><div class="expert-name">Expert 7</div><div class="expert-size">7B 参数</div><div class="expert-desc" style="color:#666;font-size:0.7rem;margin-top:4px;">创意写作</div></div>
+            <div class="expert-box" id="exp-8"><div class="expert-name">Expert 8</div><div class="expert-size">7B 参数</div><div class="expert-desc" style="color:#666;font-size:0.7rem;margin-top:4px;">领域专业</div></div>
+        </div>
+        
+        <div id="moe-info" style="margin-top:15px;padding:15px;background:#12121e;border-radius:8px;text-align:center;color:#888;">
+            ← 点击上方 Token 按钮查看专家选择
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>Mixtral 8×7B 参数解读</h3>
+        <table class="comp-table">
+            <tr><th>指标</th><th>数值</th><th>说明</th></tr>
+            <tr><td>专家总数</td><td>8</td><td>每层有 8 个并行的 FFN Expert</td></tr>
+            <tr><td>每次激活</td><td>Top-2</td><td>每个 Token 只选 2 个专家</td></tr>
+            <tr><td>总参数量</td><td>~46.7B</td><td>8 个 Expert 的 FFN + 共享的 Attention</td></tr>
+            <tr><td>活跃参数</td><td>~12.9B</td><td>每次推理实际计算量 ≈ 13B 模型</td></tr>
+            <tr><td>Attention</td><td>共享</td><td>Self-Attention 层所有 Token 共用，不分专家</td></tr>
+            <tr><td>性能</td><td>≈ LLaMA 2 70B</td><td>46B 总参数 → 70B 密集模型的效果</td></tr>
+        </table>
+
+        <div class="diagram-box">Dense Model vs MoE Model:
+
+Dense 70B:   每个Token → 激活 70B 参数 → 需要巨大算力
+Mixtral 8×7B: 每个Token → 激活 ~13B 参数 → 算力≈13B模型
+                              但知识容量 ≈ 70B 模型
+
+本质: 用"总参数"换"稀疏激活"
+      训练时学更多知识 → 推理时只用一小部分</div>
+    </div>
+</div>
+
+<!-- Back to top -->
+<button class="back-top" id="backTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<!-- Footer -->
+<div style="text-align:center;padding:40px 20px;color:#555;border-top:1px solid #2a2a3e;margin-top:40px;">
+    <p>LLM 原理全景图 | 基于对话学习笔记整理</p>
+    <p style="font-size:0.8rem;margin-top:5px;">涵盖: Word2Vec → RNN → Attention → Transformer → BERT/GPT → MoE</p>
+</div>
+
+<script>
+// ============ Architecture Detail Toggle ============
+function showArchDetail(id) {
+    document.querySelectorAll('.detail-panel').forEach(p => {
+        if (p.id === id) {
+            p.classList.toggle('show');
+        } else {
+            p.classList.remove('show');
+        }
+    });
+    // Highlight active flow box
+    document.querySelectorAll('.flow-box').forEach((box, i) => {
+        box.classList.remove('active');
+    });
+    event.currentTarget.classList.add('active');
+}
+
+// ============ Tab Switching ============
+function switchTab(e, tabId) {
+    const parent = e.target.closest('.card');
+    parent.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    parent.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    parent.querySelector('#' + tabId).classList.add('active');
+}
+
+// ============ Attention Matrix ============
+(function buildAttentionMatrix() {
+    const tokens = ['The', 'cat', 'sat', 'on', 'the', 'mat'];
+    const weights = [
+        [0.35, 0.10, 0.08, 0.05, 0.32, 0.10],
+        [0.08, 0.42, 0.22, 0.05, 0.08, 0.15],
+        [0.10, 0.25, 0.30, 0.15, 0.08, 0.12],
+        [0.05, 0.08, 0.15, 0.28, 0.14, 0.30],
+        [0.30, 0.06, 0.05, 0.12, 0.38, 0.09],
+        [0.06, 0.12, 0.08, 0.22, 0.10, 0.42]
+    ];
+
+    const container = document.getElementById('attention-matrix');
+    const n = tokens.length;
+    const grid = document.createElement('div');
+    grid.className = 'matrix-grid';
+    grid.style.gridTemplateColumns = `60px repeat(${n}, 45px)`;
+
+    // Header row
+    const corner = document.createElement('div');
+    corner.className = 'matrix-cell';
+    corner.style.background = 'transparent';
+    corner.textContent = 'Q\\K';
+    corner.style.color = '#666';
+    corner.style.fontSize = '0.65rem';
+    grid.appendChild(corner);
+    tokens.forEach(t => {
+        const h = document.createElement('div');
+        h.className = 'matrix-cell matrix-header';
+        h.textContent = t;
+        h.style.fontSize = '0.7rem';
+        grid.appendChild(h);
+    });
+
+    // Data rows
+    for (let i = 0; i < n; i++) {
+        const rowHeader = document.createElement('div');
+        rowHeader.className = 'matrix-cell matrix-header';
+        rowHeader.textContent = tokens[i];
+        rowHeader.style.fontSize = '0.7rem';
+        grid.appendChild(rowHeader);
+
+        for (let j = 0; j < n; j++) {
+            const cell = document.createElement('div');
+            cell.className = 'matrix-cell';
+            const w = weights[i][j];
+            const r = Math.round(233 * w / 0.42);
+            const g = Math.round(69 * w / 0.42);
+            const b = Math.round(96 * w / 0.42);
+            cell.style.background = `rgba(${r}, ${g}, ${b}, ${0.3 + w})`;
+            cell.style.color = w > 0.25 ? '#fff' : '#aaa';
+            cell.textContent = w.toFixed(2);
+            const qi = i, ki = j;
+            cell.addEventListener('click', () => {
+                document.getElementById('attention-info').innerHTML = 
+                    `<span style="color:#e94560">"${tokens[qi]}"</span> 对 <span style="color:#53c0f0">"${tokens[ki]}"</span> 的注意力权重: <strong style="color:#fff">${w.toFixed(2)}</strong>` +
+                    (w > 0.3 ? ' — <span style="color:#4caf50">高关注</span>' : w > 0.15 ? ' — 中等关注' : ' — <span style="color:#888">低关注</span>');
+            });
+            grid.appendChild(cell);
+        }
+    }
+    container.appendChild(grid);
+})();
+
+// ============ MoE Expert Selection ============
+const moeConfig = {
+    '数学公式': { active: [2, 5], desc: '数学任务 → Router 激活 Expert 2 (逻辑推理) 和 Expert 5 (数学计算)', weights: '权重: E2=0.62, E5=0.38' },
+    '法语翻译': { active: [1, 4], desc: '翻译任务 → Router 激活 Expert 1 (通用语言) 和 Expert 4 (多语言)', weights: '权重: E1=0.45, E4=0.55' },
+    '写Python': { active: [2, 3], desc: '代码任务 → Router 激活 Expert 2 (逻辑推理) 和 Expert 3 (代码生成)', weights: '权重: E2=0.35, E3=0.65' },
+    '医学问答': { active: [6, 8], desc: '专业领域 → Router 激活 Expert 6 (科学知识) 和 Expert 8 (领域专业)', weights: '权重: E6=0.52, E8=0.48' }
+};
+
+function selectMoeToken(token) {
+    const config = moeConfig[token];
+    for (let i = 1; i <= 8; i++) {
+        const box = document.getElementById('exp-' + i);
+        box.classList.remove('active', 'inactive');
+        if (config.active.includes(i)) {
+            box.classList.add('active');
+        } else {
+            box.classList.add('inactive');
+        }
+    }
+    document.getElementById('moe-info').innerHTML = 
+        `<div style="color:#e94560;font-weight:bold;margin-bottom:5px;">输入: "${token}"</div>` +
+        `<div style="color:#b0b0c0;">${config.desc}</div>` +
+        `<div style="color:#53c0f0;margin-top:5px;">${config.weights}</div>` +
+        `<div style="color:#888;margin-top:5px;font-size:0.8rem;">总参数 46.7B，但只激活 ~12.9B 进行计算 ✨</div>`;
+}
+
+// ============ Scroll Animations ============
+const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+// ============ Back to Top ============
+window.addEventListener('scroll', () => {
+    document.getElementById('backTop').style.display = window.scrollY > 400 ? 'block' : 'none';
+});
+
+// ============ Active Nav Highlight ============
+window.addEventListener('scroll', () => {
+    const sections = document.querySelectorAll('.section');
+    const navLinks = document.querySelectorAll('.nav-bar a');
+    let current = '';
+    sections.forEach(s => {
+        if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navLinks.forEach(a => {
+        a.classList.remove('active');
+        if (a.getAttribute('href') === '#' + current) a.classList.add('active');
+    });
+});
+</script>
+
+</body>
+</html>
